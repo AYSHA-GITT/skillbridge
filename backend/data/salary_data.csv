@@ -1,0 +1,25 @@
+career,years_experience,skill_count,has_ml,has_cloud,has_backend,has_db,avg_salary_lpa
+data scientist,0,3,0,0,0,1,5.5
+data scientist,0,5,1,0,0,1,7.2
+data scientist,1,6,1,0,0,1,8.8
+data scientist,1,8,1,1,0,1,10.5
+data scientist,2,9,1,1,1,1,13.0
+data scientist,3,10,1,1,1,1,16.5
+software engineer,0,3,0,0,0,1,4.8
+software engineer,0,5,0,0,1,1,6.5
+software engineer,1,6,0,1,1,1,8.0
+software engineer,1,8,0,1,1,1,10.0
+software engineer,2,9,1,1,1,1,12.5
+software engineer,3,11,1,1,1,1,15.5
+web developer,0,3,0,0,0,0,4.2
+web developer,0,4,0,0,1,1,5.5
+web developer,1,5,0,0,1,1,6.8
+web developer,1,7,0,1,1,1,8.5
+web developer,2,8,0,1,1,1,11.0
+cloud engineer,0,4,0,1,0,1,6.0
+cloud engineer,1,6,0,1,1,1,8.5
+cloud engineer,2,8,0,1,1,1,12.0
+ai engineer,0,5,1,0,0,1,8.0
+ai engineer,1,7,1,1,0,1,11.5
+ai engineer,2,9,1,1,1,1,15.0
+ai engineer,3,11,1,1,1,1,19.5

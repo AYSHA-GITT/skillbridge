@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  @apply bg-base-950 text-white font-body;
+  background-image: radial-gradient(circle at 15% 10%, rgba(45, 212, 191, 0.07), transparent 40%),
+                     radial-gradient(circle at 85% 90%, rgba(45, 212, 191, 0.05), transparent 40%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.glass {
+  @apply bg-base-900 border border-base-700 rounded-2xl;
+}
+
+.surface {
+  @apply bg-base-800 border border-base-700 rounded-xl;
+}
+
+.input-field {
+  @apply w-full px-4 py-3 rounded-xl bg-base-800 border border-base-700
+         text-white placeholder-white/30 focus:outline-none focus:border-accent-400/50
+         focus:ring-2 focus:ring-accent-400/20 transition-all;
+}
+
+.btn-primary {
+  @apply w-full px-4 py-3 rounded-xl text-base-950 font-semibold transition-all
+         shadow-glow active:scale-[0.98];
+  background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-ghost {
+  @apply px-4 py-2 rounded-xl border border-base-700 text-white/50
+         hover:bg-white/5 hover:text-white transition-all text-sm;
+}
+
+.glow-teal {
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.22), transparent 70%);
+  pointer-events: none;
+}

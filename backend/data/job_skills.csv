@@ -1,0 +1,45 @@
+career,skill,importance,category,demand_weight
+data scientist,python,High,Programming,0.95
+data scientist,sql,High,Database,0.90
+data scientist,machine learning,High,ML,0.95
+data scientist,statistics,High,Math,0.85
+data scientist,pandas,High,Data Analysis,0.85
+data scientist,numpy,High,Data Analysis,0.80
+data scientist,tensorflow,Medium,Deep Learning,0.70
+data scientist,pytorch,Medium,Deep Learning,0.70
+data scientist,tableau,Medium,Visualization,0.65
+data scientist,power bi,Medium,Visualization,0.65
+data scientist,nlp,Medium,AI,0.60
+data scientist,data visualization,Medium,Visualization,0.75
+software engineer,python,High,Programming,0.85
+software engineer,java,High,Programming,0.90
+software engineer,sql,High,Database,0.85
+software engineer,git,High,Tooling,0.90
+software engineer,data structures,High,Core CS,0.95
+software engineer,algorithms,High,Core CS,0.95
+software engineer,flask,Medium,Web,0.65
+software engineer,react,Medium,Web,0.70
+software engineer,docker,Medium,DevOps,0.75
+software engineer,aws,Medium,Cloud,0.75
+web developer,html,High,Frontend,0.95
+web developer,css,High,Frontend,0.95
+web developer,javascript,High,Frontend,0.95
+web developer,react,High,Frontend,0.90
+web developer,git,High,Tooling,0.85
+web developer,flask,Medium,Backend,0.65
+web developer,node.js,Medium,Backend,0.75
+web developer,mongodb,Medium,Database,0.70
+web developer,typescript,Medium,Frontend,0.70
+cloud engineer,aws,High,Cloud,0.95
+cloud engineer,docker,High,DevOps,0.90
+cloud engineer,linux,High,OS,0.90
+cloud engineer,python,High,Scripting,0.80
+cloud engineer,git,Medium,Tooling,0.80
+cloud engineer,sql,Medium,Database,0.70
+ai engineer,python,High,Programming,0.95
+ai engineer,machine learning,High,ML,0.95
+ai engineer,deep learning,High,DL,0.90
+ai engineer,pytorch,High,Framework,0.90
+ai engineer,tensorflow,Medium,Framework,0.80
+ai engineer,nlp,Medium,AI,0.85
+ai engineer,docker,Medium,Deployment,0.75
