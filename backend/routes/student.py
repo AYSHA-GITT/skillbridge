@@ -1,3 +1,5 @@
+# pyrefly: ignore [missing-import]
+
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
