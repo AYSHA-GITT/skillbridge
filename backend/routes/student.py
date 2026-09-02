@@ -3,7 +3,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import uuid
 from utils.skill_extractor import extract_skills
@@ -42,7 +42,7 @@ def upload_resume():
 
     file = request.files['resume']
 
-    if file.filename == '':
+    if not file or not file.filename or file.filename.strip() == '':
         return jsonify({'error': 'No file selected'}), 400
 
     # 2. Validate file type
@@ -74,7 +74,7 @@ def upload_resume():
         original_filename=original_filename,
         parsed_text=None,
         parsed_on=None,
-        uploaded_on=datetime.utcnow(),
+        uploaded_on=datetime.now(timezone.utc),
         is_latest=True
     )
 
@@ -104,7 +104,7 @@ def parse_resume_endpoint(resume_id):
         return jsonify({'error': f'Failed to parse resume: {str(e)}'}), 500
 
     resume.parsed_text = extracted_text
-    resume.parsed_on = datetime.utcnow()
+    resume.parsed_on = datetime.now(timezone.utc)
     db.session.commit()
 
     return jsonify({
@@ -339,26 +339,31 @@ def analyze_skill_gap_endpoint():
     # later use (e.g. Learning Roadmap generation)
     SkillGap.query.filter_by(student_id=current_user.id).delete()
 
-    for skill_name in result['missing_required']:
-        gap = SkillGap(
-            student_id=current_user.id,
-            missing_skill=skill_name,
-            importance='High',
-            category='Required'
-        )
-        db.session.add(gap)
+    missing_req = result.get('missing_required')
+    if isinstance(missing_req, list):
+        for skill_name in missing_req:
+            gap = SkillGap(
+                student_id=current_user.id,
+                missing_skill=str(skill_name),
+                importance='High',
+                category='Required'
+            )
+            db.session.add(gap)
 
-    for skill_name in result['missing_nice_to_have']:
-        gap = SkillGap(
-            student_id=current_user.id,
-            missing_skill=skill_name,
-            importance='Medium',
-            category='Nice to have'
-        )
-        db.session.add(gap)
+    missing_nice = result.get('missing_nice_to_have')
+    if isinstance(missing_nice, list):
+        for skill_name in missing_nice:
+            gap = SkillGap(
+                student_id=current_user.id,
+                missing_skill=str(skill_name),
+                importance='Medium',
+                category='Nice to have'
+            )
+            db.session.add(gap)
 
     # Update readiness score on the student record too
-    current_user.readiness_score = round(result['overall_coverage'] * 100, 1)
+    overall_coverage = float(result.get('overall_coverage') or 0.0)
+    current_user.readiness_score = round(overall_coverage * 100, 1)
     db.session.commit()
 
     return jsonify(result), 200
@@ -478,7 +483,7 @@ def complete_roadmap_day(plan_id):
         return jsonify({'error': 'Roadmap day not found'}), 404
 
     plan.is_completed = True
-    plan.completed_on = datetime.utcnow()
+    plan.completed_on = datetime.now(timezone.utc)
     db.session.commit()
     record_student_snapshot(current_user.id)
 

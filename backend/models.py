@@ -3,10 +3,17 @@ from datetime import datetime
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
+class BaseModel(db.Model):
+    __abstract__ = True
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
 # ─────────────────────────────────────────
 # STUDENT MODEL
 # ─────────────────────────────────────────
-class Student(db.Model, UserMixin):
+class Student(BaseModel, UserMixin):
     __tablename__ = 'students'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -57,7 +64,7 @@ class Student(db.Model, UserMixin):
 # ─────────────────────────────────────────
 # RESUME MODEL
 # ─────────────────────────────────────────
-class Resume(db.Model):
+class Resume(BaseModel):
     __tablename__ = 'resumes'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -81,7 +88,7 @@ class Resume(db.Model):
 # ─────────────────────────────────────────
 # SKILL MODEL (now sourced from NLP extraction)
 # ─────────────────────────────────────────
-class Skill(db.Model):
+class Skill(BaseModel):
     __tablename__ = 'skills'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -105,7 +112,7 @@ class Skill(db.Model):
 # ─────────────────────────────────────────
 # SKILL VERIFICATION MODEL (confidence-based quiz)
 # ─────────────────────────────────────────
-class SkillVerification(db.Model):
+class SkillVerification(BaseModel):
     __tablename__ = 'skill_verifications'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -133,7 +140,7 @@ class SkillVerification(db.Model):
 # ─────────────────────────────────────────
 # QUESTION BANK (kept, but tied to skill+difficulty tiering)
 # ─────────────────────────────────────────
-class QuestionBank(db.Model):
+class QuestionBank(BaseModel):
     __tablename__ = 'question_bank'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -163,7 +170,7 @@ class QuestionBank(db.Model):
 # ─────────────────────────────────────────
 # SKILL GAP MODEL
 # ─────────────────────────────────────────
-class SkillGap(db.Model):
+class SkillGap(BaseModel):
     __tablename__ = 'skill_gaps'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -187,7 +194,7 @@ class SkillGap(db.Model):
 # ─────────────────────────────────────────
 # STUDY PLAN / LEARNING ROADMAP MODEL
 # ─────────────────────────────────────────
-class StudyPlan(db.Model):
+class StudyPlan(BaseModel):
     __tablename__ = 'study_plans'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -220,7 +227,7 @@ class StudyPlan(db.Model):
 # ─────────────────────────────────────────
 # PROGRESS MODEL
 # ─────────────────────────────────────────
-class Progress(db.Model):
+class Progress(BaseModel):
     __tablename__ = 'progress'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -246,7 +253,7 @@ class Progress(db.Model):
 # FEDERATED LEARNING TRAINING LOG
 # (tracks simulated institution partitions, not real orgs)
 # ─────────────────────────────────────────
-class FLTrainingRound(db.Model):
+class FLTrainingRound(BaseModel):
     __tablename__ = 'fl_training_rounds'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -266,7 +273,7 @@ class FLTrainingRound(db.Model):
         }
 
 
-class RoadmapTemplate(db.Model):
+class RoadmapTemplate(BaseModel):
     __tablename__ = 'roadmap_templates'
 
     id = db.Column(db.Integer, primary_key=True)

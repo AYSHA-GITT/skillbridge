@@ -24,6 +24,7 @@ def ensure_minimum_questions(skill_name):
         return current_count
 
     missing_count = MINIMUM_QUESTIONS_PER_SKILL - current_count
+    num_to_gen = min(missing_count, 10)
 
     # Build a set of normalized existing question texts for
     # fast duplicate lookup
@@ -31,7 +32,7 @@ def ensure_minimum_questions(skill_name):
         normalize_question_text(q.question) for q in existing_questions
     }
 
-    generated = generate_questions(skill_name, num_questions=missing_count)
+    generated = generate_questions(skill_name, num_questions=num_to_gen)
 
     if not generated:
         # Gemini failed — return what we have, don't crash the caller
