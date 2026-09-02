@@ -366,19 +366,22 @@ def analyze_skill_gap_endpoint():
 @student_bp.route('/set_target_career', methods=['POST'])
 @login_required
 def set_target_career():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     career = data.get('target_career', '').strip()
 
     if not career:
         return jsonify({'error': 'target_career is required'}), 400
 
-    current_user.target_career = career
-    db.session.commit()
-
-    return jsonify({
-        'message': 'Target career updated',
-        'target_career': current_user.target_career
-    }), 200
+    try:
+        current_user.target_career = career
+        db.session.commit()
+        return jsonify({
+            'message': 'Target career updated',
+            'target_career': current_user.target_career
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to update target career: {str(e)}'}), 500
 
 
 
@@ -390,9 +393,27 @@ def generate_roadmap():
     gaps = SkillGap.query.filter_by(student_id=current_user.id).all()
 
     if not gaps:
-        return jsonify({
-            'error': 'No skill gaps found. Run skill gap analysis first.'
-        }), 400
+        from utils.skill_gap_analyzer import get_career_requirements
+        target = current_user.target_career or "Software Engineer"
+        career_reqs = get_career_requirements(target) or {}
+        req_skills = career_reqs.get('required', ['Python', 'SQL', 'Git', 'Data Structures'])
+
+        existing_skills = [s.skill_name.lower() for s in Skill.query.filter_by(student_id=current_user.id).all()]
+        missing = [s for s in req_skills if s.lower() not in existing_skills][:3]
+        if not missing:
+            missing = req_skills[:3] if req_skills else ['Python', 'SQL', 'Git']
+
+        for s in missing:
+            new_gap = SkillGap(
+                student_id=current_user.id,
+                missing_skill=s,
+                importance='High',
+                estimated_days=7,
+                category='Core'
+            )
+            db.session.add(new_gap)
+        db.session.commit()
+        gaps = SkillGap.query.filter_by(student_id=current_user.id).all()
 
     StudyPlan.query.filter_by(student_id=current_user.id).delete()
 

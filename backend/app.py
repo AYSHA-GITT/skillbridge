@@ -26,6 +26,10 @@ db.init_app(app)
 login_manager.init_app(app)
 migrate = Migrate(app, db)
 
+with app.app_context():
+    import models
+    db.create_all()
+
 @login_manager.user_loader
 def load_user(student_id):
     from models import Student

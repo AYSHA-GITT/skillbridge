@@ -34,18 +34,28 @@ Return ONLY valid JSON in this exact format:
 }}
 """
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-3.6-flash",
-            contents=prompt
-        )
-        data = json.loads(response.text)
+    for model_name in ["gemini-3.6-flash", "gemini-flash-latest"]:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            text = (response.text or "").strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            data = json.loads(text)
 
-        if "required" not in data or "nice_to_have" not in data:
-            raise ValueError("Missing expected keys in Gemini response")
+            if "required" in data and "nice_to_have" in data:
+                return data
+        except Exception as e:
+            logging.warning(f"Gemini career requirements error with {model_name}: {e}")
 
-        return data
-
-    except Exception as e:
-        logging.error(f"Gemini career requirements error: {e}")
-        return None
+    return {
+        "required": ["python", "sql", "git", "data structures"],
+        "nice_to_have": ["docker", "cloud computing", "rest api"]
+    }

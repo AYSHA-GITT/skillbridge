@@ -1,6 +1,24 @@
 
 CAREER_REQUIREMENTS = {
 
+    "data analyst": {
+        "required": [
+            "sql",
+            "excel",
+            "python",
+            "power bi",
+            "tableau",
+            "statistics"
+        ],
+        "nice_to_have": [
+            "pandas",
+            "numpy",
+            "data visualization",
+            "r",
+            "communication"
+        ]
+    },
+
     "data scientist": {
         "required": [
             "python",
@@ -48,6 +66,41 @@ CAREER_REQUIREMENTS = {
             "node.js",
             "mongodb"
         ]
+    },
+
+    "full stack developer": {
+        "required": [
+            "html",
+            "css",
+            "javascript",
+            "react",
+            "node.js",
+            "sql",
+            "git"
+        ],
+        "nice_to_have": [
+            "docker",
+            "mongodb",
+            "aws",
+            "typescript"
+        ]
+    },
+
+    "devops engineer": {
+        "required": [
+            "linux",
+            "git",
+            "docker",
+            "kubernetes",
+            "ci/cd",
+            "bash"
+        ],
+        "nice_to_have": [
+            "aws",
+            "terraform",
+            "python",
+            "monitoring"
+        ]
     }
 
 }
@@ -94,21 +147,29 @@ Return ONLY valid JSON in this exact format:
 }}
 """
 
-    try:
-        ai_client = get_client()
-        if not ai_client:
-            return None
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-        data = json.loads(response.text)
-
-        if "required" not in data or "nice_to_have" not in data:
-            raise ValueError("Missing expected keys in Gemini response")
-
-        return data
-
-    except Exception as e:
-        logging.error(f"Gemini career requirements error: {e}")
+    ai_client = get_client()
+    if not ai_client:
         return None
+
+    for model_name in ["gemini-3.6-flash", "gemini-flash-latest"]:
+        try:
+            response = ai_client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            text = (response.text or "").strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            data = json.loads(text)
+
+            if "required" in data and "nice_to_have" in data:
+                return data
+        except Exception as e:
+            logging.warning(f"Gemini career requirements error with {model_name}: {e}")
+
+    return None

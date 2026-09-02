@@ -53,27 +53,33 @@ Example:
 ]
 """
 
-    try:
-        ai_client = get_genai_client()
-        if not ai_client:
-            return None
-        response = ai_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
-        )
-
-        questions = json.loads(response.text)
-
-        if not isinstance(questions, list):
-            raise ValueError("Gemini did not return a list.")
-
-        logging.info(f"Generated {len(questions)} questions for {skill_name}")
-
-        return questions
-
-    except Exception as e:
-        logging.error(f"Gemini Error: {e}")
+    ai_client = get_genai_client()
+    if not ai_client:
         return None
+
+    for model_name in ["gemini-3.6-flash", "gemini-flash-latest"]:
+        try:
+            response = ai_client.models.generate_content(
+                model=model_name,
+                contents=prompt
+            )
+            text = (response.text or "").strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            elif text.startswith("```"):
+                text = text[3:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+            questions = json.loads(text)
+
+            if isinstance(questions, list) and len(questions) > 0:
+                logging.info(f"Generated {len(questions)} questions for {skill_name}")
+                return questions
+        except Exception as e:
+            logging.warning(f"Gemini Question Error with {model_name}: {e}")
+
+    return None
 
 
 def normalize_question_text(text):

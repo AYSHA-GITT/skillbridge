@@ -36,12 +36,14 @@ export default function SkillGap() {
     e.preventDefault();
     if (!customCareer.trim()) return;
     setSwitching(true);
+    setError('');
     try {
       await skillService.setTargetCareer(customCareer.trim());
       loadGapAnalysis();
       setCustomCareer('');
-    } catch {
-      setError('Could not update target career.');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Could not update target career.';
+      setError(msg);
     } finally {
       setSwitching(false);
     }
