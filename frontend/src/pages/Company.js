@@ -6,13 +6,10 @@ import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
 import {
   TbArrowRight,
-  TbCheck,
-  TbAlertTriangle,
   TbSparkles,
   TbInfoCircle,
   TbScale,
   TbX,
-  TbClock,
   TbTarget
 } from 'react-icons/tb';
 
@@ -24,6 +21,7 @@ export default function Company() {
   const [successMsg, setSuccessMsg] = useState('');
   const [updating, setUpdating] = useState(null);
   const [expandedCareer, setExpandedCareer] = useState(null);
+  const [topMatchDetailsOpen, setTopMatchDetailsOpen] = useState(false);
 
   // Career Comparison state
   const [selectedForCompare, setSelectedForCompare] = useState([]);
@@ -140,7 +138,7 @@ export default function Company() {
           <>
             {/* Top Recommended Career Spotlight */}
             {topMatch && (
-              <div className="glass p-6 sm:p-7 rounded-3xl relative overflow-hidden border-accent-400/40 shadow-glow">
+              <div className="glass p-6 sm:p-7 rounded-3xl relative overflow-hidden border-accent-400/40 shadow-glow transition-all duration-300">
                 <div className="glow-teal absolute -right-10 -bottom-10 w-44 h-44 opacity-25" />
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative">
                   <div className="space-y-3 max-w-2xl">
@@ -165,26 +163,28 @@ export default function Company() {
                       </p>
                     </div>
 
-                    {/* Explainability Callout */}
-                    <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-2">
-                      <div className="flex items-center space-x-1.5 text-xs font-semibold text-accent-300">
-                        <TbInfoCircle className="w-4 h-4" />
-                        <span>Why this was recommended:</span>
-                      </div>
-                      <ul className="text-xs text-white/60 space-y-1 pl-1">
-                        {topMatch.explanation?.highlights?.map((h, i) => (
-                          <li key={i} className="flex items-center space-x-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-accent-400" />
-                            <span>{h}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {topMatch.explanation?.action_recommendation && (
-                        <div className="pt-1.5 border-t border-base-700/60 text-xs font-medium text-emerald-400 flex items-center space-x-1.5">
-                          <span>🎯 {topMatch.explanation.action_recommendation}</span>
+                    {/* Progressive Disclosure: Details Drawer */}
+                    {topMatchDetailsOpen && (
+                      <div className="surface p-4 rounded-2xl border border-base-700/80 space-y-2.5 animate-slide-up text-xs">
+                        <div className="flex items-center space-x-1.5 font-semibold text-accent-300">
+                          <TbInfoCircle className="w-4 h-4" />
+                          <span>Why this was recommended:</span>
                         </div>
-                      )}
-                    </div>
+                        <ul className="text-white/60 space-y-1 pl-1">
+                          {topMatch.explanation?.highlights?.map((h, i) => (
+                            <li key={i} className="flex items-center space-x-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-400" />
+                              <span>{h}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {topMatch.explanation?.action_recommendation && (
+                          <div className="pt-2 border-t border-base-700/60 font-medium text-emerald-400">
+                            🎯 {topMatch.explanation.action_recommendation}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex flex-col items-start lg:items-end justify-between space-y-4">
@@ -198,18 +198,18 @@ export default function Company() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <button
-                        onClick={() => handleSelectRole(topMatch.career)}
-                        disabled={updating === topMatch.career}
-                        className="btn-primary text-xs py-2.5 px-4 flex items-center space-x-1.5"
+                        type="button"
+                        onClick={() => setTopMatchDetailsOpen(!topMatchDetailsOpen)}
+                        className="text-xs px-3 py-2 rounded-xl surface border border-base-700 text-accent-300 hover:text-white transition-all"
                       >
-                        <TbTarget className="w-4 h-4" />
-                        <span>{updating === topMatch.career ? 'Saving...' : 'Set as Target Role'}</span>
+                        {topMatchDetailsOpen ? 'Hide Why ▲' : 'View Why & Details ▼'}
                       </button>
+
                       <button
                         onClick={() => toggleCompareSelection(topMatch.career_key)}
-                        className={`text-xs py-2.5 px-3 rounded-xl border transition-all flex items-center space-x-1 ${
+                        className={`text-xs py-2 px-3 rounded-xl border transition-all flex items-center space-x-1 ${
                           selectedForCompare.includes(topMatch.career_key)
                             ? 'bg-accent-500/20 border-accent-400 text-accent-300'
                             : 'surface border-base-700 text-white/70 hover:text-white'
@@ -218,6 +218,15 @@ export default function Company() {
                         <TbScale className="w-3.5 h-3.5" />
                         <span>{selectedForCompare.includes(topMatch.career_key) ? 'Selected' : 'Compare'}</span>
                       </button>
+
+                      <button
+                        onClick={() => handleSelectRole(topMatch.career)}
+                        disabled={updating === topMatch.career}
+                        className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5"
+                      >
+                        <TbTarget className="w-4 h-4" />
+                        <span>{updating === topMatch.career ? 'Saving...' : 'Set as Target'}</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -225,14 +234,16 @@ export default function Company() {
             )}
 
             {/* All Career Recommendations Grid */}
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading text-lg font-bold text-white">
-                  All Career Profiles ({recommendations.length})
-                </h3>
-                <span className="text-xs text-white/40">
-                  Select up to 3 to compare side-by-side
-                </span>
+                <div>
+                  <h3 className="font-heading text-lg font-bold text-white">
+                    All Career Profiles ({recommendations.length})
+                  </h3>
+                  <p className="text-xs text-white/40 mt-0.5">
+                    Click any card to inspect skills breakdown or select up to 3 to compare.
+                  </p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -243,11 +254,11 @@ export default function Company() {
                   return (
                     <div
                       key={career.career_key}
-                      className={`glass p-6 rounded-2xl flex flex-col justify-between transition-all border ${
+                      className={`glass p-6 rounded-2xl flex flex-col justify-between transition-all duration-300 border hover:-translate-y-1 hover:shadow-glow ${
                         isSelected ? 'border-accent-400/80 bg-accent-500/5' : 'hover:border-accent-400/40'
                       }`}
                     >
-                      <div className="space-y-4">
+                      <div className="space-y-3.5">
                         {/* Title Row */}
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -261,7 +272,7 @@ export default function Company() {
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-white/50 mt-1 line-clamp-2">
+                            <p className="text-xs text-white/50 mt-1 line-clamp-1">
                               {career.recommendation_reason}
                             </p>
                           </div>
@@ -280,62 +291,57 @@ export default function Company() {
                           />
                         </div>
 
-                        {/* Strong Matches */}
-                        {career.matched_required?.length > 0 && (
-                          <div className="space-y-1.5">
-                            <span className="text-xs text-emerald-400/80 font-medium flex items-center space-x-1">
-                              <TbCheck className="w-3.5 h-3.5" />
-                              <span>Strong Matches ({career.matched_required.length}):</span>
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {career.matched_required.map((s) => (
-                                <span
-                                  key={s}
-                                  className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 capitalize"
-                                >
-                                  {s}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                        {/* Clean Summary Pills upfront */}
+                        <div className="flex items-center gap-2 pt-0.5">
+                          <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-[11px] font-mono">
+                            ✓ {career.matched_required?.length || 0} Skills Met
+                          </span>
+                          <span className="px-2.5 py-1 rounded-lg bg-base-800 text-white/60 border border-base-700/80 text-[11px] font-mono">
+                            ⚠ {career.missing_required?.length || 0} Gaps
+                          </span>
+                        </div>
 
-                        {/* Missing Skills */}
-                        {career.missing_required?.length > 0 && (
-                          <div className="space-y-1.5">
-                            <span className="text-xs text-amber-400/80 font-medium flex items-center space-x-1">
-                              <TbAlertTriangle className="w-3.5 h-3.5" />
-                              <span>Missing Core Competencies ({career.missing_required.length}):</span>
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {career.missing_required.map((s) => (
-                                <span
-                                  key={s}
-                                  className="px-2 py-0.5 rounded-md text-[11px] font-mono bg-base-900 border border-base-700/80 text-white/60 capitalize"
-                                >
-                                  {s}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Expandable Explainability Drawer */}
+                        {/* Expandable Details on Click (Progressive Disclosure) */}
                         {isExpanded && (
-                          <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-2 mt-2">
-                            <span className="text-xs font-semibold text-accent-300">
-                              Detailed Reasoning:
-                            </span>
-                            <ul className="text-xs text-white/60 space-y-1">
-                              {career.explanation?.highlights?.map((h, i) => (
-                                <li key={i} className="flex items-center space-x-2">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-accent-400" />
-                                  <span>{h}</span>
-                                </li>
-                              ))}
-                            </ul>
+                          <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-3 animate-slide-up text-xs mt-2">
+                            {career.matched_required?.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-[11px] text-emerald-400 font-medium">
+                                  Strong Matches ({career.matched_required.length}):
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {career.matched_required.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 capitalize"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {career.missing_required?.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-[11px] text-amber-400 font-medium">
+                                  Missing Skills ({career.missing_required.length}):
+                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {career.missing_required.map((s) => (
+                                    <span
+                                      key={s}
+                                      className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-base-900 border border-base-700 text-white/60 capitalize"
+                                    >
+                                      {s}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             {career.explanation?.action_recommendation && (
-                              <p className="text-xs font-semibold text-emerald-400 pt-1 border-t border-base-700/60">
+                              <p className="text-[11px] text-emerald-400 pt-1 border-t border-base-700/60">
                                 💡 {career.explanation.action_recommendation}
                               </p>
                             )}
@@ -344,7 +350,7 @@ export default function Company() {
                       </div>
 
                       {/* Card Footer Actions */}
-                      <div className="pt-5 mt-5 border-t border-base-800 flex items-center justify-between gap-2">
+                      <div className="pt-4 mt-4 border-t border-base-800 flex items-center justify-between gap-2">
                         <div className="flex items-center space-x-2">
                           <button
                             type="button"
@@ -364,14 +370,14 @@ export default function Company() {
                             onClick={() => setExpandedCareer(isExpanded ? null : career.career_key)}
                             className="text-xs text-white/50 hover:text-accent-300 underline underline-offset-4"
                           >
-                            {isExpanded ? 'Hide why' : 'Why this career?'}
+                            {isExpanded ? 'Hide Details ▲' : 'View Details ▼'}
                           </button>
                         </div>
 
                         <button
                           onClick={() => handleSelectRole(career.career)}
                           disabled={updating === career.career}
-                          className="btn-primary text-xs py-1.5 px-3 flex items-center space-x-1"
+                          className="btn-primary text-xs py-1.5 px-3 flex items-center space-x-1 shadow-glow"
                         >
                           <span>{updating === career.career ? 'Saving...' : 'Target'}</span>
                           <TbArrowRight className="w-3.5 h-3.5" />

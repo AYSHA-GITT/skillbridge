@@ -23,6 +23,8 @@ export default function FedViz() {
   const [selectedRound, setSelectedRound] = useState(null);
   const [roundDetails, setRoundDetails] = useState(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showPrivacyArchitecture, setShowPrivacyArchitecture] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
 
   const fetchData = () => {
     Promise.all([skillService.getFLRounds(), skillService.getFLNodes()])
@@ -154,56 +156,76 @@ export default function FedViz() {
           </div>
         </div>
 
-        {/* Privacy Architecture Pipeline Banner */}
-        <div className="glass p-6 rounded-3xl border border-accent-400/30 space-y-4">
-          <div className="flex items-center space-x-2 text-accent-300">
-            <TbLock className="w-5 h-5" />
-            <h3 className="font-heading text-base font-bold text-white">
-              Privacy-by-Design Architecture Layer
-            </h3>
+        {/* Privacy Architecture Pipeline: Progressive Disclosure */}
+        <div className="glass p-5 rounded-2xl border border-accent-400/30 space-y-3 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center border border-accent-400/20">
+                <TbLock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-heading text-sm font-bold text-white">
+                  Privacy-by-Design Architecture Layer
+                </h3>
+                <p className="text-[11px] text-white/40">
+                  Mathematical Differential Privacy & on-premise compute guarantees
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowPrivacyArchitecture(!showPrivacyArchitecture)}
+              className="text-xs px-3 py-1.5 rounded-xl surface border border-base-700 text-accent-300 hover:text-white transition-all"
+            >
+              {showPrivacyArchitecture ? 'Hide Layer Details ▲' : 'View Layer Details ▼'}
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
-            <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
-              <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">01. Local Data</span>
-              <p className="font-semibold text-white">Raw Resumes Stay On-Campus</p>
-              <p className="text-white/50 text-[11px] leading-relaxed">
-                Student academic and skill records never leave the participating college server.
-              </p>
-            </div>
+          {showPrivacyArchitecture && (
+            <div className="space-y-3 animate-slide-up pt-3 border-t border-base-800">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+                <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
+                  <span className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider">01. Local Data</span>
+                  <p className="font-semibold text-white">Raw Resumes Stay On-Campus</p>
+                  <p className="text-white/50 text-[11px] leading-relaxed">
+                    Student academic and skill records never leave the participating college server.
+                  </p>
+                </div>
 
-            <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
-              <span className="text-[10px] font-mono text-accent-400 uppercase tracking-wider">02. Gradient Weights</span>
-              <p className="font-semibold text-white">Model Updates Only</p>
-              <p className="text-white/50 text-[11px] leading-relaxed">
-                Only numerical weight tensors and biases are shared with the Flower aggregator.
-              </p>
-            </div>
+                <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
+                  <span className="text-[10px] font-mono text-accent-400 uppercase tracking-wider">02. Gradient Weights</span>
+                  <p className="font-semibold text-white">Model Updates Only</p>
+                  <p className="text-white/50 text-[11px] leading-relaxed">
+                    Only numerical weight tensors and biases are shared with the Flower aggregator.
+                  </p>
+                </div>
 
-            <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
-              <span className="text-[10px] font-mono text-teal-400 uppercase tracking-wider">03. FedAvg Coordinator</span>
-              <p className="font-semibold text-white">Sample-Weighted Fusion</p>
-              <p className="text-white/50 text-[11px] leading-relaxed">
-                Weights from all campus nodes are combined using sample-weighted Federated Averaging.
-              </p>
-            </div>
+                <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
+                  <span className="text-[10px] font-mono text-teal-400 uppercase tracking-wider">03. FedAvg Coordinator</span>
+                  <p className="font-semibold text-white">Sample-Weighted Fusion</p>
+                  <p className="text-white/50 text-[11px] leading-relaxed">
+                    Weights from all campus nodes are combined using sample-weighted Federated Averaging.
+                  </p>
+                </div>
 
-            <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
-              <span className="text-[10px] font-mono text-purple-400 uppercase tracking-wider">04. Differential Privacy</span>
-              <p className="font-semibold text-white">Noise Perturbation</p>
-              <p className="text-white/50 text-[11px] leading-relaxed">
-                Calibrated noise prevents membership inference or individual skill reconstruction.
-              </p>
-            </div>
-          </div>
+                <div className="surface p-3.5 rounded-xl border border-base-700/80 space-y-1">
+                  <span className="text-[10px] font-mono text-purple-400 uppercase tracking-wider">04. Differential Privacy</span>
+                  <p className="font-semibold text-white">Noise Perturbation</p>
+                  <p className="text-white/50 text-[11px] leading-relaxed">
+                    Calibrated noise prevents membership inference or individual skill reconstruction.
+                  </p>
+                </div>
+              </div>
 
-          <div className="p-3 bg-base-950/80 rounded-xl border border-base-800 text-[11px] text-white/60 flex items-start space-x-2">
-            <TbShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-            <p>
-              <span className="text-white font-medium">Research Privacy Guarantee:</span>{' '}
-              Federated Learning reduces the need to transfer raw training data; additional privacy mechanisms such as Differential Privacy provide stronger mathematical protection.
-            </p>
-          </div>
+              <div className="p-3 bg-base-950/80 rounded-xl border border-base-800 text-[11px] text-white/60 flex items-start space-x-2">
+                <TbShieldCheck className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <p>
+                  <span className="text-white font-medium">Research Privacy Guarantee:</span>{' '}
+                  Federated Learning reduces the need to transfer raw training data; additional privacy mechanisms such as Differential Privacy provide stronger mathematical protection.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Network Overview: Participating Institutional Nodes */}
@@ -427,54 +449,74 @@ export default function FedViz() {
           </div>
         )}
 
-        {/* Centralized vs Federated Learning Educational Comparison */}
-        <div className="glass p-6 sm:p-8 rounded-3xl space-y-6">
-          <div className="flex items-center space-x-2">
-            <TbLayersLinked className="w-5 h-5 text-accent-400" />
-            <h3 className="font-heading text-lg font-bold text-white">
-              Centralized Learning vs. Federated Learning
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Centralized Card */}
-            <div className="surface p-5 rounded-2xl border border-rose-500/30 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase text-rose-400 font-bold">Traditional Approach</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-300 border border-rose-500/20">
-                  Centralized Training
-                </span>
+        {/* Centralized vs Federated Learning Educational Comparison: Progressive Disclosure */}
+        <div className="glass p-5 rounded-2xl border border-base-700/80 space-y-3 transition-all duration-300">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-teal-500/15 text-teal-300 flex items-center justify-center border border-teal-500/20">
+                <TbLayersLinked className="w-4 h-4" />
               </div>
-              <h4 className="text-base font-bold text-white">Central Data Aggregation</h4>
-              <p className="text-xs text-white/60 leading-relaxed">
-                Raw student resumes, academic grades, and personal identifiers from all universities are transmitted over the Internet and deposited into a single cloud database.
-              </p>
-              <div className="bg-base-950/80 p-3 rounded-xl border border-base-800 text-xs text-rose-300/80 space-y-1">
-                <p>⚠ Vulnerable to central database leaks and privacy breaches.</p>
-                <p>⚠ Conflicts with FERPA, GDPR, and institutional data sovereignty.</p>
-                <p>⚠ Universities are often legally forbidden from pooling student transcripts.</p>
+              <div>
+                <h3 className="font-heading text-sm font-bold text-white">
+                  Centralized Learning vs. Federated Learning
+                </h3>
+                <p className="text-[11px] text-white/40">
+                  Data exposure risk vs. institutional privacy preservation comparison
+                </p>
               </div>
             </div>
 
-            {/* Federated Card */}
-            <div className="surface p-5 rounded-2xl border border-emerald-500/40 space-y-3 shadow-glow">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono uppercase text-emerald-400 font-bold">SkillBridge Architecture</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
-                  Federated Learning
-                </span>
-              </div>
-              <h4 className="text-base font-bold text-white">Decentralized Collaborative Intelligence</h4>
-              <p className="text-xs text-white/60 leading-relaxed">
-                Each institution trains models on its own local compute. Only mathematical model weight vectors are exchanged with the Flower server using FedAvg and Differential Privacy.
-              </p>
-              <div className="bg-base-950/80 p-3 rounded-xl border border-base-800 text-xs text-emerald-300/90 space-y-1">
-                <p>✓ Raw student resumes never leave campus servers.</p>
-                <p>✓ Mathematical Differential Privacy (ε = {currentEpsilon}) prevents reconstruction.</p>
-                <p>✓ All campuses collaboratively gain a smarter career recommendation model.</p>
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className="text-xs px-3 py-1.5 rounded-xl surface border border-base-700 text-teal-300 hover:text-white transition-all"
+            >
+              {showComparison ? 'Hide Comparison ▲' : 'View Comparison ▼'}
+            </button>
+          </div>
+
+          {showComparison && (
+            <div className="animate-slide-up pt-3 border-t border-base-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Centralized Card */}
+                <div className="surface p-4 rounded-xl border border-rose-500/30 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono uppercase text-rose-400 font-bold">Traditional Approach</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/10 text-rose-300 border border-rose-500/20">
+                      Centralized Training
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white">Central Data Aggregation</h4>
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    Raw student resumes, academic grades, and personal identifiers from all universities are transmitted over the Internet and deposited into a single cloud database.
+                  </p>
+                  <div className="bg-base-950/80 p-2.5 rounded-lg border border-base-800 text-[11px] text-rose-300/80 space-y-1">
+                    <p>⚠ Vulnerable to central database leaks and privacy breaches.</p>
+                    <p>⚠ Conflicts with FERPA, GDPR, and institutional data sovereignty.</p>
+                    <p>⚠ Universities are often legally forbidden from pooling student transcripts.</p>
+                  </div>
+                </div>
+
+                {/* Federated Card */}
+                <div className="surface p-4 rounded-xl border border-emerald-500/40 space-y-2.5 shadow-glow">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono uppercase text-emerald-400 font-bold">SkillBridge Architecture</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                      Federated Learning
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-white">Decentralized Collaborative Intelligence</h4>
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    Each institution trains models on its own local compute. Only mathematical model weight vectors are exchanged with the Flower server using FedAvg and Differential Privacy.
+                  </p>
+                  <div className="bg-base-950/80 p-2.5 rounded-lg border border-base-800 text-[11px] text-emerald-300/90 space-y-1">
+                    <p>✓ Raw student resumes never leave campus servers.</p>
+                    <p>✓ Mathematical Differential Privacy (ε = {currentEpsilon}) prevents reconstruction.</p>
+                    <p>✓ All campuses collaboratively gain a smarter career recommendation model.</p>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </AppLayout>

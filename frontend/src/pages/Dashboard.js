@@ -15,10 +15,8 @@ import {
   TbClipboardCheck,
   TbSparkles,
   TbShieldCheck,
-  TbNetwork,
-  TbLock,
-  TbCpu,
-  TbBriefcase
+  TbBriefcase,
+  TbInfoCircle
 } from 'react-icons/tb';
 
 export default function Dashboard() {
@@ -27,6 +25,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [topCareer, setTopCareer] = useState(null);
   const [flStatus, setFlStatus] = useState(null);
+  const [careerDetailsOpen, setCareerDetailsOpen] = useState(false);
+  const [privacyDetailsOpen, setPrivacyDetailsOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -143,169 +143,167 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* SECTION: Your Career Intelligence */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <TbSparkles className="w-5 h-5 text-accent-400" />
-              <h3 className="font-heading text-lg font-bold text-white">
-                Your Career Intelligence
-              </h3>
-            </div>
-            <button
-              onClick={() => navigate('/careers')}
-              className="text-xs text-accent-400 hover:text-accent-300 font-semibold flex items-center space-x-1"
-            >
-              <span>Explore All Recommendations</span>
-              <TbArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        {/* Intelligence Cards: Progressive Disclosure with Animation */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 1: Career Intelligence Spotlight */}
+          <div className="glass p-6 sm:p-7 rounded-3xl border border-accent-400/30 hover:border-accent-400/50 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+            <div className="glow-teal absolute -right-8 -top-8 w-40 h-40 opacity-20 group-hover:opacity-35 transition-opacity" />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Top Recommended Career */}
-            <div className="glass p-5 rounded-2xl flex flex-col justify-between border-accent-400/30">
-              <div>
-                <span className="text-[11px] font-mono text-accent-400 uppercase tracking-wider">
-                  Top Recommended Career
+            <div className="space-y-4 relative">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 text-xs font-semibold text-accent-300 bg-accent-500/15 px-3 py-1 rounded-full border border-accent-400/30">
+                  <TbSparkles className="w-3.5 h-3.5" />
+                  <span>Career Intelligence</span>
                 </span>
-                <h4 className="font-heading text-xl font-bold text-white mt-1">
-                  {topCareer?.career || 'Data Scientist'}
-                </h4>
+                <span className="text-xs font-mono text-emerald-400 font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                  ₹{topCareer?.estimated_salary_lpa || '6-12'} LPA
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-white/40">
+                  Top Matched Track
+                </span>
+                <h3 className="font-heading text-2xl font-bold text-white mt-0.5">
+                  {topCareer?.career || 'Data Analyst'}
+                </h3>
                 <p className="text-xs text-white/60 mt-1 line-clamp-2">
-                  {topCareer?.recommendation_reason || 'Strong baseline competency match based on verified skills.'}
+                  {topCareer?.recommendation_reason || 'Strong baseline match grounded in your verified technical skills.'}
                 </p>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-base-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-white/40 block">Skill Match</span>
-                  <span className="font-mono text-base font-bold text-accent-300">
+              {/* Essential Progress Bar */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-white/50">Skill Match Level</span>
+                  <span className="font-mono font-bold text-accent-300">
                     {topCareer?.match_percentage || 0}%
                   </span>
                 </div>
-                <button
-                  onClick={() => navigate('/careers')}
-                  className="btn-primary text-xs py-1.5 px-3"
-                >
-                  View Track
-                </button>
+                <div className="w-full h-2 rounded-full bg-base-800 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-accent-400 to-teal-500 transition-all duration-700"
+                    style={{ width: `${topCareer?.match_percentage || 0}%` }}
+                  />
+                </div>
               </div>
+
+              {/* Click to expand details */}
+              {careerDetailsOpen && (
+                <div className="surface p-4 rounded-2xl border border-base-700/80 space-y-2.5 animate-slide-up text-xs">
+                  <div className="flex items-center space-x-1.5 font-semibold text-accent-300">
+                    <TbInfoCircle className="w-4 h-4" />
+                    <span>Why This Match:</span>
+                  </div>
+                  <ul className="text-white/70 space-y-1 pl-1 text-[11px]">
+                    {topCareer?.explanation?.highlights?.map((h, i) => (
+                      <li key={i} className="flex items-center space-x-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-400" />
+                        <span>{h}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {topCareer?.explanation?.action_recommendation && (
+                    <p className="text-emerald-400 font-medium pt-1 border-t border-base-700/60 text-[11px]">
+                      🎯 {topCareer.explanation.action_recommendation}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            {/* Next Recommended Skill */}
-            <div className="glass p-5 rounded-2xl flex flex-col justify-between border-teal-500/30">
-              <div>
-                <span className="text-[11px] font-mono text-teal-400 uppercase tracking-wider">
-                  Next Priority Skill
+            {/* Bottom Actions */}
+            <div className="pt-5 mt-5 border-t border-base-800/80 flex items-center justify-between relative">
+              <button
+                type="button"
+                onClick={() => setCareerDetailsOpen(!careerDetailsOpen)}
+                className="text-xs text-accent-400 hover:text-accent-300 font-semibold underline underline-offset-4 flex items-center space-x-1"
+              >
+                <span>{careerDetailsOpen ? 'Hide Details ▲' : 'View Match Details ▼'}</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/careers')}
+                className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1 shadow-glow"
+              >
+                <span>All Careers</span>
+                <TbArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Card 2: Privacy-Preserving Security Hub */}
+          <div className="glass p-6 sm:p-7 rounded-3xl border border-teal-500/30 hover:border-teal-500/50 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+            <div className="glow-teal absolute -left-8 -top-8 w-40 h-40 opacity-20 group-hover:opacity-35 transition-opacity" />
+
+            <div className="space-y-4 relative">
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/30">
+                  <TbShieldCheck className="w-3.5 h-3.5" />
+                  <span>Privacy-Preserving AI</span>
                 </span>
-                <h4 className="font-heading text-xl font-bold text-white mt-1 capitalize">
-                  {topCareer?.explanation?.next_target_skill || 'Core Framework'}
-                </h4>
-                <p className="text-xs text-emerald-400 font-medium mt-1">
-                  {topCareer?.explanation?.action_recommendation || 'Verifying this skill gives the highest match boost.'}
+                <span className="text-xs font-mono text-accent-300 bg-accent-500/10 px-2.5 py-1 rounded-lg border border-accent-400/20">
+                  ε = {flStatus?.differential_privacy?.epsilon || 0.85} DP
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-wider text-white/40">
+                  Institutional Architecture
+                </span>
+                <h3 className="font-heading text-2xl font-bold text-white mt-0.5">
+                  Decentralized Flower FedAvg
+                </h3>
+                <p className="text-xs text-white/60 mt-1">
+                  Resumes and quiz records remain strictly on-campus. Only encrypted model weight updates are aggregated.
                 </p>
               </div>
 
-              <div className="pt-4 mt-4 border-t border-base-800 flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-white/40 block">Projected Boost</span>
-                  <span className="font-mono text-base font-bold text-emerald-400">
-                    +{topCareer?.explanation?.expected_readiness_improvement || 12.5}%
+              {/* Essential FL Quick Numbers */}
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="surface p-3 rounded-xl border border-base-700/60">
+                  <span className="text-[10px] text-white/40 block">Global Model</span>
+                  <span className="font-heading text-lg font-bold text-emerald-400">
+                    Round #{flStatus?.total_rounds || 4}
                   </span>
                 </div>
-                <button
-                  onClick={() => navigate('/roadmap')}
-                  className="btn-ghost text-xs py-1.5 px-3"
-                >
-                  Start Learning
-                </button>
+                <div className="surface p-3 rounded-xl border border-base-700/60">
+                  <span className="text-[10px] text-white/40 block">Campus Nodes</span>
+                  <span className="font-heading text-lg font-bold text-teal-300">
+                    {flStatus?.participating_institutions || 4} Connected
+                  </span>
+                </div>
               </div>
+
+              {/* Click to expand details */}
+              {privacyDetailsOpen && (
+                <div className="surface p-4 rounded-2xl border border-base-700/80 space-y-2 animate-slide-up text-[11px]">
+                  <div className="space-y-1.5 text-white/70">
+                    <p>🔒 <strong className="text-white">Local Data Sovereignty:</strong> Academic records never leave your university.</p>
+                    <p>⚡ <strong className="text-white">Federated Averaging:</strong> Flower FedAvg trains on model weights, not raw data.</p>
+                    <p>🛡️ <strong className="text-white">Differential Privacy:</strong> Gaussian perturbation mathematically guarantees student anonymity.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Verified Skills Summary */}
-            <div className="glass p-5 rounded-2xl flex flex-col justify-between border-base-700">
-              <div>
-                <span className="text-[11px] font-mono text-white/40 uppercase tracking-wider">
-                  Skill Verification Status
-                </span>
-                <h4 className="font-heading text-xl font-bold text-white mt-1">
-                  Active Proof Engine
-                </h4>
-                <p className="text-xs text-white/60 mt-1">
-                  Only skills tested via technical assessment count toward your career readiness score.
-                </p>
-              </div>
+            {/* Bottom Actions */}
+            <div className="pt-5 mt-5 border-t border-base-800/80 flex items-center justify-between relative">
+              <button
+                type="button"
+                onClick={() => setPrivacyDetailsOpen(!privacyDetailsOpen)}
+                className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-4 flex items-center space-x-1"
+              >
+                <span>{privacyDetailsOpen ? 'Hide Security Details ▲' : 'View Security Details ▼'}</span>
+              </button>
 
-              <div className="pt-4 mt-4 border-t border-base-800 flex items-center justify-between">
-                <span className="text-xs text-white/40">Active Verification</span>
-                <button
-                  onClick={() => navigate('/profile')}
-                  className="text-xs font-semibold text-accent-400 hover:text-accent-300 flex items-center space-x-1"
-                >
-                  <span>Verified Profile</span>
-                  <TbArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION: Privacy-Preserving Career Intelligence */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <TbNetwork className="w-5 h-5 text-emerald-400" />
-              <h3 className="font-heading text-lg font-bold text-white">
-                Privacy-Preserving Career Intelligence
-              </h3>
-            </div>
-            <button
-              onClick={() => navigate('/federated')}
-              className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold flex items-center space-x-1"
-            >
-              <span>View Federated Center</span>
-              <TbArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="surface p-5 rounded-2xl border border-base-700/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-emerald-400">01</span>
-                <TbLock className="w-4 h-4 text-emerald-400" />
-              </div>
-              <h4 className="text-sm font-bold text-white">Local Data Sovereignty</h4>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Your resume and personal performance records remain strictly on-campus inside your college node.
-              </p>
-            </div>
-
-            <div className="surface p-5 rounded-2xl border border-base-700/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-accent-400">02</span>
-                <TbCpu className="w-4 h-4 text-accent-400" />
-              </div>
-              <h4 className="text-sm font-bold text-white">Federated Collaborative Learning</h4>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Institutions train models locally and aggregate model weight tensors via Flower FedAvg across rounds.
-              </p>
-              <div className="pt-2 text-[11px] font-mono text-accent-300">
-                Round #{flStatus?.total_rounds || 4} · {flStatus?.participating_institutions || 4} Campus Nodes
-              </div>
-            </div>
-
-            <div className="surface p-5 rounded-2xl border border-base-700/80 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-teal-400">03</span>
-                <TbShieldCheck className="w-4 h-4 text-teal-400" />
-              </div>
-              <h4 className="text-sm font-bold text-white">Differential Privacy Shield</h4>
-              <p className="text-xs text-white/50 leading-relaxed">
-                Gaussian noise perturbation mathematically prevents individual student attribute reconstruction.
-              </p>
-              <div className="pt-2 text-[11px] font-mono text-teal-300">
-                ε = {flStatus?.differential_privacy?.epsilon || 0.85}, δ = 1e-5
-              </div>
+              <button
+                onClick={() => navigate('/federated')}
+                className="btn-ghost text-xs py-2 px-3.5 flex items-center space-x-1 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10"
+              >
+                <span>Privacy Hub</span>
+                <TbArrowRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
         </div>
