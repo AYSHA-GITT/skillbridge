@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import AskAssistantModal from './AskAssistantModal';
 import authService from '../services/authService';
 
 export default function AppLayout({ children }) {
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   useEffect(() => {
     authService.getCurrentUser()
@@ -26,14 +28,24 @@ export default function AppLayout({ children }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-950">
-      <Navbar student={student} />
+    <div className="min-h-screen flex flex-col bg-base-950 relative">
+      <Navbar
+        student={student}
+        onOpenAssistant={() => setAssistantOpen(true)}
+      />
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         <Sidebar />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-5xl">
           {children}
         </main>
       </div>
+
+      {/* Floating Grounded AI Assistant docked at bottom-right */}
+      <AskAssistantModal
+        isOpen={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        onOpen={() => setAssistantOpen(true)}
+      />
     </div>
   );
 }

@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { TbShieldLock, TbLogout, TbSparkles } from 'react-icons/tb';
 import authService from '../services/authService';
-import AskAssistantModal from './AskAssistantModal';
 
-export default function Navbar({ student }) {
+export default function Navbar({ student, onOpenAssistant }) {
   const navigate = useNavigate();
-  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -54,13 +52,16 @@ export default function Navbar({ student }) {
             </div>
           )}
 
-          <button
-            onClick={() => setAssistantOpen(true)}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-accent-400/40 text-xs font-semibold text-accent-300 bg-accent-500/15 hover:bg-accent-500/25 transition-all shadow-glow"
-          >
-            <TbSparkles className="w-3.5 h-3.5 text-accent-300" />
-            <span className="hidden sm:inline">Ask AI</span>
-          </button>
+          {onOpenAssistant && (
+            <button
+              onClick={onOpenAssistant}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-accent-400/40 text-xs font-semibold text-accent-300 bg-accent-500/15 hover:bg-accent-500/25 transition-all shadow-glow"
+              title="Open Grounded AI Career Assistant"
+            >
+              <TbSparkles className="w-3.5 h-3.5 text-accent-300" />
+              <span className="hidden sm:inline">Ask AI</span>
+            </button>
+          )}
 
           <Link
             to="/federated"
@@ -79,11 +80,6 @@ export default function Navbar({ student }) {
           </button>
         </div>
       </div>
-
-      <AskAssistantModal
-        isOpen={assistantOpen}
-        onClose={() => setAssistantOpen(false)}
-      />
     </header>
   );
 }
