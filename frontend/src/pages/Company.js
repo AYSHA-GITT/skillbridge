@@ -10,7 +10,8 @@ import {
   TbInfoCircle,
   TbScale,
   TbX,
-  TbTarget
+  TbTarget,
+  TbClock
 } from 'react-icons/tb';
 
 export default function Company() {
