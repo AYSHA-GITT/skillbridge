@@ -26,8 +26,8 @@ export default function Sidebar() {
     { to: '/progress', label: 'Progress History', icon: TbTrendingUp },
     { to: '/salary-sim', label: 'Salary Simulator', icon: TbCoin },
     { to: '/badges', label: 'Badges & Awards', icon: TbAward },
-    { to: '/careers', label: 'Career Demand', icon: TbBriefcase },
-    { to: '/federated', label: 'Federated Viz', icon: TbNetwork },
+    { to: '/careers', label: 'Career Recommendations', icon: TbBriefcase },
+    { to: '/federated', label: 'Federated Learning', icon: TbNetwork },
     { to: '/admin', label: 'Admin Portal', icon: TbShieldCode },
   ];
 

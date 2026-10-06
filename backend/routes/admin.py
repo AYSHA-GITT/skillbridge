@@ -1,7 +1,13 @@
 from flask import Blueprint, jsonify, request
 from models import Student, Resume, Skill, SkillVerification, SkillGap, FLTrainingRound
 from extensions import db
-from federated.server import run_federated_round, get_federated_history, INSTITUTIONS
+from federated.server import (
+    run_federated_round,
+    get_federated_history,
+    get_federated_round_details,
+    get_federated_status,
+    INSTITUTIONS
+)
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -87,3 +93,17 @@ def get_fl_rounds():
 @admin_bp.route('/federated/nodes', methods=['GET'])
 def get_fl_nodes():
     return jsonify({'institutions': INSTITUTIONS}), 200
+
+
+@admin_bp.route('/federated/round/<int:round_id>', methods=['GET'])
+def get_fl_round_details(round_id):
+    details = get_federated_round_details(round_id)
+    if not details:
+        return jsonify({'error': f'Round {round_id} not found'}), 404
+    return jsonify(details), 200
+
+
+@admin_bp.route('/federated/status', methods=['GET'])
+def get_fl_status():
+    status = get_federated_status()
+    return jsonify(status), 200

@@ -12,7 +12,7 @@ from extensions import db
 from models import Resume
 from utils.resume_parser import parse_resume
 from utils.ai_question_generator import generate_questions
-from utils.skill_gap_analyzer import analyze_skill_gap
+from utils.skill_gap_analyzer import analyze_skill_gap, get_career_requirements
 from models import SkillVerification, SkillGap
 from utils.question_bank_manager import ensure_minimum_questions
 from utils.roadmap_generator import ensure_roadmap_template
@@ -21,6 +21,13 @@ from utils.badge_checker import get_student_badges
 from ml.salary_model import salary_predictor
 from ml.readiness_model import readiness_scorer
 from ml.skill_gap_model import skill_gap_model
+from utils.career_recommender import (
+    get_all_career_recommendations,
+    evaluate_career_match,
+    compare_career_tracks
+)
+from federated.server import get_federated_status
+from utils.career_assistant import ask_career_assistant
 
 student_bp = Blueprint('student', __name__)
 
@@ -362,7 +369,8 @@ def analyze_skill_gap_endpoint():
             db.session.add(gap)
 
     # Update readiness score on the student record too
-    overall_coverage = float(result.get('overall_coverage') or 0.0)
+    raw_coverage = result.get('overall_coverage')
+    overall_coverage = float(raw_coverage) if isinstance(raw_coverage, (int, float, str)) else 0.0
     current_user.readiness_score = round(overall_coverage * 100, 1)
     db.session.commit()
 
@@ -653,3 +661,191 @@ def get_student_assessments():
         'available': available,
         'completed': completed
     }), 200
+
+
+@student_bp.route('/career_recommendations', methods=['GET'])
+@login_required
+def get_career_recommendations():
+    """
+    Returns ranked career recommendations based strictly on verified skills,
+    along with transparent explainability metrics for each career.
+    """
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+    recommendations = get_all_career_recommendations(
+        verified_skills, current_user.target_career
+    )
+    top = recommendations[0] if recommendations else None
+    return jsonify({
+        'recommendations': recommendations,
+        'top_recommendation': top,
+        'total_evaluated': len(recommendations),
+        'verified_skills_count': len(verified_skills)
+    }), 200
+
+
+@student_bp.route('/career_recommendation/<string:career_name>', methods=['GET'])
+@login_required
+def get_single_career_recommendation(career_name):
+    """
+    Returns deep explainability and match analysis for a specified career.
+    """
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+    result = evaluate_career_match(verified_skills, career_name)
+    if not result:
+        return jsonify({'error': f'Career "{career_name}" not found or requirements unavailable'}), 404
+    return jsonify(result), 200
+
+
+@student_bp.route('/compare_careers', methods=['POST'])
+@login_required
+def compare_careers_endpoint():
+    """
+    Compares 2-3 careers side-by-side on match %, readiness, missing skills, effort, and salary.
+    """
+    data = request.get_json(silent=True) or {}
+    career_names = data.get('careers', [])
+    if not career_names or not isinstance(career_names, list):
+        return jsonify({'error': 'Please provide a list of careers to compare'}), 400
+
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+
+    comparison = compare_career_tracks(verified_skills, career_names[:4])
+    return jsonify({'comparison': comparison}), 200
+
+
+@student_bp.route('/verified_skill_profile', methods=['GET'])
+@login_required
+def get_verified_skill_profile():
+    """
+    Returns structured 4-tier skill profile:
+    1. Verified (passed quiz >= 70%)
+    2. Needs Improvement (quiz taken < 70%)
+    3. Needs Verification (resume-detected, not yet tested)
+    4. Target Gaps (skills needed for target career but missing)
+    """
+    skills = Skill.query.filter_by(student_id=current_user.id).all()
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    v_map = {v.skill_id: v for v in verifications}
+
+    verified_list = []
+    needs_improvement_list = []
+    needs_verification_list = []
+
+    for s in skills:
+        if s.id in v_map:
+            v = v_map[s.id]
+            is_passed = (v.quiz_score_percent or 0) >= 70.0
+            item = {
+                'skill_id': s.id,
+                'skill_name': s.skill_name,
+                'proficiency': s.proficiency or 'Intermediate',
+                'resume_detected': True,
+                'quiz_score_percent': v.quiz_score_percent,
+                'quiz_correct_count': v.quiz_correct_count,
+                'quiz_question_count': v.quiz_question_count,
+                'verified_on': v.verified_on.isoformat() if v.verified_on else None,
+                'status': 'VERIFIED' if is_passed else 'NEEDS_IMPROVEMENT'
+            }
+            if is_passed:
+                verified_list.append(item)
+            else:
+                needs_improvement_list.append(item)
+        else:
+            needs_verification_list.append({
+                'skill_id': s.id,
+                'skill_name': s.skill_name,
+                'proficiency': s.proficiency or 'Beginner',
+                'resume_detected': True,
+                'quiz_score_percent': None,
+                'quiz_correct_count': None,
+                'quiz_question_count': None,
+                'verified_on': None,
+                'status': 'NEEDS_VERIFICATION'
+            })
+
+    target_career_gaps = []
+    if current_user.target_career:
+        verified_names = [v['skill_name'].lower() for v in verified_list]
+        reqs = get_career_requirements(current_user.target_career)
+        if reqs:
+            for req_skill in reqs.get('required', []):
+                if req_skill not in verified_names:
+                    target_career_gaps.append({
+                        'skill_name': req_skill,
+                        'category': 'Required',
+                        'importance': 'High',
+                        'status': 'UNVERIFIED_GAP'
+                    })
+
+    return jsonify({
+        'verified_skills': verified_list,
+        'needs_improvement': needs_improvement_list,
+        'needs_verification': needs_verification_list,
+        'target_career_gaps': target_career_gaps,
+        'summary': {
+            'total_detected': len(skills),
+            'verified_count': len(verified_list),
+            'needs_improvement_count': len(needs_improvement_list),
+            'needs_verification_count': len(needs_verification_list)
+        }
+    }), 200
+
+
+@student_bp.route('/federated_status', methods=['GET'])
+@login_required
+def get_student_federated_status():
+    """
+    Returns platform-wide federated learning operational status and privacy parameters
+    for display on student dashboards and visualizers.
+    """
+    status = get_federated_status()
+    return jsonify(status), 200
+
+
+@student_bp.route('/ask_assistant', methods=['POST'])
+@login_required
+def ask_assistant_endpoint():
+    """
+    Answers career guidance queries grounded strictly on the student's actual profile data.
+    """
+    data = request.get_json(silent=True) or {}
+    question = data.get('question', '').strip()
+    if not question:
+        return jsonify({'error': 'Please provide a question'}), 400
+
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+    gaps = SkillGap.query.filter_by(student_id=current_user.id).all()
+    missing_skills = [g.missing_skill for g in gaps if g.missing_skill]
+
+    recs = get_all_career_recommendations(verified_skills, current_user.target_career)
+    top_rec = recs[0] if recs else None
+    salary_info = salary_predictor.predict_salary(verified_skills)
+
+    profile = {
+        'target_career': current_user.target_career,
+        'readiness_score': current_user.readiness_score or 0.0,
+        'verified_skills': verified_skills,
+        'missing_skills': missing_skills,
+        'predicted_salary_lpa': salary_info.get('estimated_lpa', 6.0),
+        'top_recommended_career': top_rec.get('career') if top_rec else None,
+        'top_career_match_percent': top_rec.get('match_percentage') if top_rec else None
+    }
+
+    result = ask_career_assistant(profile, question)
+    return jsonify(result), 200

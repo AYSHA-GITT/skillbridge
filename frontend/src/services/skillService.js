@@ -94,6 +94,26 @@ export const skillService = {
     return response.data;
   },
 
+  getCareerRecommendations: async () => {
+    const response = await api.get('/student/career_recommendations');
+    return response.data;
+  },
+
+  getSingleCareerRecommendation: async (career) => {
+    const response = await api.get(`/student/career_recommendation/${encodeURIComponent(career)}`);
+    return response.data;
+  },
+
+  compareCareers: async (careers) => {
+    const response = await api.post('/student/compare_careers', { careers });
+    return response.data;
+  },
+
+  getVerifiedSkillProfile: async () => {
+    const response = await api.get('/student/verified_skill_profile');
+    return response.data;
+  },
+
   // Admin & Federated Learning
   getAdminStats: async () => {
     const response = await api.get('/admin/stats');
@@ -112,6 +132,21 @@ export const skillService = {
 
   getFLNodes: async () => {
     const response = await api.get('/admin/federated/nodes');
+    return response.data;
+  },
+
+  getFLRoundDetails: async (roundId) => {
+    const response = await api.get(`/admin/federated/round/${roundId}`);
+    return response.data;
+  },
+
+  getFederatedStatus: async () => {
+    const response = await api.get('/student/federated_status');
+    return response.data;
+  },
+
+  askAssistant: async (question) => {
+    const response = await api.post('/student/ask_assistant', { question });
     return response.data;
   }
 };

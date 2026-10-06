@@ -101,6 +101,38 @@ CAREER_REQUIREMENTS = {
             "python",
             "monitoring"
         ]
+    },
+
+    "cloud engineer": {
+        "required": [
+            "aws",
+            "docker",
+            "linux",
+            "python",
+            "git"
+        ],
+        "nice_to_have": [
+            "kubernetes",
+            "terraform",
+            "ci/cd",
+            "sql"
+        ]
+    },
+
+    "ai engineer": {
+        "required": [
+            "python",
+            "machine learning",
+            "deep learning",
+            "pytorch",
+            "data structures"
+        ],
+        "nice_to_have": [
+            "tensorflow",
+            "nlp",
+            "docker",
+            "sql"
+        ]
     }
 
 }

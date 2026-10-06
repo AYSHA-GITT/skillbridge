@@ -43,3 +43,32 @@ ai engineer,pytorch,High,Framework,0.90
 ai engineer,tensorflow,Medium,Framework,0.80
 ai engineer,nlp,Medium,AI,0.85
 ai engineer,docker,Medium,Deployment,0.75
+data analyst,sql,High,Database,0.95
+data analyst,excel,High,Spreadsheets,0.90
+data analyst,python,High,Programming,0.90
+data analyst,power bi,High,Visualization,0.90
+data analyst,tableau,High,Visualization,0.85
+data analyst,statistics,High,Math,0.85
+data analyst,pandas,Medium,Data Analysis,0.80
+data analyst,numpy,Medium,Data Analysis,0.75
+data analyst,data visualization,Medium,Visualization,0.80
+full stack developer,html,High,Frontend,0.90
+full stack developer,css,High,Frontend,0.90
+full stack developer,javascript,High,Frontend,0.95
+full stack developer,react,High,Frontend,0.90
+full stack developer,node.js,High,Backend,0.90
+full stack developer,sql,High,Database,0.85
+full stack developer,git,High,Tooling,0.85
+full stack developer,docker,Medium,DevOps,0.75
+full stack developer,mongodb,Medium,Database,0.75
+full stack developer,aws,Medium,Cloud,0.70
+devops engineer,linux,High,OS,0.95
+devops engineer,git,High,Tooling,0.90
+devops engineer,docker,High,DevOps,0.95
+devops engineer,kubernetes,High,DevOps,0.95
+devops engineer,ci/cd,High,Automation,0.90
+devops engineer,bash,High,Scripting,0.85
+devops engineer,aws,Medium,Cloud,0.85
+devops engineer,terraform,Medium,IaC,0.80
+devops engineer,python,Medium,Scripting,0.75
+
