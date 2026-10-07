@@ -803,15 +803,43 @@ def get_verified_skill_profile():
     }), 200
 
 
+@student_bp.route('/privacy_info', methods=['GET'])
+@login_required
+def get_student_privacy_info():
+    """
+    Returns non-operational privacy guarantees and educational telemetry
+    explaining how raw student data is kept sovereign and local.
+    """
+    return jsonify({
+        'title': 'Privacy-Preserving Intelligence',
+        'description': 'Your career data is protected using privacy-preserving learning techniques.',
+        'guarantees': [
+            'Raw training data remains local',
+            'Model updates are shared',
+            'Federated aggregation is used',
+            'Differential Privacy provides additional protection'
+        ],
+        'details': {
+            'local_sovereignty': 'Raw resumes, transcripts, and quiz responses remain on-premise.',
+            'gradient_sharing': 'Only numerical model weights (gradients) are communicated.',
+            'aggregation_method': 'Federated Averaging (FedAvg) aggregates distributed updates.',
+            'differential_privacy': 'Calibrated Gaussian perturbation prevents reconstruction attacks.'
+        }
+    }), 200
+
+
 @student_bp.route('/federated_status', methods=['GET'])
 @login_required
 def get_student_federated_status():
     """
-    Returns platform-wide federated learning operational status and privacy parameters
-    for display on student dashboards and visualizers.
+    Safe read-only informational privacy status for student dashboard.
     """
     status = get_federated_status()
-    return jsonify(status), 200
+    return jsonify({
+        'status': status.get('status', 'Operational'),
+        'privacy_statement': status.get('privacy_statement', ''),
+        'differential_privacy': status.get('differential_privacy', {})
+    }), 200
 
 
 @student_bp.route('/ask_assistant', methods=['POST'])

@@ -25,7 +25,8 @@ def register():
         college=data['college'],
         course=data['course'],
         year=data.get('year'),
-        target_career=data.get('target_career')
+        target_career=data.get('target_career'),
+        role=data.get('role', 'student')
     )
     new_student.set_password(data['password'])
 
@@ -51,6 +52,13 @@ def login():
 
     if not student or not student.check_password(data['password']):
         return jsonify({'error': 'Invalid email or password'}), 401
+
+    # Optional portal restriction check
+    portal = data.get('portal')
+    if portal == 'admin' and student.role != 'admin':
+        return jsonify({
+            'error': 'Access denied: This account does not possess institutional administrator privileges'
+        }), 403
 
     login_user(student)
 

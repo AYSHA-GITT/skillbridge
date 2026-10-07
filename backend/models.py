@@ -25,6 +25,7 @@ class Student(BaseModel, UserMixin):
     year = db.Column(db.String(20))
     target_career = db.Column(db.String(200))  # replaces target_company
     readiness_score = db.Column(db.Float, default=0.0)
+    role = db.Column(db.String(20), default='student', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
 
@@ -47,17 +48,22 @@ class Student(BaseModel, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    @property
+    def is_admin(self):
+        return (self.role or '').lower() == 'admin'
+
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
             'email': self.email,
+            'role': self.role or 'student',
             'college': self.college,
             'course': self.course,
             'year': self.year,
             'target_career': self.target_career,
             'readiness_score': self.readiness_score,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat() if self.created_at else None
         }
 
 

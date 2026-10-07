@@ -36,6 +36,8 @@ backend/uploads/
 backend/*.json
 uploads/
 instance/
+*.db
+*.sqlite
 .webassets-cache
 
 # Frontend / Node

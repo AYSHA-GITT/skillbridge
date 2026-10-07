@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { TbShieldLock, TbLogout, TbSparkles } from 'react-icons/tb';
+import { TbLogout, TbSparkles, TbShieldCheck } from 'react-icons/tb';
 import authService from '../services/authService';
 
-export default function Navbar({ student, onOpenAssistant }) {
+export default function Navbar({ student, onOpenAssistant, onOpenPrivacyModal }) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -28,8 +28,8 @@ export default function Navbar({ student, onOpenAssistant }) {
               <span className="font-heading font-bold text-lg tracking-tight text-white">
                 SkillBridge
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-accent-500/15 text-accent-300 border border-accent-400/30">
-                FL-Powered
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-500/15 text-teal-300 border border-teal-400/30">
+                Student Portal
               </span>
             </div>
             <p className="text-[10px] text-white/40 -mt-1 hidden sm:block">Privacy-Preserving Career Intelligence</p>
@@ -63,13 +63,16 @@ export default function Navbar({ student, onOpenAssistant }) {
             </button>
           )}
 
-          <Link
-            to="/federated"
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-accent-400/30 text-xs font-medium text-accent-300 bg-accent-500/10 hover:bg-accent-500/20 transition-colors"
-          >
-            <TbShieldLock className="w-4 h-4" />
-            <span className="hidden sm:inline">Privacy Hub</span>
-          </Link>
+          {onOpenPrivacyModal && (
+            <button
+              onClick={onOpenPrivacyModal}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border border-teal-500/30 text-xs font-medium text-teal-300 bg-teal-500/10 hover:bg-teal-500/20 transition-colors"
+              title="Learn how your data is protected"
+            >
+              <TbShieldCheck className="w-4 h-4 text-teal-400" />
+              <span className="hidden sm:inline">Privacy Guarantees</span>
+            </button>
+          )}
 
           <button
             onClick={handleLogout}

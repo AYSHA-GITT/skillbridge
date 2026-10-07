@@ -120,6 +120,11 @@ export const skillService = {
     return response.data;
   },
 
+  getAdminStudents: async () => {
+    const response = await api.get('/admin/students');
+    return response.data;
+  },
+
   triggerFLRound: async () => {
     const response = await api.post('/admin/federated/train');
     return response.data;

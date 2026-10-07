@@ -24,23 +24,18 @@ export default function Dashboard() {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [topCareer, setTopCareer] = useState(null);
-  const [flStatus, setFlStatus] = useState(null);
   const [careerDetailsOpen, setCareerDetailsOpen] = useState(false);
   const [privacyDetailsOpen, setPrivacyDetailsOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([
       api.get('/auth/me'),
-      skillService.getCareerRecommendations().catch(() => ({})),
-      skillService.getFederatedStatus().catch(() => ({}))
+      skillService.getCareerRecommendations().catch(() => ({}))
     ])
-      .then(([meRes, recsRes, flRes]) => {
+      .then(([meRes, recsRes]) => {
         setStudent(meRes.data.student);
         if (recsRes.top_recommendation) {
           setTopCareer(recsRes.top_recommendation);
-        }
-        if (flRes) {
-          setFlStatus(flRes);
         }
       })
       .catch(() => navigate('/login'))
@@ -232,7 +227,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Card 2: Privacy-Preserving Security Hub */}
+          {/* Card 2: Informational Privacy-Preserving Intelligence */}
           <div className="glass p-6 sm:p-7 rounded-3xl border border-teal-500/30 hover:border-teal-500/50 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
             <div className="glow-teal absolute -left-8 -top-8 w-40 h-40 opacity-20 group-hover:opacity-35 transition-opacity" />
 
@@ -240,70 +235,65 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/15 px-3 py-1 rounded-full border border-emerald-500/30">
                   <TbShieldCheck className="w-3.5 h-3.5" />
-                  <span>Privacy-Preserving AI</span>
+                  <span>Privacy-Preserving Intelligence</span>
                 </span>
-                <span className="text-xs font-mono text-accent-300 bg-accent-500/10 px-2.5 py-1 rounded-lg border border-accent-400/20">
-                  ε = {flStatus?.differential_privacy?.epsilon || 0.85} DP
+                <span className="text-[11px] font-mono text-teal-300 bg-teal-500/10 px-2.5 py-1 rounded-lg border border-teal-400/20">
+                  Data Sovereignty
                 </span>
               </div>
 
               <div>
-                <span className="text-[11px] font-mono uppercase tracking-wider text-white/40">
-                  Institutional Architecture
-                </span>
-                <h3 className="font-heading text-2xl font-bold text-white mt-0.5">
-                  Decentralized Flower FedAvg
+                <h3 className="font-heading text-xl font-bold text-white mt-0.5">
+                  Your Career Data Is Protected
                 </h3>
                 <p className="text-xs text-white/60 mt-1">
-                  Resumes and quiz records remain strictly on-campus. Only encrypted model weight updates are aggregated.
+                  Your career data is protected using privacy-preserving learning techniques.
                 </p>
               </div>
 
-              {/* Essential FL Quick Numbers */}
-              <div className="grid grid-cols-2 gap-3 pt-1">
-                <div className="surface p-3 rounded-xl border border-base-700/60">
-                  <span className="text-[10px] text-white/40 block">Global Model</span>
-                  <span className="font-heading text-lg font-bold text-emerald-400">
-                    Round #{flStatus?.total_rounds || 4}
-                  </span>
+              {/* Four Guarantees */}
+              <div className="space-y-2 pt-1 text-xs text-white/80">
+                <div className="flex items-center space-x-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span>Raw training data remains local</span>
                 </div>
-                <div className="surface p-3 rounded-xl border border-base-700/60">
-                  <span className="text-[10px] text-white/40 block">Campus Nodes</span>
-                  <span className="font-heading text-lg font-bold text-teal-300">
-                    {flStatus?.participating_institutions || 4} Connected
-                  </span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span>Model updates are shared</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span>Federated aggregation is used</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-emerald-400 font-bold">✓</span>
+                  <span>Differential Privacy provides additional protection</span>
                 </div>
               </div>
 
               {/* Click to expand details */}
               {privacyDetailsOpen && (
-                <div className="surface p-4 rounded-2xl border border-base-700/80 space-y-2 animate-slide-up text-[11px]">
-                  <div className="space-y-1.5 text-white/70">
-                    <p>🔒 <strong className="text-white">Local Data Sovereignty:</strong> Academic records never leave your university.</p>
-                    <p>⚡ <strong className="text-white">Federated Averaging:</strong> Flower FedAvg trains on model weights, not raw data.</p>
-                    <p>🛡️ <strong className="text-white">Differential Privacy:</strong> Gaussian perturbation mathematically guarantees student anonymity.</p>
-                  </div>
+                <div className="surface p-4 rounded-2xl border border-teal-500/30 space-y-2 animate-slide-up text-[11px] text-white/70">
+                  <p>🔒 <strong className="text-white">Local Data Sovereignty:</strong> Academic records and resumes never leave your university or browser.</p>
+                  <p>⚡ <strong className="text-white">Federated Averaging:</strong> Algorithms train only on numerical weights, never sharing raw documents.</p>
+                  <p>🛡️ <strong className="text-white">Differential Privacy:</strong> Calibrated Gaussian perturbation bounds mathematical privacy without compromising quality.</p>
                 </div>
               )}
             </div>
 
-            {/* Bottom Actions */}
+            {/* Bottom Actions (Informational Only) */}
             <div className="pt-5 mt-5 border-t border-base-800/80 flex items-center justify-between relative">
               <button
                 type="button"
                 onClick={() => setPrivacyDetailsOpen(!privacyDetailsOpen)}
                 className="text-xs text-emerald-400 hover:text-emerald-300 font-semibold underline underline-offset-4 flex items-center space-x-1"
               >
-                <span>{privacyDetailsOpen ? 'Hide Security Details ▲' : 'View Security Details ▼'}</span>
+                <span>{privacyDetailsOpen ? 'Hide Security Details ▲' : 'Learn More ▼'}</span>
               </button>
 
-              <button
-                onClick={() => navigate('/federated')}
-                className="btn-ghost text-xs py-2 px-3.5 flex items-center space-x-1 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10"
-              >
-                <span>Privacy Hub</span>
-                <TbArrowRight className="w-3.5 h-3.5" />
-              </button>
+              <span className="text-[11px] text-teal-300/60 font-mono">
+                Institutional Compute Layer
+              </span>
             </div>
           </div>
         </div>
@@ -371,7 +361,7 @@ export default function Dashboard() {
                 Quick Navigation
               </h3>
               <p className="text-xs text-white/50 mt-1">
-                Verify detected skills, check salary simulations, or review federated privacy.
+                Verify detected skills, check salary simulations, or explore learning roadmaps.
               </p>
             </div>
 

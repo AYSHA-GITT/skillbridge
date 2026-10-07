@@ -35,6 +35,10 @@ def load_user(student_id):
     from models import Student
     return Student.query.get(int(student_id))
 
+@login_manager.unauthorized_handler
+def unauthorized():
+    return {'error': 'Authentication required. Please log in.'}, 401
+
 # Import and register routes
 from routes.auth import auth_bp
 from routes.student import student_bp

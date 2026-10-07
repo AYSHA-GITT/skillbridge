@@ -26,16 +26,22 @@ export default function Landing() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             <Link
-              to="/login"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              to="/login?portal=student"
+              className="text-xs sm:text-sm font-medium text-white/70 hover:text-white transition-colors flex items-center space-x-1"
             >
-              Sign In
+              <span>🎓 Student Sign In</span>
+            </Link>
+            <Link
+              to="/login?portal=admin"
+              className="text-xs sm:text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors flex items-center space-x-1"
+            >
+              <span>🏛 Institution Sign In</span>
             </Link>
             <Link
               to="/register"
-              className="btn-primary text-xs py-2 px-4 shadow-glow"
+              className="btn-primary text-xs py-2 px-3.5 shadow-glow"
             >
               Get Started Free
             </Link>
@@ -64,19 +70,21 @@ export default function Landing() {
           and generates personalized roadmaps — trained collaboratively with <span className="text-white font-medium">Federated Learning</span> so your personal resume data never leaves your device.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+        {/* Dual Portal Selection */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 max-w-md mx-auto">
           <button
-            onClick={() => navigate('/register')}
-            className="btn-primary text-base py-3.5 px-8 max-w-xs flex items-center justify-center space-x-2 font-semibold shadow-glow"
+            onClick={() => navigate('/login?portal=student')}
+            className="w-full sm:w-auto flex-1 btn-primary text-sm py-3.5 px-6 flex items-center justify-center space-x-2 font-semibold shadow-glow"
           >
-            <span>Start Free Analysis</span>
-            <TbArrowRight className="w-5 h-5" />
+            <span>🎓 Student Portal</span>
+            <TbArrowRight className="w-4 h-4" />
           </button>
           <button
-            onClick={() => navigate('/login')}
-            className="btn-ghost text-base py-3.5 px-8 max-w-xs"
+            onClick={() => navigate('/login?portal=admin')}
+            className="w-full sm:w-auto flex-1 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-cyan-500/40 text-cyan-300 font-semibold text-sm flex items-center justify-center space-x-2 transition-all shadow-md"
           >
-            Sign In to Dashboard
+            <span>🏛 Institution Portal</span>
+            <TbArrowRight className="w-4 h-4 text-cyan-400" />
           </button>
         </div>
       </section>

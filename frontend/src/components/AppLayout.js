@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import AskAssistantModal from './AskAssistantModal';
+import PrivacyInfoModal from './PrivacyInfoModal';
 import authService from '../services/authService';
 
 export default function AppLayout({ children }) {
@@ -10,6 +11,7 @@ export default function AppLayout({ children }) {
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
 
   useEffect(() => {
     authService.getCurrentUser()
@@ -32,9 +34,10 @@ export default function AppLayout({ children }) {
       <Navbar
         student={student}
         onOpenAssistant={() => setAssistantOpen(true)}
+        onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
       />
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        <Sidebar />
+        <Sidebar onOpenPrivacyModal={() => setPrivacyModalOpen(true)} />
         <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-5xl">
           {children}
         </main>
@@ -45,6 +48,12 @@ export default function AppLayout({ children }) {
         isOpen={assistantOpen}
         onClose={() => setAssistantOpen(false)}
         onOpen={() => setAssistantOpen(true)}
+      />
+
+      {/* Informational Privacy Guarantees Modal */}
+      <PrivacyInfoModal
+        isOpen={privacyModalOpen}
+        onClose={() => setPrivacyModalOpen(false)}
       />
     </div>
   );
