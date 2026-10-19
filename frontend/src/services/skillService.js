@@ -150,8 +150,125 @@ export const skillService = {
     return response.data;
   },
 
-  askAssistant: async (question) => {
-    const response = await api.post('/student/ask_assistant', { question });
+  // Career Assistant with RAG & Provider Selection
+  askAssistant: async (question, provider = null) => {
+    const payload = { question };
+    if (provider) payload.provider = provider;
+    const response = await api.post('/student/ask_assistant', payload);
+    return response.data;
+  },
+
+  // AI Provider Management
+  getAIProviders: async () => {
+    const response = await api.get('/student/ai_providers');
+    return response.data;
+  },
+
+  selectAIProvider: async (providerName) => {
+    const response = await api.post('/student/ai_providers/select', { provider_name: providerName });
+    return response.data;
+  },
+
+  // Job & Internship Discovery
+  getJobs: async (params = {}) => {
+    const response = await api.get('/student/jobs', { params });
+    return response.data;
+  },
+
+  getJobDetail: async (jobId) => {
+    const response = await api.get(`/student/jobs/${jobId}`);
+    return response.data;
+  },
+
+  syncJobs: async () => {
+    const response = await api.post('/student/jobs/sync');
+    return response.data;
+  },
+
+  getJobQualityMetrics: async () => {
+    const response = await api.get('/student/jobs/quality_metrics');
+    return response.data;
+  },
+
+  saveJob: async (jobId) => {
+    const response = await api.post('/student/jobs/save', { job_id: jobId });
+    return response.data;
+  },
+
+  unsaveJob: async (jobId) => {
+    const response = await api.post('/student/jobs/unsave', { job_id: jobId });
+    return response.data;
+  },
+
+  getSavedJobs: async () => {
+    const response = await api.get('/student/jobs/saved');
+    return response.data;
+  },
+
+  // Explainable Job Matching & Comparison
+  getJobMatch: async (jobId) => {
+    const response = await api.get(`/student/jobs/${jobId}/match`);
+    return response.data;
+  },
+
+  compareJobs: async (jobIds) => {
+    const response = await api.post('/student/jobs/compare', { job_ids: jobIds });
+    return response.data;
+  },
+
+  // Job-Specific Interview Simulator
+  startInterview: async ({ jobId = null, targetRole = 'Software Engineer', questionCount = 5 } = {}) => {
+    const response = await api.post('/student/interview/start', {
+      job_id: jobId,
+      target_role: targetRole,
+      question_count: questionCount,
+    });
+    return response.data;
+  },
+
+  submitInterviewAnswer: async ({ sessionId, session_id, questionId, question_id, questionIndex, question_index, answer, candidate_answer }) => {
+    const finalSessionId = sessionId || session_id;
+    const finalAnswer = answer || candidate_answer;
+    const response = await api.post('/student/interview/answer', {
+      session_id: finalSessionId,
+      sessionId: finalSessionId,
+      question_id: questionId || question_id,
+      questionId: questionId || question_id,
+      question_index: questionIndex || question_index,
+      questionIndex: questionIndex || question_index,
+      spoken_or_typed_answer: finalAnswer,
+      candidate_answer: finalAnswer,
+      answer: finalAnswer,
+    });
+    return response.data;
+  },
+
+  getInterviewHistory: async () => {
+    const response = await api.get('/student/interview/history');
+    return response.data;
+  },
+
+  getInterviewSession: async (sessionId) => {
+    const response = await api.get(`/student/interview/session/${sessionId}`);
+    return response.data;
+  },
+
+  // Multi-Path Career Simulation
+  simulateCareerPaths: async (paths) => {
+    const response = await api.post('/student/simulate_paths', { paths });
+    return response.data;
+  },
+
+  // Privacy & Data Sovereignty Controls
+  exportAccountData: async () => {
+    const response = await api.get('/student/account/export');
+    return response.data;
+  },
+
+  deleteAccountData: async () => {
+    const response = await api.delete('/student/account/delete', {
+      data: { confirmation: 'DELETE_MY_ACCOUNT' },
+    });
     return response.data;
   },
 
@@ -185,3 +302,4 @@ export const skillService = {
 };
 
 export default skillService;
+

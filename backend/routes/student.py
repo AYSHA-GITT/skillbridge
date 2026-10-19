@@ -63,9 +63,8 @@ def upload_resume():
     unique_filename = f"{current_user.id}_{uuid.uuid4().hex}.{extension}"
 
     # 4. Make sure the upload folder exists, then save the file
-    upload_dir = os.path.join(current_app.root_path, 'uploads', 'resumes')
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, unique_filename)
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
     file.save(file_path)
 
     # 5. Mark this student's previous resumes as not-latest
@@ -104,16 +103,8 @@ def parse_resume_endpoint(resume_id):
     if not resume:
         return jsonify({'error': 'Resume not found or does not belong to you'}), 404
 
-    target_path = resume.file_path
-    if not os.path.exists(target_path):
-        alt_path = os.path.join(current_app.root_path, target_path)
-        if os.path.exists(alt_path):
-            target_path = alt_path
-        elif os.path.exists(os.path.join(current_app.root_path, 'uploads', 'resumes', os.path.basename(target_path))):
-            target_path = os.path.join(current_app.root_path, 'uploads', 'resumes', os.path.basename(target_path))
-
     try:
-        extracted_text = parse_resume(target_path)
+        extracted_text = parse_resume(resume.file_path)
     except ValueError as e:
         return jsonify({'error': str(e)}), 422
     except Exception as e:
@@ -149,6 +140,15 @@ def extract_skills_endpoint(resume_id):
     if not extracted:
         return jsonify({'message': 'No known skills detected in this resume',
                          'skills': []}), 200
+#from here
+# Skills that already have a verification must be preserved —
+    # deleting them would break skill_verifications' foreign key
+    # and destroy the student's proven quiz history
+    verified_skill_ids = {
+        v.skill_id for v in SkillVerification.query.filter_by(
+            student_id=current_user.id
+        ).all()
+    }
 
     try:
         # Fetch all existing skills for this student across all resumes
@@ -161,6 +161,8 @@ def extract_skills_endpoint(resume_id):
                 student_id=current_user.id
             ).all()
         }
+
+        saved_skills = []
 
         for item in extracted:
             skill_name_clean = item['skill_name'].strip()
@@ -175,6 +177,7 @@ def extract_skills_endpoint(resume_id):
                 # Keep pointer to latest resume if not locked by verification
                 if existing.id not in verified_skill_ids:
                     existing.resume_id = resume.id
+                saved_skills.append(existing)
             else:
                 skill = Skill(
                     student_id=current_user.id,
@@ -185,15 +188,13 @@ def extract_skills_endpoint(resume_id):
                 )
                 db.session.add(skill)
                 existing_skills_by_name[key] = skill
+                saved_skills.append(skill)
 
         db.session.commit()
 
-        # Query all student skills
-        all_skills = Skill.query.filter_by(student_id=current_user.id).all()
-
         return jsonify({
-            'message': f'{len(all_skills)} skills extracted',
-            'skills': [s.to_dict() for s in all_skills]
+            'message': f'{len(saved_skills)} skills extracted',
+            'skills': [s.to_dict() for s in saved_skills]
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -883,10 +884,11 @@ def get_student_federated_status():
 @login_required
 def ask_assistant_endpoint():
     """
-    Answers career guidance queries grounded strictly on the student's actual profile data.
+    Answers career guidance queries grounded strictly on the student's actual profile data and RAG knowledge.
     """
     data = request.get_json(silent=True) or {}
     question = data.get('question', '').strip()
+    selected_job_id = data.get('selected_job_id')
     if not question:
         return jsonify({'error': 'Please provide a question'}), 400
 
@@ -903,6 +905,7 @@ def ask_assistant_endpoint():
     salary_info = salary_predictor.predict_salary(verified_skills)
 
     profile = {
+        'student_id': current_user.id,
         'target_career': current_user.target_career,
         'readiness_score': current_user.readiness_score or 0.0,
         'verified_skills': verified_skills,
@@ -912,7 +915,13 @@ def ask_assistant_endpoint():
         'top_career_match_percent': top_rec.get('match_percentage') if top_rec else None
     }
 
-    result = ask_career_assistant(profile, question)
+    selected_job_id = (request.get_json(silent=True) or {}).get('selected_job_id')
+    result = ask_career_assistant(
+        profile,
+        question,
+        student_id=current_user.id,
+        selected_job_id=int(selected_job_id) if selected_job_id else None
+    )
     return jsonify(result), 200
 
 
@@ -1103,3 +1112,403 @@ def rag_add_job_endpoint():
     except Exception as e:
         current_app.logger.error(f"Add custom JD error: {e}", exc_info=True)
         return jsonify({'error': f'Could not add job description: {str(e)}'}), 500
+
+
+
+# ─────────────────────────────────────────
+# JOB & INTERNSHIP DISCOVERY ENDPOINTS
+# ─────────────────────────────────────────
+@student_bp.route('/jobs', methods=['GET'])
+@login_required
+def get_jobs():
+    from utils.job_discovery import job_discovery_service
+    from models import SavedJob
+    query = request.args.get('query')
+    job_type = request.args.get('job_type')
+    domain = request.args.get('domain')
+    work_arrangement = request.args.get('work_arrangement')
+    skill = request.args.get('skill')
+    is_sample_arg = request.args.get('is_sample')
+    is_sample = None
+    if is_sample_arg is not None and is_sample_arg.lower() != 'all':
+        is_sample = is_sample_arg.lower() in ['true', '1']
+
+    limit = min(100, int(request.args.get('limit', 50)))
+    jobs = job_discovery_service.search_jobs(
+        query=query,
+        job_type=job_type,
+        domain=domain,
+        work_arrangement=work_arrangement,
+        skill=skill,
+        is_sample=is_sample,
+        limit=limit
+    )
+
+    # Attach whether the student has saved each job
+    saved_ids = set(
+        sj.job_id for sj in SavedJob.query.filter_by(student_id=current_user.id).all()
+    )
+    for j in jobs:
+        j['is_saved'] = j['id'] in saved_ids
+
+    return jsonify({'jobs': jobs, 'total': len(jobs)}), 200
+
+
+@student_bp.route('/jobs/<int:job_id>', methods=['GET'])
+@login_required
+def get_job_detail(job_id):
+    from utils.job_discovery import job_discovery_service
+    from models import SavedJob
+    job = job_discovery_service.get_job_by_id(job_id)
+    if not job:
+        return jsonify({'error': 'Job listing not found'}), 404
+
+    is_saved = SavedJob.query.filter_by(student_id=current_user.id, job_id=job_id).first() is not None
+    job['is_saved'] = is_saved
+    return jsonify(job), 200
+
+
+@student_bp.route('/jobs/sync', methods=['POST'])
+@login_required
+def sync_job_sources():
+    from utils.job_discovery import job_discovery_service
+    result = job_discovery_service.sync_all_sources(limit_per_source=25)
+    return jsonify(result), 200
+
+
+@student_bp.route('/jobs/quality_metrics', methods=['GET'])
+@login_required
+def get_job_quality_metrics():
+    from utils.job_discovery import job_discovery_service
+    metrics = job_discovery_service.get_quality_metrics()
+    return jsonify({'metrics': metrics, **metrics}), 200
+
+
+
+@student_bp.route('/jobs/save', methods=['POST'])
+@login_required
+def save_job_endpoint():
+    from utils.job_discovery import job_discovery_service
+    data = request.get_json(silent=True) or {}
+    job_id = data.get('job_id')
+    notes = data.get('notes')
+    if not job_id:
+        return jsonify({'error': 'job_id is required'}), 400
+
+    res = job_discovery_service.save_job_for_student(current_user.id, int(job_id), notes)
+    return jsonify(res), 200
+
+
+@student_bp.route('/jobs/save/<int:job_id>', methods=['DELETE'])
+@login_required
+def unsave_job_endpoint(job_id):
+    from utils.job_discovery import job_discovery_service
+    success = job_discovery_service.remove_saved_job(current_user.id, job_id)
+    return jsonify({'success': success, 'job_id': job_id}), 200
+
+
+@student_bp.route('/jobs/unsave', methods=['POST'])
+@login_required
+def unsave_job_post_endpoint():
+    from utils.job_discovery import job_discovery_service
+    data = request.get_json(silent=True) or {}
+    job_id = data.get('job_id')
+    if not job_id:
+        return jsonify({'error': 'job_id is required'}), 400
+    success = job_discovery_service.remove_saved_job(current_user.id, int(job_id))
+    return jsonify({'success': success, 'job_id': job_id}), 200
+
+
+
+@student_bp.route('/jobs/saved', methods=['GET'])
+@login_required
+def get_saved_jobs_endpoint():
+    from utils.job_discovery import job_discovery_service
+    saved = job_discovery_service.get_saved_jobs_for_student(current_user.id)
+    return jsonify({'saved_jobs': saved, 'total': len(saved)}), 200
+
+
+# ─────────────────────────────────────────
+# EXPLAINABLE JOB-SPECIFIC MATCHING
+# ─────────────────────────────────────────
+@student_bp.route('/jobs/<int:job_id>/match', methods=['GET'])
+@login_required
+def get_job_match_breakdown(job_id):
+    from models import JobListing
+    from utils.job_matcher import evaluate_job_match
+    job = JobListing.query.get(job_id)
+    if not job:
+        return jsonify({'error': 'Job not found'}), 404
+
+    evaluation = evaluate_job_match(current_user, job)
+
+    # Format matched_skills as array of objects with {skill, is_verified} for direct UI mapping
+    matched_list = []
+    for s in evaluation.get('matched_skills', {}).get('verified', []):
+        matched_list.append({'skill': s, 'is_verified': True})
+    for s in evaluation.get('matched_skills', {}).get('unverified', []):
+        matched_list.append({'skill': s, 'is_verified': False})
+    for s in evaluation.get('matched_skills', {}).get('preferred', []):
+        matched_list.append({'skill': s, 'is_verified': True, 'is_preferred': True})
+
+    missing_mandatory = evaluation.get('missing_skills', {}).get('mandatory', [])
+    missing_preferred = evaluation.get('missing_skills', {}).get('preferred', [])
+
+    # Format resource recommendations map
+    resource_map = {}
+    for r in evaluation.get('curated_resources', []):
+        sk = r.get('skill_query') or (missing_mandatory[0] if missing_mandatory else 'technology')
+        if sk not in resource_map:
+            resource_map[sk] = {}
+        if r.get('source_type') == 'YouTube':
+            resource_map[sk]['youtube'] = r.get('url')
+        elif r.get('source_type') == 'GitHub':
+            resource_map[sk]['github'] = r.get('url')
+
+    # Format transferable bridges with transfer_coefficient
+    bridges = []
+    for b in evaluation.get('transferable_bridges', []):
+        bridges.append({
+            'user_skill': b.get('user_skill'),
+            'target_skill': b.get('target_skill'),
+            'transfer_coefficient': b.get('transfer_coefficient', 0.8),
+            'rationale': b.get('rationale', '')
+        })
+
+    payload = {
+        **evaluation,
+        'matched_skills': matched_list,
+        'matched_skills_dict': evaluation.get('matched_skills'),
+        'missing_mandatory_skills': missing_mandatory,
+        'missing_preferred_skills': missing_preferred,
+        'resource_recommendations': resource_map,
+        'transferable_bridges': bridges,
+        'match_score': evaluation.get('match_score', 0)
+    }
+
+    return jsonify({
+        'match': payload,
+        **payload
+    }), 200
+
+
+@student_bp.route('/jobs/compare', methods=['POST'])
+@login_required
+def compare_jobs_endpoint():
+    from utils.job_matcher import compare_multiple_jobs
+    data = request.get_json(silent=True) or {}
+    job_ids = data.get('job_ids', [])
+    if not job_ids or not isinstance(job_ids, list):
+        return jsonify({'error': 'job_ids array is required'}), 400
+
+    res = compare_multiple_jobs(current_user, [int(jid) for jid in job_ids[:4]])
+    return jsonify({
+        'comparison': res,
+        **res
+    }), 200
+
+
+# ─────────────────────────────────────────
+# JOB-SPECIFIC INTERVIEW PREPARATION
+# ─────────────────────────────────────────
+@student_bp.route('/interview/start', methods=['POST'])
+@login_required
+def start_interview_endpoint():
+    from utils.interview_simulator import start_interview_session
+    data = request.get_json(silent=True) or {}
+    job_id = data.get('job_id')
+    custom_title = data.get('custom_title') or data.get('target_role')
+    custom_desc = data.get('custom_desc')
+
+    session_data = start_interview_session(
+        student_id=current_user.id,
+        job_id=int(job_id) if job_id else None,
+        custom_title=custom_title,
+        custom_desc=custom_desc
+    )
+    return jsonify({'session': session_data, **session_data}), 200
+
+
+@student_bp.route('/interview/answer', methods=['POST'])
+@login_required
+def submit_interview_answer():
+    from utils.interview_simulator import evaluate_interview_answer
+    data = request.get_json(silent=True) or {}
+    session_id = data.get('session_id') or data.get('sessionId')
+    question_index = data.get('question_index') or data.get('questionIndex')
+    candidate_answer = (
+        data.get('candidate_answer') or 
+        data.get('spoken_or_typed_answer') or 
+        data.get('answer')
+    )
+
+    if not session_id or not candidate_answer:
+        return jsonify({'error': 'session_id and candidate_answer are required'}), 400
+
+    # If question_index not given, look up by question_id
+    if not question_index:
+        qid = data.get('question_id') or data.get('questionId')
+        if qid:
+            from models import InterviewQA
+            qa_rec = InterviewQA.query.filter_by(id=int(qid), session_id=int(session_id)).first()
+            if qa_rec:
+                question_index = qa_rec.question_index
+            else:
+                question_index = 1
+        else:
+            question_index = 1
+
+    try:
+        eval_res = evaluate_interview_answer(
+            session_id=int(session_id),
+            question_index=int(question_index),
+            candidate_answer=candidate_answer,
+            student_id=current_user.id
+        )
+        return jsonify({'evaluation': eval_res, **eval_res}), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+
+
+@student_bp.route('/interview/history', methods=['GET'])
+@login_required
+def get_interview_history():
+    from utils.interview_simulator import get_student_interview_history
+    sessions = get_student_interview_history(current_user.id)
+    return jsonify({'history': sessions, 'sessions': sessions, 'total': len(sessions)}), 200
+
+
+@student_bp.route('/interview/session/<int:session_id>', methods=['GET'])
+@login_required
+def get_interview_session_detail(session_id):
+    from models import InterviewSession
+    session = InterviewSession.query.filter_by(id=session_id, student_id=current_user.id).first()
+    if not session:
+        return jsonify({'error': 'Interview session not found'}), 404
+    d = session.to_dict()
+    return jsonify({'session': d, **d}), 200
+
+
+# ─────────────────────────────────────────
+# AI PROVIDER MANAGEMENT (Gemini / Ollama / Grok)
+# ─────────────────────────────────────────
+@student_bp.route('/ai_providers', methods=['GET'])
+@login_required
+def get_ai_providers_endpoint():
+    from utils.ai_providers import ai_provider_manager
+    status_list = ai_provider_manager.get_providers_status()
+    return jsonify({
+        'providers': status_list,
+        'active_provider': ai_provider_manager.active_provider_key
+    }), 200
+
+
+@student_bp.route('/ai_providers/select', methods=['POST'])
+@login_required
+def select_ai_provider():
+    from utils.ai_providers import ai_provider_manager
+    data = request.get_json(silent=True) or {}
+    provider_key = data.get('provider_key') or data.get('provider_name')
+    if not provider_key:
+        return jsonify({'error': 'provider_key is required'}), 400
+
+    ok = ai_provider_manager.set_active_provider(provider_key)
+    if not ok:
+        return jsonify({'error': f'Invalid provider: {provider_key}'}), 400
+
+    return jsonify({
+        'status': 'success',
+        'active_provider': ai_provider_manager.active_provider_key
+    }), 200
+
+
+# ─────────────────────────────────────────
+# MULTI-PATH CAREER SIMULATION
+# ─────────────────────────────────────────
+@student_bp.route('/simulate_paths', methods=['POST'])
+@login_required
+def simulate_career_paths_endpoint():
+    from utils.career_recommender import simulate_multi_career_paths
+    data = request.get_json(silent=True) or {}
+    career_names = data.get('career_names') or data.get('paths') or []
+    if not career_names or not isinstance(career_names, list):
+        return jsonify({'error': 'career_names list is required'}), 400
+
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+
+    simulation = simulate_multi_career_paths(
+        verified_skills=verified_skills,
+        career_names=career_names[:4],
+        target_career=current_user.target_career
+    )
+    return jsonify({'simulation': simulation, **simulation}), 200
+
+
+
+# ─────────────────────────────────────────
+# STUDENT DATA MANAGEMENT & DELETION
+# ─────────────────────────────────────────
+@student_bp.route('/account/export', methods=['GET'])
+@login_required
+def export_student_data():
+    """
+    Exports full student profile, verifications, progress history, and saved data as JSON.
+    """
+    from utils.job_discovery import job_discovery_service
+    from utils.interview_simulator import get_student_interview_history
+    skills = [s.to_dict() for s in Skill.query.filter_by(student_id=current_user.id).all()]
+    verifications = [v.to_dict() for v in SkillVerification.query.filter_by(student_id=current_user.id).all()]
+    progress = [p.to_dict() for p in current_user.progress]
+    study_plans = [sp.to_dict() for sp in current_user.study_plans]
+    saved_jobs = job_discovery_service.get_saved_jobs_for_student(current_user.id)
+    interviews = get_student_interview_history(current_user.id)
+
+    student_dict = current_user.to_dict()
+    export_payload = {
+        'student': student_dict,
+        'profile': student_dict,
+        'extracted_skills': skills,
+        'skills': skills,
+        'verified_competencies': verifications,
+        'progress_timeline': progress,
+        'study_plans': study_plans,
+        'saved_jobs': saved_jobs,
+        'interview_sessions': interviews,
+        'interview_history': interviews,
+        'exported_at': datetime.utcnow().isoformat(),
+        'data_sovereignty_notice': 'This export includes all profile and learning artifacts stored under your account.'
+    }
+    return jsonify(export_payload), 200
+
+
+@student_bp.route('/account/delete', methods=['DELETE'])
+@login_required
+def delete_student_account():
+    """
+    Permanently deletes student account and cascades all associated private records.
+    Requires explicit confirmation payload to prevent accidental deletion.
+    """
+    from flask_login import logout_user
+    from models import Student
+    data = request.get_json(silent=True) or {}
+    confirmation = data.get('confirmation', '')
+    if confirmation != 'DELETE_MY_ACCOUNT':
+        return jsonify({'error': 'Explicit confirmation required. Send {"confirmation": "DELETE_MY_ACCOUNT"}'}), 400
+
+    student = Student.query.get(current_user.id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    db.session.delete(student)
+    db.session.commit()
+    logout_user()
+
+    return jsonify({
+        'status': 'deleted',
+        'message': 'Account and all associated private learning records have been permanently erased.'
+    }), 200

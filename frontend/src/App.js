@@ -17,11 +17,14 @@ import Progress from './pages/Progress';
 import SalarySim from './pages/SalarySim';
 import Badges from './pages/Badges';
 import Company from './pages/Company';
+import Jobs from './pages/Jobs';
+import InterviewPrep from './pages/InterviewPrep';
 import FedViz from './pages/FedViz';
 import Admin from './pages/Admin';
 import { ProtectedRoute, AdminRoute } from './components/RouteGuards';
 
 function App() {
+
   return (
     <BrowserRouter>
       <Routes>
@@ -147,6 +150,23 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/jobs"
+          element={
+            <ProtectedRoute>
+              <Jobs />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/interview-prep"
+          element={
+            <ProtectedRoute>
+              <InterviewPrep />
+            </ProtectedRoute>
+          }
+        />
+
 
         {/* ============================================================ */}
         {/* INSTITUTION / ADMIN PORTAL (ADMIN PRIVILEGES REQUIRED) */}

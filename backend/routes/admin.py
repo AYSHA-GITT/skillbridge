@@ -162,7 +162,7 @@ def get_fl_rounds():
 @admin_bp.route('/federated/nodes', methods=['GET'])
 @admin_required
 def get_fl_nodes():
-    return jsonify({'institutions': INSTITUTIONS}), 200
+    return jsonify({'institutions': INSTITUTIONS, 'nodes': INSTITUTIONS}), 200
 
 
 @admin_bp.route('/federated/round/<int:round_id>', methods=['GET'])

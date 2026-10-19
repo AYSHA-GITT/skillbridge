@@ -87,17 +87,43 @@ def generate_fallback_answer(profile, question):
     )
 
 
-def ask_career_assistant(profile, question):
+def ask_career_assistant(profile, question, student_id=None, selected_job_id=None):
     """
-    Answers student questions grounded strictly on their actual profile data.
+    Answers student questions using genuine RAG retrieval when student context is available,
+    or falls back to the deterministic profile-grounded rule engine.
     """
+    sid = student_id or profile.get("student_id")
     target_career = profile.get("target_career") or "Unspecified"
     readiness = profile.get("readiness_score") or 0.0
-    verified = profile.get("verified_skills") or []
     missing = profile.get("missing_skills") or []
-    salary = profile.get("predicted_salary_lpa") or 6.0
-    top_career = profile.get("top_recommended_career") or "Technology Track"
-    top_match = profile.get("top_career_match_percent") or 0.0
+
+    # Attempt genuine RAG retrieval pipeline first
+    if sid:
+        try:
+            from utils.rag_engine import rag_engine
+            rag_res = rag_engine.ask(
+                question=question,
+                student_id=int(sid),
+                student_profile=profile,
+                selected_job_id=selected_job_id
+            )
+            return {
+                "answer": rag_res["answer"],
+                "source": f"RAG ({rag_res.get('provider', 'AI')})",
+                "is_rag": True,
+                "empty_retrieval": rag_res.get("empty_retrieval", False),
+                "citations": rag_res.get("citations", []),
+                "retrieved_sources": rag_res.get("retrieved_sources", []),
+                "provider": rag_res.get("provider"),
+                "model": rag_res.get("model"),
+                "grounded_on": {
+                    "target_career": target_career,
+                    "readiness_score": readiness,
+                    "top_missing_skill": missing[0] if missing else None
+                }
+            }
+        except Exception as e:
+            logging.warning(f"RAG execution failed, falling back to grounded rule engine: {e}")
 
     # Retrieve RAG context from knowledge base
     rag_context_str = ""
@@ -152,7 +178,9 @@ INSTRUCTIONS:
                     return {
                         "answer": text,
                         "source": "Gemini 3.6 Flash (RAG Grounded)",
+                        "is_rag": True,
                         "citations": citations,
+                        "retrieved_sources": citations,
                         "grounded_on": {
                             "target_career": target_career,
                             "readiness_score": readiness,
@@ -166,11 +194,15 @@ INSTRUCTIONS:
     fallback_text = generate_fallback_answer(profile, question)
     return {
         "answer": fallback_text,
-        "source": "Grounded Career Engine",
-        "citations": citations,
+        "source": "Grounded Career Engine (Deterministic)",
+        "is_rag": False,
+        "empty_retrieval": False,
+        "citations": citations if citations else [],
+        "retrieved_sources": ["Student Verified Skill Profile"],
         "grounded_on": {
             "target_career": target_career,
             "readiness_score": readiness,
             "top_missing_skill": missing[0] if missing else None
         }
     }
+
