@@ -14,7 +14,10 @@ import {
   TbArrowRight,
   TbFileCheck,
   TbCalendar,
-  TbAward
+  TbAward,
+  TbShieldLock,
+  TbDownload,
+  TbTrash
 } from 'react-icons/tb';
 
 export default function SkillProfile() {
@@ -25,6 +28,50 @@ export default function SkillProfile() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedQuizSkill, setSelectedQuizSkill] = useState(null);
   const [alert, setAlert] = useState(null);
+
+  // Data Sovereignty & Account Deletion state
+  const [exporting, setExporting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const data = await skillService.exportAccountData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `skillbridge_data_export_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setAlert({
+        type: 'success',
+        message: 'Successfully exported your verified skills, learning roadmaps, and activity data.'
+      });
+    } catch {
+      setAlert({ type: 'error', message: 'Could not export account data.' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE_MY_ACCOUNT') return;
+    setDeleting(true);
+    try {
+      await skillService.deleteAccountData();
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      navigate('/login');
+    } catch {
+      setAlert({ type: 'error', message: 'Failed to delete account. Please try again.' });
+      setDeleting(false);
+    }
+  };
 
   const fetchProfile = () => {
     setLoading(true);
@@ -41,6 +88,7 @@ export default function SkillProfile() {
   useEffect(() => {
     fetchProfile();
   }, []);
+
 
   const handleQuizComplete = (res) => {
     setAlert({
@@ -350,6 +398,59 @@ export default function SkillProfile() {
           </div>
         )}
 
+        {/* Data Sovereignty & Privacy Controls Section */}
+        <div className="surface p-6 rounded-3xl border border-teal-500/30 bg-teal-950/10 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-teal-500/20">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-9 h-9 rounded-xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-teal-300">
+                <TbShieldLock className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-heading text-sm font-bold text-white">
+                  Data Sovereignty & Privacy Controls
+                </h3>
+                <p className="text-[11px] text-white/50">
+                  Full portability and irreversible deletion rights under GDPR / DPDP principles.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportData}
+                disabled={exporting}
+                className="btn-ghost text-xs py-2 px-3.5 flex items-center space-x-1.5 border border-teal-500/30 text-teal-300 hover:bg-teal-500/10"
+              >
+                <TbDownload className="w-4 h-4" />
+                <span>{exporting ? 'Exporting...' : 'Export My Data (JSON)'}</span>
+              </button>
+
+              <button
+                onClick={() => setDeleteModalOpen(true)}
+                className="text-xs py-2 px-3.5 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 flex items-center space-x-1.5 transition-colors"
+              >
+                <TbTrash className="w-4 h-4" />
+                <span>Delete Account</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-white/60">
+            <div className="bg-base-950/60 p-3 rounded-xl border border-base-800">
+              <strong className="text-white block mb-0.5">Zero Third-Party Tracking</strong>
+              Your extracted resume entities and scores remain within your isolated workspace.
+            </div>
+            <div className="bg-base-950/60 p-3 rounded-xl border border-base-800">
+              <strong className="text-white block mb-0.5">Machine-Readable Export</strong>
+              Download includes verified skills, assessments, saved jobs, and interview evaluations.
+            </div>
+            <div className="bg-base-950/60 p-3 rounded-xl border border-base-800">
+              <strong className="text-white block mb-0.5">Permanent Erasure</strong>
+              Deleting your account immediately purges all embeddings, records, and resume files.
+            </div>
+          </div>
+        </div>
+
         {/* Verification Modal */}
         {selectedQuizSkill && (
           <QuizModal
@@ -358,7 +459,69 @@ export default function SkillProfile() {
             onQuizComplete={handleQuizComplete}
           />
         )}
+
+        {/* Account Deletion Confirmation Modal */}
+        {deleteModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="surface max-w-md w-full rounded-3xl border border-rose-500/40 p-6 space-y-4 animate-scale-in">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-2 text-rose-400">
+                  <TbAlertTriangle className="w-6 h-6" />
+                  <h3 className="font-heading text-base font-bold text-white">
+                    Irreversible Account Deletion
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setDeleteConfirmText('');
+                  }}
+                  className="p-1 rounded-lg text-white/40 hover:text-white"
+                >
+                  <TbCircleX className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-white/70 leading-relaxed">
+                This action is <strong>permanent</strong>. All your extracted skills, verified assessments, career roadmaps, saved jobs, interview history, and dense vector embeddings will be completely wiped from the database.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] text-white/50">
+                  Type <strong className="text-rose-400 font-mono">DELETE_MY_ACCOUNT</strong> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE_MY_ACCOUNT"
+                  className="input-field text-xs py-2 px-3 w-full bg-base-950 border border-rose-500/40 rounded-xl text-white font-mono"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setDeleteModalOpen(false);
+                    setDeleteConfirmText('');
+                  }}
+                  className="btn-ghost text-xs py-2 px-3"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteConfirmText !== 'DELETE_MY_ACCOUNT'}
+                  className="text-xs py-2 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold disabled:opacity-30 transition-all shadow-glow"
+                >
+                  {deleting ? 'Deleting...' : 'Permanently Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
 }
+

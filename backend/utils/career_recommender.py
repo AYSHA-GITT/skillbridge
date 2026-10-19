@@ -154,7 +154,7 @@ def get_all_career_recommendations(verified_skills, current_target_career=None):
 
 def compare_career_tracks(verified_skills, career_names):
     """
-    Compares 2-3 careers side-by-side using deterministic metrics.
+    Compares 2 or more careers side-by-side using deterministic metrics.
     """
     comparison = []
     for name in career_names:
@@ -163,3 +163,85 @@ def compare_career_tracks(verified_skills, career_names):
         if res:
             comparison.append(res)
     return comparison
+
+
+def simulate_multi_career_paths(verified_skills, career_names, target_career=None):
+    """
+    Multi-path simulator comparing two or more paths simultaneously.
+    Computes overlapping skills, exclusive gaps, shared preparation priorities,
+    and transition feasibility without guessing market stats.
+    """
+    evaluations = compare_career_tracks(verified_skills, career_names)
+    if not evaluations:
+        return {
+            "paths": [],
+            "shared_skills": [],
+            "preparation_priorities": [],
+            "transition_feasibility": {}
+        }
+
+    # Extract all required skills per path
+    path_reqs = {}
+    for e in evaluations:
+        c_name = e.get("career") or e.get("career_name") or e.get("career_key", "unknown")
+        path_reqs[c_name] = set(e.get("matched_required", []) + e.get("missing_required", []))
+
+    # Intersect to find shared core requirements
+    if path_reqs:
+        shared_skills = list(set.intersection(*path_reqs.values())) if len(path_reqs) > 1 else list(list(path_reqs.values())[0])
+    else:
+        shared_skills = []
+
+    # Calculate preparation priorities (skills that help the most paths simultaneously)
+    all_missing_counts = {}
+    for e in evaluations:
+        for m in e.get("missing_required", []):
+            all_missing_counts[m] = all_missing_counts.get(m, 0) + 1
+
+    shared_priorities = sorted(
+        [{"skill": k, "impact_across_paths": v} for k, v in all_missing_counts.items()],
+        key=lambda x: x["impact_across_paths"],
+        reverse=True
+    )
+
+    # Transition steps between paths
+    transitions = []
+    if len(evaluations) >= 2:
+        for i in range(len(evaluations)):
+            for j in range(i + 1, len(evaluations)):
+                c1 = evaluations[i].get("career") or evaluations[i].get("career_name", "Path A")
+                c2 = evaluations[j].get("career") or evaluations[j].get("career_name", "Path B")
+                diff = list(path_reqs.get(c2, set()).difference(path_reqs.get(c1, set())))
+                feasibility = max(10, 100 - len(diff) * 15)
+                days_needed = len(diff) * 7
+                transitions.append({
+                    "from_career": c1.title(),
+                    "to_career": c2.title(),
+                    "from_path": c1.title(),
+                    "to_path": c2.title(),
+                    "feasibility_score": feasibility,
+                    "additional_days_needed": days_needed,
+                    "bridge_skills": diff[:4],
+                    "additional_skills_needed": diff[:4],
+                    "effort_rating": "Low" if len(diff) <= 2 else ("Moderate" if len(diff) <= 4 else "High"),
+                    "guidance": f"Moving from {c1.title()} to {c2.title()} requires picking up {len(diff)} distinct technical competencies."
+                })
+
+    recommended_sequence = (
+        f"Master the shared core skills ({', '.join(shared_skills[:3]) if shared_skills else 'core foundations'}) "
+        f"first to establish maximum leverage across your target paths."
+    )
+
+    return {
+        "paths": evaluations,
+        "shared_core_foundation": shared_skills,
+        "shared_required_competencies": shared_skills,
+        "shared_skills": shared_skills,
+        "high_yield_preparation_priorities": shared_priorities[:5],
+        "transition_steps": transitions,
+        "transitions": transitions,
+        "recommended_sequence": recommended_sequence,
+        "disclaimer": "Simulations are derived from standard curriculum requirements and current verified competency states."
+    }
+
+

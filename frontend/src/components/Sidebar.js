@@ -13,7 +13,9 @@ import {
   TbAward,
   TbBriefcase,
   TbShieldCheck,
-  TbCheck
+  TbCheck,
+  TbSearch,
+  TbMicrophone
 } from 'react-icons/tb';
 
 export default function Sidebar({ onOpenPrivacyModal }) {
@@ -23,6 +25,8 @@ export default function Sidebar({ onOpenPrivacyModal }) {
     { to: '/upload-resume', label: 'Resume Upload', icon: TbFileUpload },
     { to: '/assessment', label: 'Skill Verification', icon: TbClipboardCheck },
     { to: '/careers', label: 'Career Recommendations', icon: TbBriefcase },
+    { to: '/jobs', label: 'Jobs & Opportunities', icon: TbSearch },
+    { to: '/interview-prep', label: 'Interview Simulator', icon: TbMicrophone },
     { to: '/skill-gap', label: 'Skill Gap Analysis', icon: TbTargetArrow },
     { to: '/roadmap', label: 'Learning Roadmap', icon: TbRoute },
     { to: '/readiness', label: 'Readiness Score', icon: TbChartRadar },
@@ -30,6 +34,7 @@ export default function Sidebar({ onOpenPrivacyModal }) {
     { to: '/progress', label: 'Progress History', icon: TbTrendingUp },
     { to: '/badges', label: 'Badges & Awards', icon: TbAward },
   ];
+
 
   return (
     <aside className="w-64 bg-base-900/50 border-r border-base-700/60 p-4 hidden lg:flex flex-col justify-between min-h-[calc(100vh-4rem)]">

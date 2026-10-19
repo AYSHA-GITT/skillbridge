@@ -11,8 +11,10 @@ import {
   TbScale,
   TbX,
   TbTarget,
-  TbClock
+  TbClock,
+  TbRoute
 } from 'react-icons/tb';
+
 
 export default function Company() {
   const navigate = useNavigate();
@@ -24,10 +26,12 @@ export default function Company() {
   const [expandedCareer, setExpandedCareer] = useState(null);
   const [topMatchDetailsOpen, setTopMatchDetailsOpen] = useState(false);
 
-  // Career Comparison state
+  // Career Comparison & Multi-Path Simulation state
   const [selectedForCompare, setSelectedForCompare] = useState([]);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
   const [comparisonData, setComparisonData] = useState([]);
+  const [multiPathSimulation, setMultiPathSimulation] = useState(null);
+  const [compareTab, setCompareTab] = useState('metrics'); // 'metrics' or 'simulation'
   const [comparing, setComparing] = useState(false);
 
   const fetchRecommendations = () => {
@@ -80,8 +84,12 @@ export default function Company() {
     setComparing(true);
     setError('');
     try {
-      const res = await skillService.compareCareers(selectedForCompare);
-      setComparisonData(res.comparison || []);
+      const [compRes, simRes] = await Promise.all([
+        skillService.compareCareers(selectedForCompare),
+        skillService.simulateCareerPaths(selectedForCompare)
+      ]);
+      setComparisonData(compRes.comparison || []);
+      setMultiPathSimulation(simRes.simulation || null);
       setShowComparisonModal(true);
     } catch {
       setError('Failed to generate career comparison.');
@@ -89,6 +97,7 @@ export default function Company() {
       setComparing(false);
     }
   };
+
 
   const topMatch = recommendations.find((r) => r.is_top_match) || recommendations[0];
 
@@ -400,118 +409,242 @@ export default function Company() {
                 <div className="flex items-center space-x-2">
                   <TbScale className="w-6 h-6 text-accent-400" />
                   <h3 className="font-heading text-xl font-bold text-white">
-                    Side-by-Side Career Comparison
+                    Multi-Career Analysis & Trajectory
                   </h3>
                 </div>
-                <button
-                  onClick={() => setShowComparisonModal(false)}
-                  className="p-1 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
-                >
-                  <TbX className="w-5 h-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <div className="flex bg-base-950 p-1 rounded-xl border border-base-800 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setCompareTab('metrics')}
+                      className={`px-3 py-1 rounded-lg transition-all font-medium ${
+                        compareTab === 'metrics'
+                          ? 'bg-accent-500/20 text-accent-300'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      Metrics Matrix
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCompareTab('simulation')}
+                      className={`px-3 py-1 rounded-lg transition-all font-medium flex items-center space-x-1 ${
+                        compareTab === 'simulation'
+                          ? 'bg-teal-500/20 text-teal-300'
+                          : 'text-white/50 hover:text-white'
+                      }`}
+                    >
+                      <TbRoute className="w-3.5 h-3.5" />
+                      <span>Trajectory Simulation</span>
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setShowComparisonModal(false)}
+                    className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+                  >
+                    <TbX className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
-              {/* Comparison Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="border-b border-base-800 text-white/40 font-mono">
-                      <th className="py-3 px-3">Metric</th>
-                      {comparisonData.map((c) => (
-                        <th key={c.career_key} className="py-3 px-3 font-heading text-sm text-white font-bold">
-                          {c.career}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-base-800 text-white/80">
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Skill Match %</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3">
-                          <span className="font-heading text-base font-bold text-accent-300">
-                            {c.match_percentage}%
-                          </span>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Estimated Salary</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3 font-mono text-emerald-400 font-semibold">
-                          ₹{c.estimated_salary_lpa} LPA
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Core Required Met</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3">
-                          <span className="font-mono text-white">
-                            {c.matched_required?.length || 0} / {c.total_required || 0}
-                          </span>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Verified Strengths</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {c.matched_required?.map((s) => (
-                              <span key={s} className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] capitalize">
-                                {s}
-                              </span>
-                            ))}
-                            {c.matched_required?.length === 0 && (
-                              <span className="text-white/30 text-[11px]">—</span>
-                            )}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Primary Gaps</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {c.missing_required?.map((s) => (
-                              <span key={s} className="px-1.5 py-0.5 rounded bg-base-900 text-white/60 text-[10px] capitalize border border-base-700">
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Est. Learning Effort</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3 flex items-center space-x-1 text-white/60">
-                          <TbClock className="w-3.5 h-3.5 text-accent-400" />
-                          <span>~{c.estimated_days_to_close} days</span>
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="py-3.5 px-3 text-white/50 font-medium">Action</td>
-                      {comparisonData.map((c) => (
-                        <td key={c.career_key} className="py-3.5 px-3">
-                          <button
-                            onClick={() => {
-                              handleSelectRole(c.career);
-                              setShowComparisonModal(false);
-                            }}
-                            className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap"
-                          >
-                            Set as Target
-                          </button>
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {/* Tab 1: Direct Metrics Table */}
+              {compareTab === 'metrics' && (
+                <div className="overflow-x-auto animate-fade-in">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-base-800 text-white/40 font-mono">
+                        <th className="py-3 px-3">Metric</th>
+                        {comparisonData.map((c) => (
+                          <th key={c.career_key} className="py-3 px-3 font-heading text-sm text-white font-bold">
+                            {c.career}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-base-800 text-white/80">
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Skill Match %</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3">
+                            <span className="font-heading text-base font-bold text-accent-300">
+                              {c.match_percentage}%
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Estimated Salary</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3 font-mono text-emerald-400 font-semibold">
+                            ₹{c.estimated_salary_lpa} LPA
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Core Required Met</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3">
+                            <span className="font-mono text-white">
+                              {c.matched_required?.length || 0} / {c.total_required || 0}
+                            </span>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Verified Strengths</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3">
+                            <div className="flex flex-wrap gap-1">
+                              {c.matched_required?.map((s) => (
+                                <span key={s} className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 text-[10px] capitalize">
+                                  {s}
+                                </span>
+                              ))}
+                              {c.matched_required?.length === 0 && (
+                                <span className="text-white/30 text-[11px]">—</span>
+                              )}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Primary Gaps</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3">
+                            <div className="flex flex-wrap gap-1">
+                              {c.missing_required?.map((s) => (
+                                <span key={s} className="px-1.5 py-0.5 rounded bg-base-900 text-white/60 text-[10px] capitalize border border-base-700">
+                                  {s}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Est. Learning Effort</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3 flex items-center space-x-1 text-white/60">
+                            <TbClock className="w-3.5 h-3.5 text-accent-400" />
+                            <span>~{c.estimated_days_to_close} days</span>
+                          </td>
+                        ))}
+                      </tr>
+                      <tr>
+                        <td className="py-3.5 px-3 text-white/50 font-medium">Action</td>
+                        {comparisonData.map((c) => (
+                          <td key={c.career_key} className="py-3.5 px-3">
+                            <button
+                              onClick={() => {
+                                handleSelectRole(c.career);
+                                setShowComparisonModal(false);
+                              }}
+                              className="btn-primary text-xs py-1.5 px-3 whitespace-nowrap shadow-glow"
+                            >
+                              Set as Target
+                            </button>
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Tab 2: Multi-Path Trajectory Simulation */}
+              {compareTab === 'simulation' && (
+                <div className="space-y-5 animate-fade-in text-xs">
+                  {multiPathSimulation ? (
+                    <>
+                      {/* Shared Core Foundation */}
+                      <div className="bg-teal-950/20 p-4 rounded-2xl border border-teal-500/30 space-y-2">
+                        <div className="flex items-center space-x-2 text-teal-300 font-semibold text-xs">
+                          <TbSparkles className="w-4 h-4" />
+                          <span>Shared Core Foundation ({multiPathSimulation.shared_core_foundation?.length || 0} skills)</span>
+                        </div>
+                        <p className="text-white/60 text-[11px]">
+                          These skills are required across all selected career paths. Acquiring them creates compound career leverage:
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {(multiPathSimulation.shared_core_foundation || []).map((skill, sIdx) => (
+                            <span
+                              key={sIdx}
+                              className="px-2.5 py-1 rounded-xl bg-teal-500/15 text-teal-200 border border-teal-500/30 font-mono text-[11px]"
+                            >
+                              ✓ {skill}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Transition Feasibility Matrix */}
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-white/80">Cross-Path Transition Feasibility</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {(multiPathSimulation.transitions || []).map((trans, tIdx) => (
+                            <div
+                              key={tIdx}
+                              className="bg-base-950/70 p-3.5 rounded-2xl border border-base-800 space-y-2"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-white text-[11px]">
+                                  {trans.from_path} → {trans.to_path}
+                                </span>
+                                <span
+                                  className={`font-mono font-bold text-xs ${
+                                    trans.feasibility_score >= 70
+                                      ? 'text-emerald-400'
+                                      : trans.feasibility_score >= 45
+                                      ? 'text-amber-400'
+                                      : 'text-rose-400'
+                                  }`}
+                                >
+                                  {trans.feasibility_score}% Feasible
+                                </span>
+                              </div>
+
+                              <div className="text-[11px] text-white/50">
+                                <span>Transition Effort: </span>
+                                <strong className="text-white">~{trans.additional_days_needed} days</strong>
+                              </div>
+
+                              {trans.bridge_skills?.length > 0 && (
+                                <div className="space-y-1 pt-1">
+                                  <div className="text-[10px] text-white/40">Bridge Skills to Acquire:</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {trans.bridge_skills.map((b, bIdx) => (
+                                      <span
+                                        key={bIdx}
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-base-900 text-white/70 border border-base-700"
+                                      >
+                                        {b}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Recommended Sequencing */}
+                      {multiPathSimulation.recommended_sequence && (
+                        <div className="bg-base-950/60 p-4 rounded-2xl border border-base-800 space-y-2">
+                          <h4 className="font-semibold text-accent-300">Recommended Transition Strategy</h4>
+                          <p className="text-white/70 leading-relaxed text-[11px]">
+                            {multiPathSimulation.recommended_sequence}
+                          </p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="py-12 text-center text-white/40">
+                      Multi-path simulation data not available for this selection.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -519,3 +652,4 @@ export default function Company() {
     </AppLayout>
   );
 }
+

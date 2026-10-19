@@ -1,4 +1,5 @@
 from typing import Any
+import json
 from extensions import db
 from datetime import datetime
 from flask_login import UserMixin
@@ -6,6 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 class BaseModel(db.Model):
     __abstract__ = True
+    __allow_unmapped__ = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -28,10 +30,11 @@ class Student(BaseModel, UserMixin):
     readiness_score = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(20), default='student', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active: Any = db.Column(db.Boolean, default=True)
+    is_active = db.Column(db.Boolean, default=True)
+
 
     resumes = db.relationship('Resume', backref='student',
-                               lazy=True, cascade='all, delete-orphan')
+                                lazy=True, cascade='all, delete-orphan')
     skills = db.relationship('Skill', backref='student',
                               lazy=True, cascade='all, delete-orphan')
     skill_gaps = db.relationship('SkillGap', backref='student',
@@ -42,6 +45,11 @@ class Student(BaseModel, UserMixin):
                                    lazy=True, cascade='all, delete-orphan')
     verifications = db.relationship('SkillVerification', backref='student',
                                      lazy=True, cascade='all, delete-orphan')
+    saved_jobs = db.relationship('SavedJob', backref='student',
+                                  lazy=True, cascade='all, delete-orphan')
+    interviews = db.relationship('InterviewSession', backref='student',
+                                  lazy=True, cascade='all, delete-orphan')
+
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -299,3 +307,188 @@ class RoadmapTemplate(BaseModel):
             'resource_hint': self.resource_hint,
             'duration_hours': self.duration_hours,
         }
+
+
+# ─────────────────────────────────────────
+# JOB & INTERNSHIP OPPORTUNITY MODEL
+# ─────────────────────────────────────────
+class JobListing(BaseModel):
+    __tablename__ = 'job_listings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    external_id = db.Column(db.String(150), unique=True, index=True)
+    title = db.Column(db.String(200), nullable=False, index=True)
+    company = db.Column(db.String(200), nullable=False, index=True)
+    location = db.Column(db.String(200), default='Remote')
+    job_type = db.Column(db.String(50), default='Full-time')  # Internship, Full-time, Contract, Co-op
+    work_arrangement = db.Column(db.String(50), default='Remote')  # Remote, Hybrid, Onsite
+    domain = db.Column(db.String(100), default='Software Engineering')  # Software Engineering, Data Science, etc.
+    experience_level = db.Column(db.String(50), default='Entry-Level')  # Entry-Level, 0-2 yrs, Mid, Senior
+    description = db.Column(db.Text)
+    required_skills = db.Column(db.Text, default='[]')  # JSON array
+    preferred_skills = db.Column(db.Text, default='[]')  # JSON array
+    eligibility = db.Column(db.String(300))  # e.g., "B.Tech/BE in CS/IT/Data or equivalent degree"
+    application_url = db.Column(db.String(500))
+    source = db.Column(db.String(100), default='SkillBridge Verified Index')
+    is_sample = db.Column(db.Boolean, default=False)  # Clearly labels demo vs live scraped
+    posting_date = db.Column(db.DateTime, default=datetime.utcnow)
+    deadline = db.Column(db.DateTime, nullable=True)
+    collected_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    saved_by = db.relationship('SavedJob', back_populates='job', lazy=True, cascade='all, delete-orphan')
+
+
+
+    def get_required_skills(self):
+        try:
+            return json.loads(self.required_skills) if self.required_skills else []
+        except Exception:
+            return []
+
+    def get_preferred_skills(self):
+        try:
+            return json.loads(self.preferred_skills) if self.preferred_skills else []
+        except Exception:
+            return []
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'external_id': self.external_id,
+            'title': self.title,
+            'company': self.company,
+            'location': self.location,
+            'job_type': self.job_type,
+            'work_arrangement': self.work_arrangement,
+            'domain': self.domain,
+            'experience_level': self.experience_level,
+            'description': self.description,
+            'required_skills': self.get_required_skills(),
+            'preferred_skills': self.get_preferred_skills(),
+            'eligibility': self.eligibility,
+            'application_url': self.application_url,
+            'source': self.source,
+            'is_sample': bool(self.is_sample),
+            'posting_date': self.posting_date.isoformat() if self.posting_date else None,
+            'deadline': self.deadline.isoformat() if self.deadline else None,
+            'collected_at': self.collected_at.isoformat() if self.collected_at else None,
+        }
+
+
+# ─────────────────────────────────────────
+# SAVED JOB MODEL
+# ─────────────────────────────────────────
+class SavedJob(BaseModel):
+    __tablename__ = 'saved_jobs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=False)
+    saved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text, nullable=True)
+
+    job = db.relationship('JobListing', back_populates='saved_by', foreign_keys=[job_id])
+
+
+    def to_dict(self):
+        job_data = None
+        j = getattr(self, 'job', None)
+        if j and hasattr(j, 'to_dict'):
+            job_data = j.to_dict()
+        res = {
+            'id': self.job_id,
+            'job_id': self.job_id,
+            'saved_id': self.id,
+            'student_id': self.student_id,
+            'saved_at': self.saved_at.isoformat() if self.saved_at else None,
+            'notes': self.notes,
+            'job': job_data
+        }
+        if job_data:
+            for k, v in job_data.items():
+                if k not in res:
+                    res[k] = v
+        return res
+
+
+
+# ─────────────────────────────────────────
+# INTERVIEW PREPARATION SESSION & QUESTIONS
+# ─────────────────────────────────────────
+class InterviewSession(BaseModel):
+    __tablename__ = 'interview_sessions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=True)
+    job_title = db.Column(db.String(200), nullable=False)
+    company = db.Column(db.String(200), default='Target Company')
+    overall_score = db.Column(db.Float, default=0.0)
+    feedback_summary = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), default='in_progress')  # in_progress, completed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    qa_records = db.relationship('InterviewQA', backref='session', lazy=True, cascade='all, delete-orphan', order_by='InterviewQA.question_index')
+
+
+    def to_dict(self):
+        qa_list = []
+        records = getattr(self, 'qa_records', None)
+        if records:
+            for q in records:
+                qa_list.append(q.to_dict())
+        return {
+            'id': self.id,
+            'student_id': self.student_id,
+            'job_id': self.job_id,
+            'job_title': self.job_title,
+            'company': self.company,
+            'overall_score': self.overall_score,
+            'feedback_summary': self.feedback_summary,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'questions': qa_list
+        }
+
+
+class InterviewQA(BaseModel):
+    __tablename__ = 'interview_qa'
+
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('interview_sessions.id'), nullable=False)
+    question_index = db.Column(db.Integer, nullable=False)
+    category = db.Column(db.String(100), default='Technical Fundamentals')
+    question_text = db.Column(db.Text, nullable=False)
+    candidate_answer = db.Column(db.Text, nullable=True)
+    rubric_score = db.Column(db.Float, default=0.0)
+    conceptual_accuracy = db.Column(db.Float, default=0.0)
+    completeness = db.Column(db.Float, default=0.0)
+    clarity = db.Column(db.Float, default=0.0)
+    feedback = db.Column(db.Text, nullable=True)
+    missing_points = db.Column(db.Text, default='[]')
+    sample_answer = db.Column(db.Text, nullable=True)
+    answered_at = db.Column(db.DateTime, nullable=True)
+
+    def get_missing_points(self):
+        try:
+            return json.loads(self.missing_points) if self.missing_points else []
+        except Exception:
+            return []
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'session_id': self.session_id,
+            'question_index': self.question_index,
+            'category': self.category,
+            'question_text': self.question_text,
+            'candidate_answer': self.candidate_answer,
+            'rubric_score': self.rubric_score,
+            'conceptual_accuracy': self.conceptual_accuracy,
+            'completeness': self.completeness,
+            'clarity': self.clarity,
+            'feedback': self.feedback,
+            'missing_points': self.get_missing_points(),
+            'sample_answer': self.sample_answer,
+            'answered_at': self.answered_at.isoformat() if self.answered_at else None,
+        }

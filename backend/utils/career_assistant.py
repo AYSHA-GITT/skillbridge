@@ -87,70 +87,57 @@ def generate_fallback_answer(profile, question):
     )
 
 
-def ask_career_assistant(profile, question):
+def ask_career_assistant(profile, question, student_id=None, selected_job_id=None):
     """
-    Answers student questions grounded strictly on their actual profile data.
+    Answers student questions using genuine RAG retrieval when student context is available,
+    or falls back to the deterministic profile-grounded rule engine.
     """
+    sid = student_id or profile.get("student_id")
     target_career = profile.get("target_career") or "Unspecified"
     readiness = profile.get("readiness_score") or 0.0
-    verified = profile.get("verified_skills") or []
     missing = profile.get("missing_skills") or []
-    salary = profile.get("predicted_salary_lpa") or 6.0
-    top_career = profile.get("top_recommended_career") or "Technology Track"
-    top_match = profile.get("top_career_match_percent") or 0.0
 
-    prompt = f"""
-You are the SkillBridge Career Assistant, an expert, encouraging, concise career advisor.
-You MUST answer the student's question strictly grounded on the factual profile data provided below.
-DO NOT hallucinate skills, scores, or careers not present in the profile.
-
-STUDENT PROFILE DATA:
-- Target Career: {target_career}
-- Current Readiness Score: {readiness}%
-- Verified Skills (Proven via assessment): {', '.join(verified) if verified else 'None yet'}
-- Missing Required Skills (Gaps): {', '.join(missing) if missing else 'None (All core verified)'}
-- Estimated Salary: {salary} LPA
-- Top Recommended Career: {top_career} ({top_match}% match)
-
-STUDENT QUESTION:
-"{question}"
-
-INSTRUCTIONS:
-- Keep the answer between 2 to 4 sentences.
-- Be concrete, actionable, and reference their actual skills and target career.
-- Format key skill names or metrics in bold.
-"""
-
-    ai_client = get_genai_client()
-    if ai_client:
-        for model_name in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]:
-            try:
-                response = ai_client.models.generate_content(
-                    model=model_name,
-                    contents=prompt
-                )
-                text = (response.text or "").strip()
-                if text:
-                    return {
-                        "answer": text,
-                        "source": "Gemini 3.6 Flash (Grounded)",
-                        "grounded_on": {
-                            "target_career": target_career,
-                            "readiness_score": readiness,
-                            "top_missing_skill": missing[0] if missing else None
-                        }
-                    }
-            except Exception as e:
-                logging.warning(f"Assistant LLM call failed on {model_name}: {e}")
+    # Attempt genuine RAG retrieval pipeline first
+    if sid:
+        try:
+            from utils.rag_engine import rag_engine
+            rag_res = rag_engine.ask(
+                question=question,
+                student_id=int(sid),
+                student_profile=profile,
+                selected_job_id=selected_job_id
+            )
+            return {
+                "answer": rag_res["answer"],
+                "source": f"RAG ({rag_res.get('provider', 'AI')})",
+                "is_rag": True,
+                "empty_retrieval": rag_res.get("empty_retrieval", False),
+                "citations": rag_res.get("citations", []),
+                "retrieved_sources": rag_res.get("retrieved_sources", []),
+                "provider": rag_res.get("provider"),
+                "model": rag_res.get("model"),
+                "grounded_on": {
+                    "target_career": target_career,
+                    "readiness_score": readiness,
+                    "top_missing_skill": missing[0] if missing else None
+                }
+            }
+        except Exception as e:
+            logging.warning(f"RAG execution failed, falling back to grounded rule engine: {e}")
 
     # Fallback to deterministic grounded generator
     fallback_text = generate_fallback_answer(profile, question)
     return {
         "answer": fallback_text,
-        "source": "Grounded Career Engine",
+        "source": "Grounded Career Engine (Deterministic)",
+        "is_rag": False,
+        "empty_retrieval": False,
+        "citations": [],
+        "retrieved_sources": ["Student Verified Skill Profile"],
         "grounded_on": {
             "target_career": target_career,
             "readiness_score": readiness,
             "top_missing_skill": missing[0] if missing else None
         }
     }
+
