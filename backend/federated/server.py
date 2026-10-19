@@ -1,5 +1,5 @@
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from extensions import db
 from models import FLTrainingRound
 from federated.client import InstitutionClient
@@ -24,7 +24,7 @@ def run_federated_round(app=None):
     round_number = (last_round.round_number + 1) if last_round else 1
 
     # 2. Instantiate clients
-    clients = [InstitutionClient(inst['id'], inst['samples']) for inst in INSTITUTIONS]
+    clients = [InstitutionClient(str(inst['id']), int(inst['samples'])) for inst in INSTITUTIONS]
 
     # 3. Global parameters (weights + bias)
     global_coef = np.zeros((1, 10))
@@ -69,7 +69,7 @@ def run_federated_round(app=None):
             partition_id=client.partition_id,
             local_accuracy=metrics.get('local_accuracy', 0.80),
             global_accuracy_after_round=global_accuracy,
-            trained_on=datetime.utcnow()
+            trained_on=datetime.now(timezone.utc)
         )
         db.session.add(record)
         round_records.append(record.to_dict())

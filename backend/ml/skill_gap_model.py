@@ -1,4 +1,5 @@
 import os
+from typing import cast
 import pandas as pd
 import numpy as np
 
@@ -28,7 +29,7 @@ class SkillGapMLModel:
         user_skills = set(s.lower().strip() for s in verified_skills)
 
         if self.df is not None and not self.df.empty:
-            career_rows = self.df[self.df['career'].str.lower() == target]
+            career_rows = cast(pd.DataFrame, self.df[self.df['career'].str.lower() == target])
         else:
             career_rows = pd.DataFrame()
 
@@ -61,8 +62,8 @@ class SkillGapMLModel:
                 'estimated_days_to_close': (len(missing_req) * 7) + (len(missing_nth) * 3)
             }
 
-        required_df = career_rows[career_rows['importance'].str.lower() == 'high']
-        nice_df = career_rows[career_rows['importance'].str.lower() != 'high']
+        required_df = cast(pd.DataFrame, career_rows[career_rows['importance'].str.lower() == 'high'])
+        nice_df = cast(pd.DataFrame, career_rows[career_rows['importance'].str.lower() != 'high'])
 
         all_req = set(required_df['skill'].str.lower().tolist())
         all_nice = set(nice_df['skill'].str.lower().tolist())

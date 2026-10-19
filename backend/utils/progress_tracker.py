@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from extensions import db
 from models import Progress, Student, Skill, SkillVerification, SkillGap, StudyPlan
 
@@ -17,7 +17,7 @@ def record_student_snapshot(student_id):
     skill_gap_count = SkillGap.query.filter_by(student_id=student_id).count()
 
     # Avoid duplicate snapshots within the same hour
-    one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+    one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
     recent = Progress.query.filter(
         Progress.student_id == student_id,
         Progress.date >= one_hour_ago
@@ -33,7 +33,7 @@ def record_student_snapshot(student_id):
 
     new_snapshot = Progress(
         student_id=student_id,
-        date=datetime.utcnow(),
+        date=datetime.now(timezone.utc),
         readiness_score=student.readiness_score,
         skill_count=skill_count,
         verified_skill_count=verified_skill_count,

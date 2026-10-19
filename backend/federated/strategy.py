@@ -2,6 +2,7 @@ import flwr as fl
 import numpy as np
 from typing import List, Tuple, Union, Optional, Dict
 from flwr.common import Parameters, Scalar, FitRes, parameters_to_ndarrays, ndarrays_to_parameters
+from flwr.server.client_proxy import ClientProxy
 
 
 class PrivacyPreservingFedAvg(fl.server.strategy.FedAvg):
@@ -19,8 +20,8 @@ class PrivacyPreservingFedAvg(fl.server.strategy.FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[fl.server.client_proxy.ClientProxy, FitRes]],
-        failures: List[Union[Tuple[fl.server.client_proxy.ClientProxy, FitRes], BaseException]],
+        results: List[Tuple[ClientProxy, FitRes]],
+        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         if not results:
             return None, {}
@@ -51,10 +52,11 @@ class PrivacyPreservingFedAvg(fl.server.strategy.FedAvg):
             aggregated_ndarrays[i] += noise
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
-        metrics_aggregated = {
+        metrics_aggregated: Dict[str, Scalar] = {
             'server_round': server_round,
             'participating_nodes': len(results),
             'privacy_epsilon': round(0.85 + (server_round * 0.04), 3)
         }
 
         return parameters_aggregated, metrics_aggregated
+

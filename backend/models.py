@@ -1,3 +1,4 @@
+from typing import Any
 from extensions import db
 from datetime import datetime
 from flask_login import UserMixin
@@ -27,7 +28,7 @@ class Student(BaseModel, UserMixin):
     readiness_score = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(20), default='student', nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
+    is_active: Any = db.Column(db.Boolean, default=True)
 
     resumes = db.relationship('Resume', backref='student',
                                lazy=True, cascade='all, delete-orphan')

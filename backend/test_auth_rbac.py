@@ -28,6 +28,9 @@ class TestAuthAndRBAC(unittest.TestCase):
             # Let's check user in DB
             with app.app_context():
                 s = Student.query.filter_by(role='student').first()
+                if not s:
+                    s = Student(name='Test Student', email='student@skillbridge.edu', role='student')
+                    db.session.add(s)
                 s.set_password('teststudent123')
                 s_email = s.email
                 db.session.commit()

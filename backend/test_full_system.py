@@ -47,7 +47,8 @@ with app.app_context():
         print(f"  Student {test_student.name} unlocked badges: {unlocked}")
 
         snap = record_student_snapshot(test_student.id)
-        print(f"  Progress Snapshot recorded: Readiness {snap.readiness_score}%")
+        if snap:
+            print(f"  Progress Snapshot recorded: Readiness {snap.readiness_score}%")
 
         timeline = get_progress_timeline(test_student.id)
         print(f"  Progress Timeline snapshots count: {len(timeline['snapshots'])}")

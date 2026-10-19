@@ -1,5 +1,6 @@
 import os
 import pickle
+from typing import cast, Any
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import Ridge
@@ -25,10 +26,10 @@ class SalaryPredictor:
 
             if os.path.exists(self.data_path) and os.path.getsize(self.data_path) > 0:
                 df = pd.read_csv(self.data_path)
-                X = df[['years_experience', 'skill_count', 'has_ml', 'has_cloud', 'has_backend', 'has_db']].values
-                y = df['avg_salary_lpa'].values
+                X = np.asarray(df[['years_experience', 'skill_count', 'has_ml', 'has_cloud', 'has_backend', 'has_db']].values, dtype=np.float64)
+                y = np.asarray(df['avg_salary_lpa'].values, dtype=np.float64)
                 self.model = Ridge(alpha=1.0)
-                self.model.fit(X, y)
+                self.model.fit(cast(Any, X), cast(Any, y))
                 with open(self.model_path, 'wb') as f:
                     pickle.dump(self.model, f)
         except Exception:
