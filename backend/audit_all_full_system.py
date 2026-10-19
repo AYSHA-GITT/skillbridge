@@ -32,7 +32,7 @@ def run_full_audit():
     except Exception as e:
         record(cat, "Frontend Server Alive", False, str(e))
 
-    frontend_routes = ["/", "/login", "/dashboard", "/jobs", "/interview-prep", "/admin"]
+    frontend_routes = ["/", "/login", "/dashboard", "/jobs", "/interview-prep", "/admin", "/resume-optimizer"]
     all_routes_ok = True
     for route in frontend_routes:
         try:
@@ -197,6 +197,25 @@ def run_full_audit():
             cmp_data = r_cmp.json()
             record(cat, "Side-by-Side Job Comparison", r_cmp.status_code == 200, "Dual opportunity matrix generated")
 
+        # Apply to Role
+        r_apply = s_stud.post(f"{BASE_BACKEND}/api/student/jobs/{test_jid}/apply", json={
+            "cover_note": "Applying via SkillBridge candidate portal.",
+            "contact_email": "ayeshamads@gmail.com",
+            "portfolio_url": "https://github.com/ayesha"
+        })
+        apply_ok = r_apply.status_code in (200, 201)
+        record(cat, "Apply to Role (Application)", apply_ok, f"Status: {r_apply.json().get('status', 'ok')}")
+
+        # Applied listings inventory
+        r_app_list = s_stud.get(f"{BASE_BACKEND}/api/student/jobs/applied")
+        applied_arr = r_app_list.json().get("applications", [])
+        has_app = any(a.get("job_id") == test_jid or a.get("job", {}).get("id") == test_jid for a in applied_arr)
+        record(cat, "Applied Roles Inventory", has_app, f"{len(applied_arr)} active applications tracked")
+
+        # Withdraw application
+        r_withdraw = s_stud.post(f"{BASE_BACKEND}/api/student/jobs/{test_jid}/withdraw")
+        record(cat, "Withdraw Job Application", r_withdraw.status_code == 200, "Application successfully withdrawn")
+
     # 9. AI INTERVIEW SIMULATOR & AUDIO SANITIZER
     cat = "Interview & Voice"
     r = s_stud.post(f"{BASE_BACKEND}/api/student/interview/start", json={"target_role": "Full Stack Engineer", "question_count": 5})
@@ -249,6 +268,79 @@ def run_full_audit():
 
     r = s_stud.get(f"{BASE_BACKEND}/api/student/account/export")
     record(cat, "GDPR / Sovereignty Data Export", r.status_code == 200 and "data_sovereignty_notice" in r.json(), "Full JSON GDPR export produced")
+
+    # 12. AI RESUME OPTIMIZER (ATS & STAR)
+    cat = "AI Resume Optimizer"
+    sample_text = """
+    Aysha D
+    Email: ayeshamads@gmail.com | Phone: +91 9876543210 | Location: Bangalore, India
+    LinkedIn: linkedin.com/in/ayshad | GitHub: github.com/ayshad
+
+    PROFESSIONAL SUMMARY
+    Dedicated Software Engineer with 2+ years experience building scalable backend services and distributed systems using Python, Flask, Docker, and PostgreSQL.
+
+    SKILLS
+    Languages: Python, JavaScript, SQL, Go
+    Frameworks: Flask, FastAPI, React, Node.js
+    Databases: PostgreSQL, Redis, MongoDB
+    Tools: Docker, Git, CI/CD, AWS
+
+    EXPERIENCE
+    Software Engineer | TechCorp Solutions | 2024 - Present
+    - Developed and deployed high-throughput REST APIs handling 5M daily requests with 99.9% uptime.
+    - Optimized SQL queries and Redis caching, reducing API p95 response latency by 45%.
+    - Mentored 4 junior engineers on clean architecture patterns and automated testing.
+
+    PROJECTS
+    SkillBridge Career Platform | 2024
+    - Built AI-driven candidate recommendation engine improving recruiter match quality by 35%.
+    - Integrated OAuth 2.0 authentication and differential privacy telemetry.
+
+    EDUCATION
+    B.Tech in Computer Science | National Institute of Technology | 2020 - 2024 | CGPA: 8.8/10
+    """
+
+    # Predefined career tracks
+    r_careers = s_stud.get(f"{BASE_BACKEND}/api/student/resume_optimizer/careers")
+    careers = r_careers.json().get("careers", [])
+    record(cat, "Career Track Requirements Roster", r_careers.status_code == 200 and len(careers) > 0, f"{len(careers)} benchmark tracks")
+
+    # Student resumes list
+    r_my_res = s_stud.get(f"{BASE_BACKEND}/api/student/resume_optimizer/my_resumes")
+    res_list = r_my_res.json().get("resumes", [])
+    record(cat, "Student Resume Inventory for Optimizer", r_my_res.status_code == 200, f"{len(res_list)} resumes indexed")
+
+    # Analyze Resume for Optimization
+    r_analyze = s_stud.post(f"{BASE_BACKEND}/api/student/resume_optimizer/analyze", data={
+        "target_career": "software engineer"
+    })
+    an_data = r_analyze.json()
+    an_ok = r_analyze.status_code == 200 and "match_analysis" in an_data
+    score = an_data.get("match_analysis", {}).get("match_score", 0) if an_ok else 0
+    record(cat, "AI Resume Match & Gap Analysis", an_ok, f"Job Match Fit: {score}%")
+
+    sample_sections = an_data.get("optimized_sections") or {
+        "contact": {"name": "Aysha D", "email": "ayeshamads@gmail.com", "phone": "9876543210"},
+        "summary": "Dedicated Software Engineer building distributed services.",
+        "skills": ["Python", "Flask", "Docker", "PostgreSQL"],
+        "experience": [{
+            "role": "Software Engineer",
+            "company": "Tech Corp",
+            "period": "2024 - Present",
+            "bullets": ["Architected high-throughput REST APIs handling 5M daily requests."]
+        }],
+        "education": [{"degree": "B.Tech Computer Science", "institution": "NIT", "year": "2024"}]
+    }
+
+    # DOCX Resume Export
+    r_docx = s_stud.post(f"{BASE_BACKEND}/api/student/resume_optimizer/export_docx", json={"sections": sample_sections})
+    docx_ok = r_docx.status_code == 200 and len(r_docx.content) > 500
+    record(cat, "DOCX In-Memory Resume Export", docx_ok, f"Buffer: {len(r_docx.content)} bytes")
+
+    # PDF Resume Export
+    r_pdf = s_stud.post(f"{BASE_BACKEND}/api/student/resume_optimizer/export_pdf", json={"sections": sample_sections})
+    pdf_ok = r_pdf.status_code == 200 and len(r_pdf.content) > 500
+    record(cat, "PDF In-Memory Resume Export", pdf_ok, f"Buffer: {len(r_pdf.content)} bytes")
 
     # SUMMARY
     total = len(results)
