@@ -89,6 +89,7 @@ export default function AskAssistantModal({ isOpen, onClose, onOpen }) {
   const [isRecording, setIsRecording] = useState(false);
   const [speakingMsgIdx, setSpeakingMsgIdx] = useState(null);
   const recognitionRef = useRef(null);
+  const baseQuestionRef = useRef('');
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -177,15 +178,17 @@ export default function AskAssistantModal({ isOpen, onClose, onOpen }) {
     } else {
       setIsRecording(true);
       setError('');
+      baseQuestionRef.current = question.trim();
       recognitionRef.current = startSpeechRecognition(
         (transcript) => {
-          setQuestion((prev) => {
-            const trimmed = prev.trim();
-            return trimmed ? `${trimmed} ${transcript}` : transcript;
-          });
+          const base = baseQuestionRef.current;
+          const clean = (transcript || '').trim();
+          setQuestion(base ? `${base} ${clean}` : clean);
         },
         (err) => {
-          setError(err);
+          if (err && err !== 'no-speech') {
+            setError(err);
+          }
           setIsRecording(false);
         },
         () => {

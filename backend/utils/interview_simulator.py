@@ -147,7 +147,14 @@ def evaluate_interview_answer(
     if not qa:
         raise ValueError(f"Question #{question_index} not found in this session.")
 
-    ans = (candidate_answer or "").strip()
+    import re
+    raw_ans = (candidate_answer or "").strip()
+    # Clean immediate repetitive words from STT glitches (e.g. "git git git" -> "git")
+    cleaned_ans = re.sub(r'\b(\w+)(?:\s+\1\b)+', r'\1', raw_ans, flags=re.IGNORECASE)
+    # Clean repeated 2-4 word phrase loops (e.g. "a merge conflict a merge conflict" -> "a merge conflict")
+    cleaned_ans = re.sub(r'\b(\w+(?:\s+\w+){1,3})(?:\s+\1\b)+', r'\1', cleaned_ans, flags=re.IGNORECASE)
+    ans = re.sub(r'\s+', ' ', cleaned_ans).strip()
+
     if len(ans) < 5:
         return {
             "error": "Answer is too short to evaluate. Please provide a substantive response."

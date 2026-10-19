@@ -67,6 +67,7 @@ export default function InterviewPrep() {
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeakingQuestion, setIsSpeakingQuestion] = useState(false);
   const recognitionRef = useRef(null);
+  const baseAnswerRef = useRef('');
 
   // Past History State
   const [historyList, setHistoryList] = useState([]);
@@ -157,15 +158,17 @@ export default function InterviewPrep() {
       setIsRecording(false);
     } else {
       setIsRecording(true);
+      baseAnswerRef.current = userAnswer.trim();
       recognitionRef.current = startSpeechRecognition(
         (transcript) => {
-          setUserAnswer((prev) => {
-            const trimmed = prev.trim();
-            return trimmed ? `${trimmed} ${transcript}` : transcript;
-          });
+          const base = baseAnswerRef.current;
+          const clean = (transcript || '').trim();
+          setUserAnswer(base ? `${base} ${clean}` : clean);
         },
         (err) => {
-          setAlert({ type: 'error', message: err });
+          if (err && err !== 'no-speech') {
+            setAlert({ type: 'error', message: err });
+          }
           setIsRecording(false);
         },
         () => {

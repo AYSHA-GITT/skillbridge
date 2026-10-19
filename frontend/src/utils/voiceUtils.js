@@ -13,6 +13,20 @@ export function isSpeechSynthesisSupported() {
 }
 
 /**
+ * Sanitizes speech transcript by removing immediate consecutive repeated words
+ * and normalizing whitespace.
+ * @param {string} text - Raw speech transcript.
+ * @returns {string} Cleaned transcript.
+ */
+export function cleanSpeechTranscript(text) {
+  if (!text) return '';
+  return text
+    .replace(/\b(\w+)(?:\s+\1\b)+/gi, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
  * Starts user-initiated speech recognition.
  * @param {Function} onTranscript - Callback with transcribed string.
  * @param {Function} onError - Callback on error.
@@ -28,37 +42,39 @@ export function startSpeechRecognition(onTranscript, onError, onEnd) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const recognition = new SpeechRecognition();
 
-  recognition.continuous = false;
+  recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
-  let finalTranscript = '';
-
   recognition.onresult = (event) => {
-    let interim = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
+    let finalPart = '';
+    let interimPart = '';
+    for (let i = 0; i < event.results.length; ++i) {
+      const piece = event.results[i][0]?.transcript || '';
       if (event.results[i].isFinal) {
-        finalTranscript += event.results[i][0].transcript;
+        finalPart += piece + ' ';
       } else {
-        interim += event.results[i][0].transcript;
+        interimPart += piece;
       }
     }
-    const current = finalTranscript || interim;
-    if (onTranscript) onTranscript(current);
+    const current = cleanSpeechTranscript(finalPart + ' ' + interimPart);
+    if (onTranscript && current) onTranscript(current);
   };
 
   recognition.onerror = (event) => {
+    if (event.error === 'no-speech') {
+      // Harmless silence pause, do not show blocking error
+      return;
+    }
     let errMessage = 'Microphone access failed or voice was not detected.';
     if (event.error === 'not-allowed') {
       errMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
-    } else if (event.error === 'no-speech') {
-      errMessage = 'No speech detected. Please speak clearly into your microphone.';
     }
     if (onError) onError(errMessage);
   };
 
   recognition.onend = () => {
-    if (onEnd) onEnd(finalTranscript);
+    if (onEnd) onEnd();
   };
 
   try {
