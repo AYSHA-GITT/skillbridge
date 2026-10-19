@@ -42,13 +42,9 @@ class EmbeddingEngine:
                 from sentence_transformers import SentenceTransformer
                 logger.info(f"Loading SentenceTransformer model '{self.model_name}'...")
                 self._model = SentenceTransformer(self.model_name)
-                dim = None
-                if hasattr(self._model, 'get_embedding_dimension'):
-                    dim = self._model.get_embedding_dimension()
-                elif hasattr(self._model, 'get_sentence_embedding_dimension'):
-                    dim = self._model.get_sentence_embedding_dimension()
+                dim = self._model.get_embedding_dimension()
                 if dim is not None:
-                    self._dim = int(dim)
+                    self._dim = dim
                 logger.info(f"SentenceTransformer loaded successfully (dim={self._dim}).")
             except Exception as e:
                 logger.warning(f"Could not load SentenceTransformer '{self.model_name}': {e}. Falling back to TF-IDF.")
