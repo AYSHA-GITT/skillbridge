@@ -37,7 +37,7 @@ class FaissVectorStore(VectorStore):
         self.documents = []
         import faiss
         self.faiss = faiss
-        self.index = faiss.IndexFlatIP(dimension)
+        self.index: Any = faiss.IndexFlatIP(dimension)
 
     def add(self, embeddings: np.ndarray, documents: list[dict]):
         if len(embeddings) == 0:

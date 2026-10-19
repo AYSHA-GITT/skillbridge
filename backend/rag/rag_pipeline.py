@@ -278,7 +278,7 @@ class RAGPipeline:
             matched=matched_required,
             missing=missing_required,
             readiness_pct=readiness_est,
-            source=benchmark.get("source"),
+            source=str(benchmark.get("source") or "Industry Knowledge Base"),
             related_jds=related_jds
         )
 
