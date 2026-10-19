@@ -24,7 +24,7 @@ TRANSFERABLE_MAP: Dict[str, List[str]] = {
 
 
 def _normalize_skill(s: str) -> str:
-    return str(s).lower().strip()
+    return s.lower().strip()
 
 
 def evaluate_job_match(

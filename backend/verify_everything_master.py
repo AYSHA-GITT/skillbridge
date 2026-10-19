@@ -235,7 +235,9 @@ def test_master():
     # SUMMARY
     # -------------------------------------------------------------
     print("=" * 72)
-    pct = round((passed_count / total_count) * 100, 1) if total_count > 0 else 0
+    pct = 0.0
+    if total_count > 0:
+        pct = round((passed_count / total_count) * 100, 1)
     print(f"MASTER AUDIT COMPLETE: {passed_count}/{total_count} FEATURES PASSED ({pct}%)")
     print("=" * 72)
 
