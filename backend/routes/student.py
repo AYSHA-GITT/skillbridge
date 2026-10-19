@@ -1480,7 +1480,7 @@ def export_student_data():
         'saved_jobs': saved_jobs,
         'interview_sessions': interviews,
         'interview_history': interviews,
-        'exported_at': datetime.utcnow().isoformat(),
+        'exported_at': datetime.now(timezone.utc).isoformat(),
         'data_sovereignty_notice': 'This export includes all profile and learning artifacts stored under your account.'
     }
     return jsonify(export_payload), 200

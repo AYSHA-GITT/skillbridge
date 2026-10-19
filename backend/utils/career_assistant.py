@@ -95,7 +95,11 @@ def ask_career_assistant(profile, question, student_id=None, selected_job_id=Non
     sid = student_id or profile.get("student_id")
     target_career = profile.get("target_career") or "Unspecified"
     readiness = profile.get("readiness_score") or 0.0
+    verified = profile.get("verified_skills") or []
     missing = profile.get("missing_skills") or []
+    salary = profile.get("predicted_salary_lpa") or 6.0
+    top_career = profile.get("top_recommended_career") or target_career
+    top_match = profile.get("top_career_match_percent") or readiness
 
     # Attempt genuine RAG retrieval pipeline first
     if sid:
