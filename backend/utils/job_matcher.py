@@ -287,6 +287,7 @@ def compare_multiple_jobs(student_or_skills: Any, job_ids_or_list: Any) -> Dict[
     return {
         "compared_jobs_count": len(evaluations),
         "job_evaluations": evaluations,
+        "comparisons": evaluations,
         "jobs": evaluations,
         "high_yield_skill_investments": high_yield_skills,
         "high_yield_overlapping_skills": high_yield_overlapping,
