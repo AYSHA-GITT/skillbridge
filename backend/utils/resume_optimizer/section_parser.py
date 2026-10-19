@@ -198,8 +198,20 @@ def parse_experience_section(lines: List[str]) -> List[Dict[str, Any]]:
         has_date = date_regex.search(stripped)
         is_bullet = bool(re.match(r'^(?:[\u2022\u25E6\u2043\u2219\*\-\+]|\d+[\.\)])\s*', stripped))
 
-        # A new entry typically contains role/company or a date range and isn't a bullet
-        if (has_date or ('|' in stripped and not is_bullet)) and not is_bullet:
+        # Check if this line is a continuation date for the current entry
+        if has_date and current_entry['role'] and not current_entry['period'] and not raw_bullets_lines and not is_bullet:
+            current_entry['period'] = has_date.group(0).strip()
+            rem = stripped.replace(current_entry['period'], '').strip(' |-,–()')
+            if rem and not current_entry['company']:
+                current_entry['company'] = rem
+            elif rem and not current_entry['location']:
+                current_entry['location'] = rem
+            continue
+
+        # A new entry starts when we encounter a new header/date line while the current entry is already populated
+        is_new_header = (has_date or ('|' in stripped and not is_bullet)) and not is_bullet
+
+        if is_new_header:
             if current_entry['role'] or current_entry['company'] or raw_bullets_lines:
                 current_entry['bullets'] = extract_bullet_points(raw_bullets_lines)
                 if not current_entry['bullets'] and raw_bullets_lines:
@@ -211,7 +223,7 @@ def parse_experience_section(lines: List[str]) -> List[Dict[str, Any]]:
             # Parse role, company, period from this header line
             if has_date:
                 current_entry['period'] = has_date.group(0).strip()
-                rem = stripped.replace(current_entry['period'], '').strip(' |-,–')
+                rem = stripped.replace(current_entry['period'], '').strip(' |-,–()')
             else:
                 rem = stripped
 

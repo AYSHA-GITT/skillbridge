@@ -150,7 +150,43 @@ def enhance_resume_with_ai(
     target = target_career or analysis_results.get('target_career', 'Software Engineer')
 
     # Prepare bullet samples for enhancement (up to 8 to stay concise and responsive)
-    bullets_to_enhance = weak_bullets[:8]
+    bullets_to_enhance = list(weak_bullets)
+    if len(bullets_to_enhance) < 6:
+        existing_texts = {b['original_text'] for b in bullets_to_enhance}
+        for exp_idx, exp in enumerate(parsed_sections.get('experience', [])):
+            for b_idx, bullet in enumerate(exp.get('bullets', [])):
+                if bullet.strip() not in existing_texts and len(bullet.strip()) > 12:
+                    bullets_to_enhance.append({
+                        'source': f"Experience ({exp.get('role', 'Work Experience')})",
+                        'item_index': exp_idx,
+                        'bullet_index': b_idx,
+                        'original_text': bullet.strip(),
+                        'issues': ['Enhance with action verbs and quantifiable STAR/XYZ metrics']
+                    })
+                    existing_texts.add(bullet.strip())
+                    if len(bullets_to_enhance) >= 6:
+                        break
+            if len(bullets_to_enhance) >= 6:
+                break
+
+        if len(bullets_to_enhance) < 6:
+            for proj_idx, proj in enumerate(parsed_sections.get('projects', [])):
+                for b_idx, bullet in enumerate(proj.get('bullets', [])):
+                    if bullet.strip() not in existing_texts and len(bullet.strip()) > 12:
+                        bullets_to_enhance.append({
+                            'source': f"Project ({proj.get('name', 'Technical Project')})",
+                            'item_index': proj_idx,
+                            'bullet_index': b_idx,
+                            'original_text': bullet.strip(),
+                            'issues': ['Upgrade to measurable impact statement']
+                        })
+                        existing_texts.add(bullet.strip())
+                        if len(bullets_to_enhance) >= 6:
+                            break
+                if len(bullets_to_enhance) >= 6:
+                    break
+
+    bullets_to_enhance = bullets_to_enhance[:8]
 
     # Check if Gemini client is available
     ai_client = get_genai_client()
