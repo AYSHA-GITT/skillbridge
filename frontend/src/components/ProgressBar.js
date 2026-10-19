@@ -1,14 +1,18 @@
 import React from 'react';
 
 export default function ProgressBar({
-  value = 0,
+  value,
+  progress,
   max = 100,
   label = '',
-  showPercentage = true,
+  showPercentage = false,
   height = 'h-2',
+  size,
   colorGradient = 'from-accent-400 to-teal-500'
 }) {
-  const percentage = Math.min(100, Math.max(0, Math.round((value / max) * 100)));
+  const actualValue = value ?? progress ?? 0;
+  const percentage = Math.min(100, Math.max(0, Math.round((actualValue / max) * 100)));
+  const barHeight = size === 'sm' ? 'h-1.5' : height;
 
   return (
     <div className="w-full">
@@ -22,7 +26,7 @@ export default function ProgressBar({
           )}
         </div>
       )}
-      <div className={`w-full ${height} rounded-full bg-base-800 border border-base-700/60 overflow-hidden`}>
+      <div className={`w-full ${barHeight} rounded-full bg-base-800 border border-base-700/60 overflow-hidden`}>
         <div
           className={`h-full rounded-full bg-gradient-to-r ${colorGradient} transition-all duration-700 ease-out`}
           style={{ width: `${percentage}%` }}
@@ -31,3 +35,4 @@ export default function ProgressBar({
     </div>
   );
 }
+

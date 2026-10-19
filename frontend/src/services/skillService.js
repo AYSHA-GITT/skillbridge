@@ -226,11 +226,19 @@ export const skillService = {
     return response.data;
   },
 
-  submitInterviewAnswer: async ({ sessionId, questionId, answer }) => {
+  submitInterviewAnswer: async ({ sessionId, session_id, questionId, question_id, questionIndex, question_index, answer, candidate_answer }) => {
+    const finalSessionId = sessionId || session_id;
+    const finalAnswer = answer || candidate_answer;
     const response = await api.post('/student/interview/answer', {
-      session_id: sessionId,
-      question_id: questionId,
-      spoken_or_typed_answer: answer,
+      session_id: finalSessionId,
+      sessionId: finalSessionId,
+      question_id: questionId || question_id,
+      questionId: questionId || question_id,
+      question_index: questionIndex || question_index,
+      questionIndex: questionIndex || question_index,
+      spoken_or_typed_answer: finalAnswer,
+      candidate_answer: finalAnswer,
+      answer: finalAnswer,
     });
     return response.data;
   },

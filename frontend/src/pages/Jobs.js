@@ -170,9 +170,14 @@ export default function Jobs() {
     setMatchData(null);
     try {
       const res = await skillService.getJobMatch(job.id);
-      setMatchData(res.match);
-      setCardMatches((prev) => ({ ...prev, [job.id]: res.match.match_score }));
-    } catch {
+      const matchObj = res?.match || res;
+      setMatchData(matchObj);
+      const score = matchObj?.match_score ?? matchObj?.score_breakdown?.overall_fit_score;
+      if (score !== undefined) {
+        setCardMatches((prev) => ({ ...prev, [job.id]: score }));
+      }
+    } catch (err) {
+      console.error('getJobMatch error:', err);
       setAlert({ type: 'error', message: 'Could not compute explainable match score.' });
     } finally {
       setMatchLoading(false);
@@ -202,8 +207,9 @@ export default function Jobs() {
     setComparisonModalOpen(true);
     try {
       const res = await skillService.compareJobs(selectedForCompare);
-      setComparisonData(res.comparison);
-    } catch {
+      setComparisonData(res?.comparison || res);
+    } catch (err) {
+      console.error('compareJobs error:', err);
       setAlert({ type: 'error', message: 'Could not generate job comparison.' });
       setComparisonModalOpen(false);
     } finally {
@@ -217,13 +223,15 @@ export default function Jobs() {
     setTelemetryModalOpen(true);
     try {
       const res = await skillService.getJobQualityMetrics();
-      setTelemetryData(res.metrics);
-    } catch {
+      setTelemetryData(res?.metrics || res);
+    } catch (err) {
+      console.error('getJobQualityMetrics error:', err);
       setAlert({ type: 'error', message: 'Could not fetch data telemetry.' });
     } finally {
       setTelemetryLoading(false);
     }
   };
+
 
   return (
     <AppLayout>
@@ -736,23 +744,25 @@ export default function Jobs() {
                       </div>
                       <p className="text-[11px] text-white/60">
                         Your existing skills provide partial competency transfer for these requirements:
-                      </p>
-                      <div className="space-y-1">
-                        {matchData.transferable_bridges.map((bridge, bIdx) => (
-                          <div
-                            key={bIdx}
-                            className="flex items-center justify-between text-xs bg-base-950/60 px-2.5 py-1.5 rounded-lg border border-teal-500/20"
-                          >
-                            <span className="text-white/80">
-                              <strong className="text-teal-200">{bridge.user_skill}</strong>{' '}
-                              transfers to{' '}
-                              <strong className="text-accent-300">{bridge.target_skill}</strong>
-                            </span>
-                            <span className="text-[10px] font-mono text-teal-400">
-                              {(bridge.transfer_coefficient * 100).toFixed(0)}% affinity
-                            </span>
-                          </div>
-                        ))}
+                      </p>                      <div className="space-y-1">
+                        {(matchData.transferable_bridges || []).map((bridge, bIdx) => {
+                          const coeff = bridge.transfer_coefficient ?? 0.8;
+                          return (
+                            <div
+                              key={bIdx}
+                              className="flex items-center justify-between text-xs bg-base-950/60 px-2.5 py-1.5 rounded-lg border border-teal-500/20"
+                            >
+                              <span className="text-white/80">
+                                <strong className="text-teal-200">{bridge.user_skill}</strong>{' '}
+                                transfers to{' '}
+                                <strong className="text-accent-300">{bridge.target_skill}</strong>
+                              </span>
+                              <span className="text-[10px] font-mono text-teal-400">
+                                {(coeff * 100).toFixed(0)}% affinity
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -760,79 +770,107 @@ export default function Jobs() {
                   {/* Matched vs Missing Skills breakdown */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     {/* Satisfied Skills */}
-                    <div className="space-y-2">
-                      <h5 className="font-semibold text-emerald-400 flex items-center space-x-1">
-                        <TbCheck className="w-4 h-4" />
-                        <span>Matched Skills ({matchData.matched_skills?.length || 0})</span>
-                      </h5>
-                      <div className="space-y-1">
-                        {(matchData.matched_skills || []).map((ms, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between bg-base-950/60 px-2.5 py-1.5 rounded-lg border border-base-800"
-                          >
-                            <span className="text-white/80">{ms.skill}</span>
-                            <span
-                              className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                                ms.is_verified
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-amber-500/20 text-amber-300'
-                              }`}
-                            >
-                              {ms.is_verified ? 'Verified Quiz' : 'Resume Only'}
-                            </span>
+                    {(() => {
+                      const satisfiedList = Array.isArray(matchData.matched_skills)
+                        ? matchData.matched_skills
+                        : [
+                            ...(matchData.matched_skills?.verified || []).map((s) => ({ skill: s, is_verified: true })),
+                            ...(matchData.matched_skills?.unverified || []).map((s) => ({ skill: s, is_verified: false })),
+                            ...(matchData.matched_skills?.preferred || []).map((s) => ({ skill: s, is_verified: true }))
+                          ];
+
+                      return (
+                        <div className="space-y-2">
+                          <h5 className="font-semibold text-emerald-400 flex items-center space-x-1">
+                            <TbCheck className="w-4 h-4" />
+                            <span>Matched Skills ({satisfiedList.length})</span>
+                          </h5>
+                          <div className="space-y-1">
+                            {satisfiedList.length === 0 ? (
+                              <p className="text-[11px] text-white/40 italic">No direct matches identified yet.</p>
+                            ) : (
+                              satisfiedList.map((ms, idx) => (
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between bg-base-950/60 px-2.5 py-1.5 rounded-lg border border-base-800"
+                                >
+                                  <span className="text-white/80">{ms.skill}</span>
+                                  <span
+                                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                      ms.is_verified
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : 'bg-amber-500/20 text-amber-300'
+                                    }`}
+                                  >
+                                    {ms.is_verified ? 'Verified Quiz' : 'Resume Only'}
+                                  </span>
+                                </div>
+                              ))
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Missing Skills with Curated Resources */}
-                    <div className="space-y-2">
-                      <h5 className="font-semibold text-rose-400 flex items-center space-x-1">
-                        <TbX className="w-4 h-4" />
-                        <span>Missing Skill Gaps ({matchData.missing_mandatory_skills?.length || 0})</span>
-                      </h5>
-                      <div className="space-y-1.5">
-                        {(matchData.missing_mandatory_skills || []).map((skill, idx) => {
-                          const links = matchData.resource_recommendations?.[skill] || {};
-                          return (
-                            <div
-                              key={idx}
-                              className="bg-base-950/60 p-2 rounded-lg border border-base-800 space-y-1"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-white/80 font-medium">{skill}</span>
-                                <span className="text-[10px] font-mono text-rose-400">Mandatory</span>
-                              </div>
-                              <div className="flex items-center gap-2 pt-0.5 text-[10px]">
-                                {links.youtube && (
-                                  <a
-                                    href={links.youtube}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-red-400 hover:text-red-300 flex items-center space-x-1"
+                    {(() => {
+                      const missingList = Array.isArray(matchData.missing_mandatory_skills)
+                        ? matchData.missing_mandatory_skills
+                        : (matchData.missing_skills?.mandatory || []);
+
+                      return (
+                        <div className="space-y-2">
+                          <h5 className="font-semibold text-rose-400 flex items-center space-x-1">
+                            <TbX className="w-4 h-4" />
+                            <span>Missing Skill Gaps ({missingList.length})</span>
+                          </h5>
+                          <div className="space-y-1.5">
+                            {missingList.length === 0 ? (
+                              <p className="text-[11px] text-emerald-400/80">All mandatory requirements satisfied!</p>
+                            ) : (
+                              missingList.map((skill, idx) => {
+                                const links = matchData.resource_recommendations?.[skill] || {};
+                                return (
+                                  <div
+                                    key={idx}
+                                    className="bg-base-950/60 p-2 rounded-lg border border-base-800 space-y-1"
                                   >
-                                    <TbBrandYoutube className="w-3 h-3" />
-                                    <span>Tutorial</span>
-                                  </a>
-                                )}
-                                {links.github && (
-                                  <a
-                                    href={links.github}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="text-white/60 hover:text-white flex items-center space-x-1"
-                                  >
-                                    <TbBrandGithub className="w-3 h-3" />
-                                    <span>Projects</span>
-                                  </a>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-white/80 font-medium">{skill}</span>
+                                      <span className="text-[10px] font-mono text-rose-400">Mandatory</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-0.5 text-[10px]">
+                                      {links.youtube && (
+                                        <a
+                                          href={links.youtube}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-red-400 hover:text-red-300 flex items-center space-x-1"
+                                        >
+                                          <TbBrandYoutube className="w-3 h-3" />
+                                          <span>Tutorial</span>
+                                        </a>
+                                      )}
+                                      {links.github && (
+                                        <a
+                                          href={links.github}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="text-white/70 hover:text-white flex items-center space-x-1"
+                                        >
+                                          <TbBrandGithub className="w-3 h-3" />
+                                          <span>Project</span>
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               ) : null}

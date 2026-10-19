@@ -112,7 +112,7 @@ export default function InterviewPrep() {
         questionCount: questionCount
       });
 
-      setSession(res.session);
+      setSession(res?.session || res);
       setCurrentQIndex(0);
       setUserAnswer('');
       setCurrentEvaluation(null);
@@ -195,13 +195,15 @@ export default function InterviewPrep() {
     setSubmittingAnswer(true);
     setAlert(null);
     try {
+      const activeSessionId = session?.id || session?.session_id;
       const res = await skillService.submitInterviewAnswer({
-        sessionId: session.session_id,
+        sessionId: activeSessionId,
+        questionIndex: currentQ.question_index || (currentQIndex + 1),
         questionId: currentQ.id,
         answer: userAnswer.trim()
       });
 
-      const evalData = res.evaluation;
+      const evalData = res.evaluation || res;
       setCurrentEvaluation(evalData);
       setEvaluatedAnswers((prev) => [
         ...prev,

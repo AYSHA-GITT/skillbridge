@@ -439,6 +439,7 @@ class InterviewSession(BaseModel):
                 qa_list.append(q.to_dict())
         return {
             'id': self.id,
+            'session_id': self.id,
             'student_id': self.student_id,
             'job_id': self.job_id,
             'job_title': self.job_title,
@@ -449,6 +450,7 @@ class InterviewSession(BaseModel):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'questions': qa_list
         }
+
 
 
 class InterviewQA(BaseModel):

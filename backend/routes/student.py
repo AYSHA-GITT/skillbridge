@@ -1012,7 +1012,55 @@ def get_job_match_breakdown(job_id):
         return jsonify({'error': 'Job not found'}), 404
 
     evaluation = evaluate_job_match(current_user, job)
-    return jsonify(evaluation), 200
+
+    # Format matched_skills as array of objects with {skill, is_verified} for direct UI mapping
+    matched_list = []
+    for s in evaluation.get('matched_skills', {}).get('verified', []):
+        matched_list.append({'skill': s, 'is_verified': True})
+    for s in evaluation.get('matched_skills', {}).get('unverified', []):
+        matched_list.append({'skill': s, 'is_verified': False})
+    for s in evaluation.get('matched_skills', {}).get('preferred', []):
+        matched_list.append({'skill': s, 'is_verified': True, 'is_preferred': True})
+
+    missing_mandatory = evaluation.get('missing_skills', {}).get('mandatory', [])
+    missing_preferred = evaluation.get('missing_skills', {}).get('preferred', [])
+
+    # Format resource recommendations map
+    resource_map = {}
+    for r in evaluation.get('curated_resources', []):
+        sk = r.get('skill_query') or (missing_mandatory[0] if missing_mandatory else 'technology')
+        if sk not in resource_map:
+            resource_map[sk] = {}
+        if r.get('source_type') == 'YouTube':
+            resource_map[sk]['youtube'] = r.get('url')
+        elif r.get('source_type') == 'GitHub':
+            resource_map[sk]['github'] = r.get('url')
+
+    # Format transferable bridges with transfer_coefficient
+    bridges = []
+    for b in evaluation.get('transferable_bridges', []):
+        bridges.append({
+            'user_skill': b.get('user_skill'),
+            'target_skill': b.get('target_skill'),
+            'transfer_coefficient': b.get('transfer_coefficient', 0.8),
+            'rationale': b.get('rationale', '')
+        })
+
+    payload = {
+        **evaluation,
+        'matched_skills': matched_list,
+        'matched_skills_dict': evaluation.get('matched_skills'),
+        'missing_mandatory_skills': missing_mandatory,
+        'missing_preferred_skills': missing_preferred,
+        'resource_recommendations': resource_map,
+        'transferable_bridges': bridges,
+        'match_score': evaluation.get('match_score', 0)
+    }
+
+    return jsonify({
+        'match': payload,
+        **payload
+    }), 200
 
 
 @student_bp.route('/jobs/compare', methods=['POST'])
@@ -1025,7 +1073,10 @@ def compare_jobs_endpoint():
         return jsonify({'error': 'job_ids array is required'}), 400
 
     res = compare_multiple_jobs(current_user, [int(jid) for jid in job_ids[:4]])
-    return jsonify(res), 200
+    return jsonify({
+        'comparison': res,
+        **res
+    }), 200
 
 
 # ─────────────────────────────────────────
@@ -1054,12 +1105,29 @@ def start_interview_endpoint():
 def submit_interview_answer():
     from utils.interview_simulator import evaluate_interview_answer
     data = request.get_json(silent=True) or {}
-    session_id = data.get('session_id')
-    question_index = data.get('question_index') or data.get('question_id') or 1
-    candidate_answer = data.get('candidate_answer') or data.get('spoken_or_typed_answer') or data.get('answer')
+    session_id = data.get('session_id') or data.get('sessionId')
+    question_index = data.get('question_index') or data.get('questionIndex')
+    candidate_answer = (
+        data.get('candidate_answer') or 
+        data.get('spoken_or_typed_answer') or 
+        data.get('answer')
+    )
 
     if not session_id or not candidate_answer:
         return jsonify({'error': 'session_id and candidate_answer are required'}), 400
+
+    # If question_index not given, look up by question_id
+    if not question_index:
+        qid = data.get('question_id') or data.get('questionId')
+        if qid:
+            from models import InterviewQA
+            qa_rec = InterviewQA.query.filter_by(id=int(qid), session_id=int(session_id)).first()
+            if qa_rec:
+                question_index = qa_rec.question_index
+            else:
+                question_index = 1
+        else:
+            question_index = 1
 
     try:
         eval_res = evaluate_interview_answer(
@@ -1071,6 +1139,7 @@ def submit_interview_answer():
         return jsonify({'evaluation': eval_res, **eval_res}), 200
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+
 
 
 @student_bp.route('/interview/history', methods=['GET'])
