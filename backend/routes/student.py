@@ -1,6 +1,6 @@
 # pyrefly: ignore [missing-import]
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
@@ -11,6 +11,13 @@ from models import Skill, StudyPlan
 from extensions import db
 from models import Resume
 from utils.resume_parser import parse_resume
+from utils.resume_optimizer import (
+    parse_resume_to_structured_json,
+    analyze_resume,
+    enhance_resume_with_ai,
+    generate_resume_pdf,
+    generate_resume_docx
+)
 from utils.ai_question_generator import generate_questions
 from utils.skill_gap_analyzer import analyze_skill_gap, get_career_requirements
 from models import SkillVerification, SkillGap
@@ -1666,3 +1673,192 @@ def delete_student_account():
         'status': 'deleted',
         'message': 'Account and all associated private learning records have been permanently erased.'
     }), 200
+
+
+# ─────────────────────────────────────────────────────────────
+# RESUME OPTIMIZER ENDPOINTS
+# ─────────────────────────────────────────────────────────────
+
+@student_bp.route('/resume_optimizer/careers', methods=['GET'])
+@login_required
+def get_resume_optimizer_careers():
+    """Returns available predefined career tracks with required & preferred skills."""
+    from data.career_requirements import CAREER_REQUIREMENTS
+    careers = []
+    for c_name, reqs in sorted(CAREER_REQUIREMENTS.items()):
+        careers.append({
+            'id': c_name,
+            'title': c_name.title(),
+            'required': reqs.get('required', []),
+            'nice_to_have': reqs.get('nice_to_have', [])
+        })
+    return jsonify({'careers': careers}), 200
+
+
+@student_bp.route('/resume_optimizer/my_resumes', methods=['GET'])
+@login_required
+def get_student_resumes_for_optimizer():
+    """
+    Returns the authenticated student's uploaded resumes.
+    Strictly isolated to current_user.id for privacy protection.
+    """
+    resumes = Resume.query.filter_by(student_id=current_user.id).order_by(Resume.uploaded_on.desc()).all()
+    return jsonify({
+        'resumes': [{
+            'id': r.id,
+            'original_filename': r.original_filename or f"Resume #{r.id}",
+            'uploaded_on': r.uploaded_on.isoformat() if r.uploaded_on else None,
+            'is_latest': r.is_latest,
+            'has_parsed_text': bool(r.parsed_text and len(r.parsed_text.strip()) > 30)
+        } for r in resumes]
+    }), 200
+
+
+@student_bp.route('/resume_optimizer/analyze', methods=['POST'])
+@login_required
+def analyze_resume_for_optimization():
+    """
+    Analyzes a student resume against a target career or custom job description.
+    Supports either direct file upload or selection of an existing resume record.
+    Calculates deterministic job-match % and generates anti-hallucinatory AI improvements.
+    """
+    raw_text = None
+    original_filename = "Resume"
+
+    # Option A: Directly uploaded file
+    if 'resume' in request.files and request.files['resume'].filename:
+        file = request.files['resume']
+        if not file.filename or not allowed_file(file.filename):
+            return jsonify({'error': 'Invalid file format. Only PDF and DOCX documents are supported.'}), 400
+
+        # Validate file size (10 MB max)
+        file.seek(0, os.SEEK_END)
+        size = file.tell()
+        file.seek(0)
+        if size > 10 * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds maximum limit of 10MB.'}), 400
+
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        raw_filename: str = file.filename or 'resume.pdf'
+        orig_name = secure_filename(raw_filename)
+        ext = orig_name.rsplit('.', 1)[1].lower()
+        temp_name = f"temp_opt_{current_user.id}_{uuid.uuid4().hex}.{ext}"
+        temp_path = os.path.join(UPLOAD_FOLDER, temp_name)
+        try:
+            file.save(temp_path)
+            raw_text = parse_resume(temp_path)
+            original_filename = orig_name
+        except Exception as e:
+            return jsonify({'error': f"Failed to extract text from file: {str(e)}"}), 400
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+    else:
+        # Option B: Existing resume by ID or latest
+        resume_id = request.form.get('resume_id') or (request.get_json(silent=True) or {}).get('resume_id')
+        if not resume_id:
+            latest_resume = Resume.query.filter_by(student_id=current_user.id, is_latest=True).first()
+            if latest_resume:
+                resume_id = latest_resume.id
+            else:
+                return jsonify({'error': 'Please upload a resume file (PDF/DOCX) or select an existing resume.'}), 400
+
+        resume = Resume.query.filter_by(id=resume_id, student_id=current_user.id).first()
+        if not resume:
+            return jsonify({'error': 'Resume not found or unauthorized.'}), 404
+
+        original_filename = resume.original_filename or f"Resume #{resume.id}"
+        if resume.parsed_text and len(resume.parsed_text.strip()) > 30:
+            raw_text = resume.parsed_text
+        elif resume.file_path and os.path.exists(resume.file_path):
+            try:
+                raw_text = parse_resume(resume.file_path)
+                resume.parsed_text = raw_text
+                resume.parsed_on = datetime.now(timezone.utc)
+                db.session.commit()
+            except Exception as e:
+                return jsonify({'error': f"Could not parse resume file: {str(e)}"}), 400
+        else:
+            return jsonify({'error': 'Resume file content could not be located on disk.'}), 404
+
+    if not raw_text or len(raw_text.strip()) < 30:
+        return jsonify({'error': 'Insufficient text extracted from resume. Please ensure the document is not an image scan.'}), 400
+
+    target_career = request.form.get('target_career') or (request.get_json(silent=True) or {}).get('target_career') or ''
+    job_description = request.form.get('job_description') or (request.get_json(silent=True) or {}).get('job_description') or ''
+
+    if not target_career and not job_description:
+        target_career = getattr(current_user, 'target_career', None) or 'Software Engineer'
+
+    # Step 1: Structured parsing
+    structured_sections = parse_resume_to_structured_json(raw_text)
+
+    # Step 2: Deterministic Python Job-Match Analysis
+    analysis = analyze_resume(structured_sections, target_career=target_career, job_description=job_description)
+
+    # Step 3: AI Enhancement with strict anti-hallucination rules & deterministic fallback
+    enhancement = enhance_resume_with_ai(structured_sections, analysis, target_career=target_career)
+
+    return jsonify({
+        'filename': original_filename,
+        'target_career': target_career or "Custom Role",
+        'has_custom_jd': bool(job_description),
+        'match_analysis': analysis,
+        'original_sections': structured_sections,
+        'optimized_sections': enhancement['optimized_sections'],
+        'suggestions': enhancement['suggestions'],
+        'student_prompts': enhancement['student_prompts'],
+        'ai_powered': enhancement['ai_powered']
+    }), 200
+
+
+@student_bp.route('/resume_optimizer/export_pdf', methods=['POST'])
+@login_required
+def export_optimized_resume_pdf():
+    """Exports edited, finalized resume content to an ATS-ready PDF."""
+    data = request.get_json(silent=True) or {}
+    sections = data.get('sections')
+    if not sections or not isinstance(sections, dict):
+        return jsonify({'error': 'Missing or invalid sections payload'}), 400
+
+    try:
+        pdf_buffer = generate_resume_pdf(sections)
+        filename = secure_filename(data.get('filename') or 'Optimized_Resume.pdf')
+        if not filename.lower().endswith('.pdf'):
+            filename += '.pdf'
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'error': f"Failed to generate PDF: {str(e)}"}), 500
+
+
+@student_bp.route('/resume_optimizer/export_docx', methods=['POST'])
+@login_required
+def export_optimized_resume_docx():
+    """Exports edited, finalized resume content to a clean Microsoft Word (.docx) document."""
+    data = request.get_json(silent=True) or {}
+    sections = data.get('sections')
+    if not sections or not isinstance(sections, dict):
+        return jsonify({'error': 'Missing or invalid sections payload'}), 400
+
+    try:
+        docx_buffer = generate_resume_docx(sections)
+        filename = secure_filename(data.get('filename') or 'Optimized_Resume.docx')
+        if not filename.lower().endswith('.docx'):
+            filename += '.docx'
+        return send_file(
+            docx_buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return jsonify({'error': f"Failed to generate DOCX: {str(e)}"}), 500
+

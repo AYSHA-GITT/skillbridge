@@ -21,6 +21,7 @@ import Jobs from './pages/Jobs';
 import InterviewPrep from './pages/InterviewPrep';
 import FedViz from './pages/FedViz';
 import Admin from './pages/Admin';
+import ResumeOptimizer from './pages/ResumeOptimizer';
 import { ProtectedRoute, AdminRoute } from './components/RouteGuards';
 
 function App() {
@@ -51,6 +52,14 @@ function App() {
           element={
             <ProtectedRoute>
               <UploadResume />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/resume-optimizer"
+          element={
+            <ProtectedRoute>
+              <ResumeOptimizer />
             </ProtectedRoute>
           }
         />

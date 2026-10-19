@@ -15,7 +15,8 @@ import {
   TbShieldCheck,
   TbCheck,
   TbSearch,
-  TbMicrophone
+  TbMicrophone,
+  TbFileCheck
 } from 'react-icons/tb';
 
 export default function Sidebar({ onOpenPrivacyModal }) {
@@ -23,6 +24,7 @@ export default function Sidebar({ onOpenPrivacyModal }) {
     { to: '/dashboard', label: 'Dashboard', icon: TbLayoutDashboard },
     { to: '/profile', label: 'Profile & Skills', icon: TbUserCheck },
     { to: '/upload-resume', label: 'Resume Upload', icon: TbFileUpload },
+    { to: '/resume-optimizer', label: 'Resume Optimizer', icon: TbFileCheck },
     { to: '/assessment', label: 'Skill Verification', icon: TbClipboardCheck },
     { to: '/careers', label: 'Career Recommendations', icon: TbBriefcase },
     { to: '/jobs', label: 'Jobs & Opportunities', icon: TbSearch },

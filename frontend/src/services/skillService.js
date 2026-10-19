@@ -314,6 +314,42 @@ export const skillService = {
   addJobRAG: async (jobData) => {
     const response = await api.post('/student/rag/add_job', jobData);
     return response.data;
+  },
+
+  // AI Resume Optimizer
+  getOptimizerCareers: async () => {
+    const response = await api.get('/student/resume_optimizer/careers');
+    return response.data;
+  },
+
+  getOptimizerResumes: async () => {
+    const response = await api.get('/student/resume_optimizer/my_resumes');
+    return response.data;
+  },
+
+  analyzeResumeOptimizer: async (formData) => {
+    const response = await api.post('/student/resume_optimizer/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  exportOptimizerPdf: async (sections, filename = 'Optimized_Resume.pdf') => {
+    const response = await api.post(
+      '/student/resume_optimizer/export_pdf',
+      { sections, filename },
+      { responseType: 'blob' }
+    );
+    return response.data;
+  },
+
+  exportOptimizerDocx: async (sections, filename = 'Optimized_Resume.docx') => {
+    const response = await api.post(
+      '/student/resume_optimizer/export_docx',
+      { sections, filename },
+      { responseType: 'blob' }
+    );
+    return response.data;
   }
 };
 

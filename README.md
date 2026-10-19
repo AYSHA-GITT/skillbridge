@@ -48,6 +48,7 @@
 ## ✨ Key Features
 
 - 📄 **Intelligent Resume Parsing**: Automatically extracts technical skills, years of experience, and contact info from PDF and DOCX files using **PyMuPDF**, **pdfplumber**, and natural language processing.
+- ⚡ **AI Resume Optimizer & ATS Studio**: Side-by-side interactive workspace providing deterministic ATS job-match scoring in Python, STAR/XYZ bullet rewrites, anti-hallucination verification prompts, and downloadable ATS-ready PDF and DOCX documents without altering original files.
 - 🧠 **Adaptive AI Verification Engine**: Powered by **Google Gemini 3.6 Flash**. Generates on-the-fly technical MCQs tailored to candidate confidence levels and caches permanent questions in a local SQLite question bank.
 - 🎯 **Target Career Gap Analysis**: Computes real-time coverage scores against curated and dynamically generated industry roles (*Data Analyst, Data Scientist, Software Engineer, Full Stack Developer, DevOps Engineer*).
 - 🗺️ **Personalized Daily Roadmap**: Day-by-day learning schedule targeting only the missing skills, complete with descriptions, study hour estimations, and direct YouTube search links.
@@ -245,6 +246,11 @@ YOUTUBE_API_KEY=your_youtube_api_key_optional
 - `POST /api/student/generate_roadmap` - Trigger AI generation of a new roadmap
 - `POST /api/student/simulate_salary` - Calculate predicted salary and incremental skill boost
 - `GET /api/student/badges` - Fetch unlocked gamification achievements
+- `GET /api/student/resume_optimizer/careers` - Retrieve available target career requirements
+- `GET /api/student/resume_optimizer/my_resumes` - Retrieve authenticated student's resumes
+- `POST /api/student/resume_optimizer/analyze` - Perform deterministic ATS scoring, gap detection, and anti-hallucination AI enhancements
+- `POST /api/student/resume_optimizer/export_pdf` - Export edited, optimized resume directly to ATS-ready PDF
+- `POST /api/student/resume_optimizer/export_docx` - Export edited, optimized resume directly to Microsoft Word (.docx)
 
 ### Institutional Admin & Federated Learning (`/api/admin`)
 - `GET /api/admin/stats` - Platform-wide statistics and common skill gaps
@@ -253,10 +259,30 @@ YOUTUBE_API_KEY=your_youtube_api_key_optional
 
 ---
 
+## ⚡ AI Resume Optimizer & ATS Studio
+
+The **AI Resume Optimizer** empowers students to tailor and enhance their resumes for specific job descriptions or target industry tracks without sacrificing authenticity:
+
+1. **Deterministic Job-Match Scoring**:
+   - Python-computed match score based on true required skills (55%), preferred skills (25%), and ATS structure/formatting (20%).
+   - Zero hallucinated scores; transparent breakdown of coverage.
+2. **Anti-Hallucination & STAR/XYZ Impact**:
+   - Passive starters (*"Responsible for", "Helped with", "Worked on"*) are converted to strong leadership verbs (*"Architected", "Engineered", "Spearheaded"*).
+   - If a bullet lacks quantifiable metrics, the AI **never invents fake numbers**. It inserts explicit student fill-in prompts: `[Quantify impact: e.g. reduced latency by X% or supported N users]`.
+3. **Interactive Side-by-Side Live Workspace**:
+   - Original resume is displayed read-only on the left for reference and stays 100% unchanged.
+   - Optimized resume on the right features live editable fields for Contact info, Summary, Work Experience bullets, Projects, and Skills.
+   - Individual suggestions can be approved, rejected, or edited with 1-click.
+4. **Professional Multi-Format Export**:
+   - Single-click download to ATS-compliant **PDF** (via `reportlab`) or **DOCX** (via `python-docx`) without intermediate file accumulation on disk.
+5. **Student Privacy & Isolation**:
+   - Students can only access and optimize their own uploaded resume documents.
+
+---
+
 ## 🔮 Future Scope (Phase 2)
 
 - 🎙️ **Live Audio Mock Interviews**: Integration with Gemini Realtime API for automated behavioral and technical interview simulations.
-- ⚡ **ATS Resume Optimizer**: Instant resume scoring against pasted job descriptions with keyword alignment suggestions.
 - 💼 **Direct Campus Placement Integration**: Direct API connections with hiring platforms (LinkedIn/Naukri) to enable 1-click applications based on verified readiness scores.
 - ⛓️ **Soulbound Credential Badges**: Blockchain-backed digital certificates issued upon passing skill assessments.
 
