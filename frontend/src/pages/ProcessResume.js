@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -9,26 +9,33 @@ export default function ProcessResume() {
   const [stage, setStage] = useState('parsing'); // parsing | extracting | done | error
   const [skills, setSkills] = useState([]);
   const [error, setError] = useState('');
+  const executingRef = useRef(false);
+
+  const runPipeline = useCallback(async () => {
+    if (executingRef.current) return;
+    executingRef.current = true;
+    setError('');
+
+    try {
+      setStage('parsing');
+      await api.post(`/student/parse_resume/${resumeId}`);
+
+      setStage('extracting');
+      const res = await api.post(`/student/extract_skills/${resumeId}`);
+
+      setSkills(res.data.skills || []);
+      setStage('done');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Something went wrong while processing your resume');
+      setStage('error');
+    } finally {
+      executingRef.current = false;
+    }
+  }, [resumeId]);
 
   useEffect(() => {
-    const runPipeline = async () => {
-      try {
-        setStage('parsing');
-        await api.post(`/student/parse_resume/${resumeId}`);
-
-        setStage('extracting');
-        const res = await api.post(`/student/extract_skills/${resumeId}`);
-
-        setSkills(res.data.skills || []);
-        setStage('done');
-      } catch (err) {
-        setError(err.response?.data?.error || 'Something went wrong');
-        setStage('error');
-      }
-    };
-
     runPipeline();
-  }, [resumeId]);
+  }, [runPipeline]);
 
   const confidenceColor = (score) => {
     if (score >= 0.7) return 'text-accent-400';
@@ -68,8 +75,25 @@ export default function ProcessResume() {
 
         {stage === 'error' && (
           <div className="text-center py-12">
-            <p className="text-red-400 mb-2">Something went wrong</p>
-            <p className="text-white/40 text-sm">{error}</p>
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto mb-4 text-xl">
+              ✕
+            </div>
+            <p className="text-red-400 font-semibold mb-2">Failed to process resume</p>
+            <p className="text-white/50 text-sm max-w-md mx-auto mb-6">{error}</p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => runPipeline()}
+                className="btn-primary px-6"
+              >
+                Retry Extraction
+              </button>
+              <button
+                onClick={() => navigate('/upload-resume')}
+                className="px-5 py-2.5 rounded-xl border border-white/10 text-white/70 hover:bg-white/5 transition-all text-sm"
+              >
+                Re-upload File
+              </button>
+            </div>
           </div>
         )}
 

@@ -30,9 +30,15 @@ export default function UploadResume() {
       const res = await api.post('/student/upload_resume', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setResumeId(res.data.resume.id);
+      const newResumeId = res.data.resume.id;
+      setResumeId(newResumeId);
       setStatus('done');
-      setMessage('Resume uploaded successfully!');
+      setMessage('Resume uploaded successfully! Redirecting to skills extraction...');
+      
+      // Automatically redirect to parse & extract skills pipeline
+      setTimeout(() => {
+        navigate(`/process-resume/${newResumeId}`);
+      }, 700);
     } catch (err) {
       setStatus('error');
       setMessage(err.response?.data?.error || 'Upload failed');

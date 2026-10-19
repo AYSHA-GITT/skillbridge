@@ -63,8 +63,9 @@ def upload_resume():
     unique_filename = f"{current_user.id}_{uuid.uuid4().hex}.{extension}"
 
     # 4. Make sure the upload folder exists, then save the file
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    file_path = os.path.join(UPLOAD_FOLDER, unique_filename)
+    upload_dir = os.path.join(current_app.root_path, 'uploads', 'resumes')
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, unique_filename)
     file.save(file_path)
 
     # 5. Mark this student's previous resumes as not-latest
@@ -103,8 +104,16 @@ def parse_resume_endpoint(resume_id):
     if not resume:
         return jsonify({'error': 'Resume not found or does not belong to you'}), 404
 
+    target_path = resume.file_path
+    if not os.path.exists(target_path):
+        alt_path = os.path.join(current_app.root_path, target_path)
+        if os.path.exists(alt_path):
+            target_path = alt_path
+        elif os.path.exists(os.path.join(current_app.root_path, 'uploads', 'resumes', os.path.basename(target_path))):
+            target_path = os.path.join(current_app.root_path, 'uploads', 'resumes', os.path.basename(target_path))
+
     try:
-        extracted_text = parse_resume(resume.file_path)
+        extracted_text = parse_resume(target_path)
     except ValueError as e:
         return jsonify({'error': str(e)}), 422
     except Exception as e:
@@ -140,53 +149,55 @@ def extract_skills_endpoint(resume_id):
     if not extracted:
         return jsonify({'message': 'No known skills detected in this resume',
                          'skills': []}), 200
-#from here
-# Skills that already have a verification must be preserved —
-    # deleting them would break skill_verifications' foreign key
-    # and destroy the student's proven quiz history
-    verified_skill_ids = {
-        v.skill_id for v in SkillVerification.query.filter_by(
-            student_id=current_user.id
-        ).all()
-    }
 
-    existing_skills = Skill.query.filter_by(resume_id=resume.id).all()
+    try:
+        # Skills that already have a verification must be preserved —
+        # deleting them would break skill_verifications' foreign key
+        # and destroy the student's proven quiz history
+        verified_skill_ids = {
+            v.skill_id for v in SkillVerification.query.filter_by(
+                student_id=current_user.id
+            ).all()
+        }
 
-    kept_verified_skills = [
-        s for s in existing_skills if s.id in verified_skill_ids
-    ]
-    kept_verified_names = {s.skill_name for s in kept_verified_skills}
+        existing_skills = Skill.query.filter_by(resume_id=resume.id).all()
 
-    # Delete only the unverified ones — safe to regenerate
-    for s in existing_skills:
-        if s.id not in verified_skill_ids:
-            db.session.delete(s)
+        kept_verified_skills = [
+            s for s in existing_skills if s.id in verified_skill_ids
+        ]
+        kept_verified_names = {s.skill_name.lower().strip() for s in kept_verified_skills}
 
-    saved_skills = list(kept_verified_skills)
+        # Delete only the unverified ones — safe to regenerate
+        for s in existing_skills:
+            if s.id not in verified_skill_ids:
+                db.session.delete(s)
 
-    for item in extracted:
-        if item['skill_name'] in kept_verified_names:
-            continue  # already have a verified version, don't duplicate
+        for item in extracted:
+            skill_name_clean = item['skill_name'].strip()
+            if skill_name_clean.lower() in kept_verified_names:
+                continue  # already have a verified version, don't duplicate
 
-        skill = Skill(
-            student_id=current_user.id,
-            resume_id=resume.id,
-            skill_name=item['skill_name'],
-            extraction_confidence=item['extraction_confidence'],
-            proficiency=None
-        )
-        db.session.add(skill)
-        saved_skills.append(skill)
+            skill = Skill(
+                student_id=current_user.id,
+                resume_id=resume.id,
+                skill_name=skill_name_clean,
+                extraction_confidence=item['extraction_confidence'],
+                proficiency=None
+            )
+            db.session.add(skill)
 
-    db.session.commit()
+        db.session.commit()
 
-    #till here
+        # Query fresh skills from DB to prevent ObjectDeletedError on expired session instances
+        all_skills = Skill.query.filter_by(resume_id=resume.id).all()
 
-
-    return jsonify({
-        'message': f'{len(saved_skills)} skills extracted',
-        'skills': [s.to_dict() for s in saved_skills]
-    }), 201
+        return jsonify({
+            'message': f'{len(all_skills)} skills extracted',
+            'skills': [s.to_dict() for s in all_skills]
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to extract skills: {str(e)}'}), 500
 
 import random
 from models import QuestionBank, SkillVerification
