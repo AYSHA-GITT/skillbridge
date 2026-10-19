@@ -952,7 +952,8 @@ def sync_job_sources():
 def get_job_quality_metrics():
     from utils.job_discovery import job_discovery_service
     metrics = job_discovery_service.get_quality_metrics()
-    return jsonify(metrics), 200
+    return jsonify({'metrics': metrics, **metrics}), 200
+
 
 
 @student_bp.route('/jobs/save', methods=['POST'])
