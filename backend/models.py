@@ -1,9 +1,12 @@
 from typing import Any
 import json
 from extensions import db
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class BaseModel(db.Model):
     __abstract__ = True
@@ -29,7 +32,7 @@ class Student(BaseModel, UserMixin):
     target_career = db.Column(db.String(200))  # replaces target_company
     readiness_score = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(20), default='student', nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
     is_active = db.Column(db.Boolean, default=True)
 
 
@@ -88,7 +91,7 @@ class Resume(BaseModel):
     original_filename = db.Column(db.String(200))
     parsed_text = db.Column(db.Text)  # raw extracted text
     parsed_on = db.Column(db.DateTime)
-    uploaded_on = db.Column(db.DateTime, default=datetime.utcnow)
+    uploaded_on = db.Column(db.DateTime, default=utc_now)
     is_latest = db.Column(db.Boolean, default=True)
 
     def to_dict(self):
@@ -112,7 +115,7 @@ class Skill(BaseModel):
     skill_name = db.Column(db.String(100), nullable=False)
     extraction_confidence = db.Column(db.Float)  # 0.0 to 1.0, from NLP
     proficiency = db.Column(db.String(50))  # inferred: Beginner/Intermediate/Advanced
-    added_on = db.Column(db.DateTime, default=datetime.utcnow)
+    added_on = db.Column(db.DateTime, default=utc_now)
 
     def to_dict(self):
         return {
@@ -138,7 +141,7 @@ class SkillVerification(BaseModel):
     quiz_correct_count = db.Column(db.Integer)
     quiz_score_percent = db.Column(db.Float)
     verification_score = db.Column(db.Float)  # weighted: resume evidence + quiz
-    verified_on = db.Column(db.DateTime, default=datetime.utcnow)
+    verified_on = db.Column(db.DateTime, default=utc_now)
 
     def to_dict(self):
         return {
@@ -194,7 +197,7 @@ class SkillGap(BaseModel):
     importance = db.Column(db.String(50))  # High, Medium, Low
     estimated_days = db.Column(db.Integer)
     category = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
 
     def to_dict(self):
         return {
@@ -247,7 +250,7 @@ class Progress(BaseModel):
 
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
+    date = db.Column(db.DateTime, default=utc_now)
     readiness_score = db.Column(db.Float)
     skill_count = db.Column(db.Integer)
     verified_skill_count = db.Column(db.Integer)
@@ -276,7 +279,7 @@ class FLTrainingRound(BaseModel):
     partition_id = db.Column(db.String(50))  # e.g. "Institution_A"
     local_accuracy = db.Column(db.Float)
     global_accuracy_after_round = db.Column(db.Float)
-    trained_on = db.Column(db.DateTime, default=datetime.utcnow)
+    trained_on = db.Column(db.DateTime, default=utc_now)
 
     def to_dict(self):
         return {
@@ -331,9 +334,9 @@ class JobListing(BaseModel):
     application_url = db.Column(db.String(500))
     source = db.Column(db.String(100), default='SkillBridge Verified Index')
     is_sample = db.Column(db.Boolean, default=False)  # Clearly labels demo vs live scraped
-    posting_date = db.Column(db.DateTime, default=datetime.utcnow)
+    posting_date = db.Column(db.DateTime, default=utc_now)
     deadline = db.Column(db.DateTime, nullable=True)
-    collected_at = db.Column(db.DateTime, default=datetime.utcnow)
+    collected_at = db.Column(db.DateTime, default=utc_now)
 
     saved_by = db.relationship('SavedJob', back_populates='job', lazy=True, cascade='all, delete-orphan')
 
@@ -387,7 +390,7 @@ class SavedJob(BaseModel):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=False)
-    saved_at = db.Column(db.DateTime, default=datetime.utcnow)
+    saved_at = db.Column(db.DateTime, default=utc_now)
     notes = db.Column(db.Text, nullable=True)
 
     job = db.relationship('JobListing', back_populates='saved_by', foreign_keys=[job_id])
@@ -429,7 +432,7 @@ class InterviewSession(BaseModel):
     overall_score = db.Column(db.Float, default=0.0)
     feedback_summary = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(50), default='in_progress')  # in_progress, completed
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=utc_now)
 
     qa_records = db.relationship('InterviewQA', backref='session', lazy=True, cascade='all, delete-orphan', order_by='InterviewQA.question_index')
 

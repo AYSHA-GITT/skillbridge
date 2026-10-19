@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from extensions import db
 from models import JobListing, SavedJob
 from utils.job_discovery.base_adapter import JobSourceAdapter
@@ -21,7 +21,7 @@ class JobDiscoveryService:
             RemoteJobApiAdapter(),
             CuratedSampleAdapter()
         ]
-        self._quality_metrics = {
+        self._quality_metrics: Dict[str, Any] = {
             "total_ingested": 0,
             "duplicates_filtered": 0,
             "missing_fields_detected": 0,
@@ -66,14 +66,14 @@ class JobDiscoveryService:
 
         posting_date = raw_job.get("posting_date")
         if not isinstance(posting_date, datetime):
-            posting_date = datetime.utcnow()
+            posting_date = datetime.now(timezone.utc)
 
         deadline = raw_job.get("deadline")
         if deadline and not isinstance(deadline, datetime):
             deadline = None
 
         return {
-            "external_id": raw_job.get("external_id") or f"{company}_{title}_{int(datetime.utcnow().timestamp())}",
+            "external_id": raw_job.get("external_id") or f"{company}_{title}_{int(datetime.now(timezone.utc).timestamp())}",
             "title": title[:200],
             "company": company[:200],
             "location": (raw_job.get("location") or "Remote")[:200],
@@ -90,7 +90,7 @@ class JobDiscoveryService:
             "is_sample": bool(raw_job.get("is_sample", False)),
             "posting_date": posting_date,
             "deadline": deadline,
-            "collected_at": datetime.utcnow()
+            "collected_at": datetime.now(timezone.utc)
         }
 
     def sync_all_sources(self, limit_per_source: int = 25) -> Dict[str, Any]:
@@ -126,9 +126,14 @@ class JobDiscoveryService:
                         continue
 
                     # Check if stale (deadline passed)
-                    if normalized["deadline"] and normalized["deadline"] < datetime.utcnow():
-                        self._quality_metrics["stale_records_handled"] += 1
-                        continue
+                    if normalized["deadline"]:
+                        dl = normalized["deadline"]
+                        now_utc = datetime.now(timezone.utc)
+                        if dl.tzinfo is None:
+                            dl = dl.replace(tzinfo=timezone.utc)
+                        if dl < now_utc:
+                            self._quality_metrics["stale_records_handled"] += 1
+                            continue
 
                     job_record = JobListing(**normalized)
                     db.session.add(job_record)
@@ -140,7 +145,7 @@ class JobDiscoveryService:
                 db.session.rollback()
 
         self._quality_metrics["total_ingested"] = JobListing.query.count()
-        self._quality_metrics["last_sync_timestamp"] = datetime.utcnow().isoformat()
+        self._quality_metrics["last_sync_timestamp"] = datetime.now(timezone.utc).isoformat()
 
         return {
             "total_pulled_this_sync": total_pulled,

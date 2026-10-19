@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from utils.job_discovery.base_adapter import JobSourceAdapter
 
 
@@ -19,7 +19,7 @@ class CuratedSampleAdapter(JobSourceAdapter):
         return True
 
     def _get_benchmark_catalog(self) -> List[Dict[str, Any]]:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         return [
             {
                 "external_id": "bench_sde_intern_01",

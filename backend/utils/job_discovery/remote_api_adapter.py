@@ -1,7 +1,7 @@
 import re
 import requests
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from utils.job_discovery.base_adapter import JobSourceAdapter
 
 
@@ -109,7 +109,7 @@ class RemoteJobApiAdapter(JobSourceAdapter):
                     "application_url": item.get("url") or "https://www.arbeitnow.com",
                     "source": self.source_name,
                     "is_sample": False,
-                    "posting_date": datetime.fromtimestamp(item.get("created_at", datetime.utcnow().timestamp())),
+                    "posting_date": datetime.fromtimestamp(item.get("created_at", datetime.now(timezone.utc).timestamp()), tz=timezone.utc),
                     "deadline": None
                 })
         except Exception:
