@@ -1,0 +1,22 @@
+{
+  "role": "Cloud Security DevOps Engineer",
+  "company": "SecureVantage Cyber Corp",
+  "location": "Mumbai / Remote",
+  "salary_range": "11 - 16 LPA",
+  "career_category": "devops engineer",
+  "description": "Seeking a Cloud Security Engineer with deep expertise in Docker, Kubernetes, Linux, AWS, and CI/CD pipelines.",
+  "required_skills": [
+    "docker",
+    "kubernetes",
+    "linux",
+    "aws",
+    "ci/cd"
+  ],
+  "preferred_skills": [
+    "python",
+    "terraform",
+    "wireshark"
+  ],
+  "responsibilities": "Seeking a Cloud Security Engineer with deep expertise in Docker, Kubernetes, Linux, AWS, and CI/CD pipelines.",
+  "source": "SecureVantage Corporate Careers 2026 #SEC-501"
+}

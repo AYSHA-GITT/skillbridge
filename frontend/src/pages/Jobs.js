@@ -38,6 +38,25 @@ const DOMAINS = [
 
 const JOB_TYPES = ['All Types', 'Full-time', 'Internship', 'Contract', 'Part-time'];
 
+const REGIONS = [
+  { value: 'All Regions', label: 'All Regions (India & Asia First)' },
+  { value: 'India', label: '🇮🇳 India' },
+  { value: 'Asia', label: '🌏 Asia' },
+  { value: 'Remote', label: '🌐 Remote' }
+];
+
+function cleanDescription(text) {
+  if (!text) return '';
+  const decoded = text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+  return decoded.replace(/<[^>]*>/g, '').trim();
+}
+
 export default function Jobs() {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
@@ -50,6 +69,7 @@ export default function Jobs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDomain, setSelectedDomain] = useState('All Domains');
   const [selectedJobType, setSelectedJobType] = useState('All Types');
+  const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'live', 'sample'
   const [showSavedOnly, setShowSavedOnly] = useState(false);
@@ -97,25 +117,29 @@ export default function Jobs() {
         setTotalCount(list.length);
       } else {
         const params = {
-          per_page: 30,
+          per_page: 50,
         };
         if (searchQuery.trim()) params.query = searchQuery.trim();
         if (selectedDomain !== 'All Domains') params.domain = selectedDomain;
         if (selectedJobType !== 'All Types') params.job_type = selectedJobType;
+        if (selectedRegion === 'India') params.region = 'india';
+        else if (selectedRegion === 'Asia') params.region = 'asia';
+        else if (selectedRegion === 'Remote') params.region = 'remote';
         if (remoteOnly) params.remote_only = true;
         if (sourceFilter === 'sample') params.sample_only = true;
         if (sourceFilter === 'live') params.live_only = true;
 
         const res = await skillService.getJobs(params);
-        setJobs(res.jobs || []);
-        setTotalCount(res.total_count || 0);
+        const list = res.jobs || [];
+        setJobs(list);
+        setTotalCount(res.total_count ?? res.total ?? list.length);
       }
     } catch {
       setAlert({ type: 'error', message: 'Failed to retrieve job opportunities.' });
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedDomain, selectedJobType, remoteOnly, sourceFilter, showSavedOnly]);
+  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, remoteOnly, sourceFilter, showSavedOnly]);
 
   useEffect(() => {
     loadSavedJobs();
@@ -335,6 +359,19 @@ export default function Jobs() {
               ))}
             </select>
 
+            {/* Region Dropdown */}
+            <select
+              value={selectedRegion}
+              onChange={(e) => setSelectedRegion(e.target.value)}
+              className="bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs focus:border-accent-400 outline-none"
+            >
+              {REGIONS.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+
             {/* Source Pill Filter */}
             <div className="flex items-center bg-base-950 p-0.5 rounded-xl border border-base-800">
               <button
@@ -413,6 +450,7 @@ export default function Jobs() {
                 setSearchQuery('');
                 setSelectedDomain('All Domains');
                 setSelectedJobType('All Types');
+                setSelectedRegion('All Regions');
                 setRemoteOnly(false);
                 setSourceFilter('all');
                 setShowSavedOnly(false);
@@ -456,6 +494,23 @@ export default function Jobs() {
                         <span className="text-[10px] px-2 py-0.5 rounded-md bg-base-800 text-white/70 border border-base-700">
                           {job.job_type}
                         </span>
+
+                        {/* Regional Location Badge */}
+                        {job.region_badge === 'India' && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                            🇮🇳 India
+                          </span>
+                        )}
+                        {job.region_badge === 'Asia' && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-500/30 font-medium">
+                            🌏 Asia
+                          </span>
+                        )}
+                        {job.region_badge === 'Remote' && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-teal-500/15 text-teal-300 border border-teal-500/30 font-medium">
+                            🌐 Remote
+                          </span>
+                        )}
 
                         {job.remote_policy && (
                           <span className="text-[10px] px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-300 border border-teal-500/20 flex items-center space-x-1">
@@ -519,7 +574,7 @@ export default function Jobs() {
 
                     {/* Description preview */}
                     <p className="text-xs text-white/60 line-clamp-2 leading-relaxed">
-                      {job.description}
+                      {cleanDescription(job.description)}
                     </p>
 
                     {/* Skills Chips */}

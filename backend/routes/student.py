@@ -1128,12 +1128,32 @@ def get_jobs():
     domain = request.args.get('domain')
     work_arrangement = request.args.get('work_arrangement')
     skill = request.args.get('skill')
-    is_sample_arg = request.args.get('is_sample')
+    region = request.args.get('region')
+
+    # Handle remote_only boolean flag from frontend
+    remote_only = request.args.get('remote_only')
+    if remote_only and remote_only.lower() in ['true', '1']:
+        work_arrangement = 'Remote'
+
+    # Handle sample / live filtering flags
     is_sample = None
-    if is_sample_arg is not None and is_sample_arg.lower() != 'all':
+    is_sample_arg = request.args.get('is_sample')
+    sample_only = request.args.get('sample_only')
+    live_only = request.args.get('live_only')
+
+    if sample_only and sample_only.lower() in ['true', '1']:
+        is_sample = True
+    elif live_only and live_only.lower() in ['true', '1']:
+        is_sample = False
+    elif is_sample_arg is not None and is_sample_arg.lower() != 'all':
         is_sample = is_sample_arg.lower() in ['true', '1']
 
-    limit = min(100, int(request.args.get('limit', 50)))
+    limit_arg = request.args.get('limit') or request.args.get('per_page') or '50'
+    try:
+        limit = min(100, int(limit_arg))
+    except (ValueError, TypeError):
+        limit = 50
+
     jobs = job_discovery_service.search_jobs(
         query=query,
         job_type=job_type,
@@ -1141,6 +1161,7 @@ def get_jobs():
         work_arrangement=work_arrangement,
         skill=skill,
         is_sample=is_sample,
+        region=region,
         limit=limit
     )
 
@@ -1151,7 +1172,11 @@ def get_jobs():
     for j in jobs:
         j['is_saved'] = j['id'] in saved_ids
 
-    return jsonify({'jobs': jobs, 'total': len(jobs)}), 200
+    return jsonify({
+        'jobs': jobs,
+        'total': len(jobs),
+        'total_count': len(jobs)
+    }), 200
 
 
 @student_bp.route('/jobs/<int:job_id>', methods=['GET'])

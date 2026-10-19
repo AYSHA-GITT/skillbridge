@@ -352,12 +352,15 @@ class JobListing(BaseModel):
             return []
 
     def to_dict(self):
+        from utils.job_discovery.location_prioritizer import get_location_region_label, get_location_rank
         return {
             'id': self.id,
             'external_id': self.external_id,
             'title': self.title,
             'company': self.company,
             'location': self.location,
+            'region_badge': get_location_region_label(self.location, self.title, self.company),
+            'location_rank': get_location_rank(self.location, self.title, self.company),
             'job_type': self.job_type,
             'work_arrangement': self.work_arrangement,
             'domain': self.domain,

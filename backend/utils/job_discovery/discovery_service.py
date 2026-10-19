@@ -157,12 +157,16 @@ class JobDiscoveryService:
         work_arrangement: Optional[str] = None,
         skill: Optional[str] = None,
         is_sample: Optional[bool] = None,
+        region: Optional[str] = None,
         limit: int = 50
     ) -> List[Dict[str, Any]]:
         """
         Search and multi-filter listings from database.
+        Strictly prioritizes India and Asia openings first before other countries.
         Automatically seeds baseline data if database is empty.
         """
+        from utils.job_discovery.location_prioritizer import get_location_rank
+
         count = JobListing.query.count()
         if count == 0:
             self.sync_all_sources(limit_per_source=25)
@@ -175,7 +179,8 @@ class JobDiscoveryService:
                 (JobListing.title.ilike(kw)) |
                 (JobListing.company.ilike(kw)) |
                 (JobListing.description.ilike(kw)) |
-                (JobListing.domain.ilike(kw))
+                (JobListing.domain.ilike(kw)) |
+                (JobListing.location.ilike(kw))
             )
 
         if job_type and job_type.strip() and job_type.lower() != 'all':
@@ -190,7 +195,7 @@ class JobDiscoveryService:
         if is_sample is not None:
             q = q.filter(JobListing.is_sample == is_sample)
 
-        listings = q.order_by(JobListing.posting_date.desc()).limit(limit).all()
+        listings = q.all()
 
         # Filter by skill in required or preferred skills
         if skill and skill.strip():
@@ -202,6 +207,28 @@ class JobDiscoveryService:
                 if target_skill in req or target_skill in pref:
                     filtered.append(j)
             listings = filtered
+
+        # Filter by region if specified
+        if region and region.strip() and region.lower() != 'all':
+            reg = region.strip().lower()
+            if reg == 'india':
+                listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) == 0]
+            elif reg == 'asia':
+                listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) in (0, 1)]
+            elif reg == 'remote':
+                listings = [j for j in listings if (j.work_arrangement and 'remote' in j.work_arrangement.lower()) or get_location_rank(j.location, j.title, j.company) == 2]
+            elif reg == 'international' or reg == 'other':
+                listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) == 3]
+
+        # Prioritize location rank: 0 (India) -> 1 (Asia) -> 2 (Remote) -> 3 (Other countries)
+        # Secondary sort: posting_date desc
+        listings.sort(key=lambda j: (
+            get_location_rank(j.location, j.title, j.company),
+            -(j.posting_date.timestamp() if j.posting_date else 0)
+        ))
+
+        if limit and limit > 0:
+            listings = listings[:limit]
 
         return [j.to_dict() for j in listings]
 

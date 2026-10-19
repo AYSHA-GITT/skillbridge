@@ -24,7 +24,10 @@ class RemoteJobApiAdapter(JobSourceAdapter):
     def _clean_html(self, raw_html: str) -> str:
         if not raw_html:
             return ""
-        clean = re.sub(r'<[^>]+>', ' ', raw_html)
+        import html
+        unescaped = html.unescape(raw_html)
+        clean = re.sub(r'<[^>]+>', ' ', unescaped)
+        clean = html.unescape(clean)
         clean = re.sub(r'\s+', ' ', clean).strip()
         return clean[:3000]
 
