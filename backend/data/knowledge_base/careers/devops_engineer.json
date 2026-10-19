@@ -1,0 +1,30 @@
+{
+  "career_id": "devops_engineer",
+  "title": "DevOps Engineer",
+  "industry_domain": "Infrastructure & Continuous Delivery",
+  "description": "Automates continuous integration, continuous delivery (CI/CD), infrastructure as code (IaC), container orchestration, and server monitoring across cloud environments.",
+  "experience_level": "Mid to Senior Level",
+  "required_skills": [
+    "linux",
+    "git",
+    "docker",
+    "kubernetes",
+    "ci/cd",
+    "bash"
+  ],
+  "nice_to_have_skills": [
+    "aws",
+    "terraform",
+    "ansible",
+    "monitoring",
+    "python",
+    "helm"
+  ],
+  "responsibilities": [
+    "Construct robust GitHub Actions or GitLab CI/CD build, test, and release automation pipelines.",
+    "Containerize backend services using Docker and manage distributed clusters with Kubernetes.",
+    "Provision and maintain scalable cloud infrastructure using Terraform and AWS services.",
+    "Maintain high system availability with proactive Prometheus, Grafana, and ELK monitoring stacks."
+  ],
+  "source": "Cloud Native Computing Foundation (CNCF) DevOps Professional Standard"
+}

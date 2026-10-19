@@ -1,0 +1,32 @@
+{
+  "career_id": "full_stack_developer",
+  "title": "Full Stack Developer",
+  "industry_domain": "End-to-End Application Engineering",
+  "description": "Engineers both client-facing dynamic interfaces and server-side logic, managing relational/NoSQL databases, authentication sessions, and containerized deployments.",
+  "experience_level": "Mid to Senior Level",
+  "required_skills": [
+    "html",
+    "css",
+    "javascript",
+    "react",
+    "node.js",
+    "sql",
+    "git"
+  ],
+  "nice_to_have_skills": [
+    "docker",
+    "mongodb",
+    "aws",
+    "typescript",
+    "flask",
+    "redis",
+    "ci/cd"
+  ],
+  "responsibilities": [
+    "Architect and build responsive frontend user interfaces with React, state management, and modern CSS.",
+    "Develop secure backend API endpoints, authentication middlewares, and session management systems.",
+    "Design database schemas, indexes, and optimized query transactions in SQL and NoSQL engines.",
+    "Containerize microservices using Docker and orchestrate deployment to cloud infrastructure."
+  ],
+  "source": "Open Web Application Security Project (OWASP) & Full Stack Curriculum Benchmark"
+}

@@ -4,7 +4,7 @@ import AppLayout from '../components/AppLayout';
 import ProgressBar from '../components/ProgressBar';
 import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
-import { TbTarget, TbCheck, TbRoute } from 'react-icons/tb';
+import { TbTarget, TbCheck, TbRoute, TbFileSearch, TbSparkles } from 'react-icons/tb';
 
 export default function SkillGap() {
   const navigate = useNavigate();
@@ -14,12 +14,28 @@ export default function SkillGap() {
   const [customCareer, setCustomCareer] = useState('');
   const [switching, setSwitching] = useState(false);
 
+  // RAG States
+  const [ragGapReport, setRagGapReport] = useState(null);
+  const [loadingRAG, setLoadingRAG] = useState(false);
+  const [customJD, setCustomJD] = useState('');
+  const [jobMatchResult, setJobMatchResult] = useState(null);
+  const [matchingJob, setMatchingJob] = useState(false);
+  const [jdError, setJdError] = useState('');
+
   const loadGapAnalysis = () => {
     setLoading(true);
     setError('');
     skillService.analyzeSkillGap()
       .then((data) => {
         setResult(data);
+        // Load citation-backed RAG gap report
+        if (data?.career) {
+          setLoadingRAG(true);
+          skillService.explainGapRAG(data.career)
+            .then((ragData) => setRagGapReport(ragData?.gap_report))
+            .catch((e) => console.warn('RAG gap report notice:', e))
+            .finally(() => setLoadingRAG(false));
+        }
       })
       .catch((err) => {
         const msg = err.response?.data?.error || 'Unable to compute skill gap.';
@@ -31,6 +47,24 @@ export default function SkillGap() {
   useEffect(() => {
     loadGapAnalysis();
   }, []);
+
+  const handleMatchJob = async (e) => {
+    e.preventDefault();
+    if (!customJD.trim()) return;
+    setMatchingJob(true);
+    setJdError('');
+    try {
+      const res = await skillService.matchJobRAG({
+        job_description: customJD.trim(),
+        career: result?.career
+      });
+      setJobMatchResult(res.match_results);
+    } catch (err) {
+      setJdError(err.response?.data?.error || 'Failed to match job description');
+    } finally {
+      setMatchingJob(false);
+    }
+  };
 
   const handleUpdateCareer = async (e) => {
     e.preventDefault();
@@ -222,6 +256,158 @@ export default function SkillGap() {
                   </span>
                 ))}
               </div>
+            </div>
+
+            {/* RAG GROUNDED INDUSTRY BENCHMARK & CITATIONS */}
+            {loadingRAG ? (
+              <div className="glass p-6 rounded-2xl border border-accent-400/20 flex items-center justify-center space-x-3 text-accent-300 text-xs font-mono py-8 animate-pulse">
+                <TbSparkles className="w-5 h-5 animate-spin text-accent-400" />
+                <span>Retrieving industry citations and salary benchmarks from vector index...</span>
+              </div>
+            ) : ragGapReport ? (
+              <div className="glass p-6 rounded-2xl space-y-4 border border-accent-400/20 bg-gradient-to-b from-accent-500/5 to-transparent">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                  <div className="flex items-center space-x-2">
+                    <TbSparkles className="w-5 h-5 text-accent-400" />
+                    <h2 className="font-heading font-semibold text-lg text-white">
+                      RAG Industry Grounding & Authoritative Citations
+                    </h2>
+                  </div>
+                  <span className="text-[11px] font-mono text-accent-300 bg-accent-400/10 px-2.5 py-1 rounded-full border border-accent-400/20">
+                    Source: {ragGapReport.benchmark_source}
+                  </span>
+                </div>
+
+                <div className="text-sm text-white/80 leading-relaxed whitespace-pre-line font-sans">
+                  {ragGapReport.grounded_explanation}
+                </div>
+
+                {ragGapReport.related_postings_sample?.length > 0 && (
+                  <div className="pt-2">
+                    <span className="text-[11px] uppercase tracking-wider text-white/40 block mb-2 font-mono">
+                      Current Hiring Benchmarks (Sample JDs in Vector Store)
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {ragGapReport.related_postings_sample.map((jd, idx) => (
+                        <div
+                          key={idx}
+                          className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-medium text-white/90 block">{jd.role}</span>
+                            <span className="text-white/40 text-[11px]">{jd.company}</span>
+                          </div>
+                          <span className="font-mono text-accent-300 text-[11px]">{jd.salary_range}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+
+            {/* RAG INTERACTIVE JOB DESCRIPTION MATCHER */}
+            <div className="glass p-6 rounded-2xl space-y-4 border border-white/10">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center space-x-2">
+                  <TbFileSearch className="w-5 h-5 text-accent-400" />
+                  <h2 className="font-heading font-semibold text-lg text-white">
+                    Semantic Job Description Matcher (RAG)
+                  </h2>
+                </div>
+                <span className="text-xs text-white/40 font-mono">Sentence Transformers (384-d)</span>
+              </div>
+
+              <p className="text-xs text-white/50">
+                Paste any real-world Job Description below to evaluate your verified competencies against employer requirements in real-time.
+              </p>
+
+              <form onSubmit={handleMatchJob} className="space-y-3">
+                <textarea
+                  rows={4}
+                  value={customJD}
+                  onChange={(e) => setCustomJD(e.target.value)}
+                  placeholder="Paste a full job description (responsibilities, required qualifications, tools) to test your profile match..."
+                  className="input-field text-xs w-full font-mono resize-y"
+                />
+
+                <div className="flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCustomJD(
+                        "We are looking for a Software Engineer with strong Python and SQL skills. Experience with React, Git, and Docker is required. Candidates must understand data structures, algorithms, and RESTful API architectures."
+                      )
+                    }
+                    className="text-[11px] text-accent-400/80 hover:text-accent-300 underline font-mono"
+                  >
+                    + Load Sample Job Description
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={matchingJob || !customJD.trim()}
+                    className="btn-primary text-xs py-2 px-5 disabled:opacity-40"
+                  >
+                    {matchingJob ? 'Analyzing Semantic Match...' : 'Match Profile Against Job'}
+                  </button>
+                </div>
+              </form>
+
+              {jdError && <p className="text-xs text-red-400">{jdError}</p>}
+
+              {/* Match Result Display */}
+              {jobMatchResult && (
+                <div className="mt-4 p-4 rounded-xl bg-white/[0.04] border border-accent-400/30 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs uppercase font-mono text-accent-400">Semantic Fit Score</span>
+                      <p className="font-heading text-2xl font-bold text-white">
+                        {jobMatchResult.overall_match_percent}% Match
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono text-white/50">
+                      Vector Cosine Sim: {(jobMatchResult.semantic_similarity_score * 100).toFixed(1)}%
+                    </span>
+                  </div>
+
+                  {/* Skills Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <span className="text-xs font-semibold text-emerald-300 block mb-1.5">
+                        ✓ Matched Requirements ({jobMatchResult.matched_skills?.length || 0})
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {jobMatchResult.matched_skills?.map((s) => (
+                          <span key={s} className="px-2 py-0.5 rounded text-[11px] bg-emerald-500/20 text-emerald-300 capitalize font-medium">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <span className="text-xs font-semibold text-red-300 block mb-1.5">
+                        ○ Missing Qualifications ({jobMatchResult.missing_skills?.length || 0})
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {jobMatchResult.missing_skills?.map((s) => (
+                          <span key={s} className="px-2 py-0.5 rounded text-[11px] bg-red-500/20 text-red-300 capitalize font-medium">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actionable Advice */}
+                  {jobMatchResult.actionable_advice && (
+                    <div className="pt-2 text-xs text-white/80 leading-relaxed border-t border-white/10 whitespace-pre-line">
+                      {jobMatchResult.actionable_advice}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ) : null}

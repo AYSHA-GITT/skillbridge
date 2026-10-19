@@ -1,0 +1,25 @@
+{
+  "job_id": "jd_ecommerce_devops_eng",
+  "company": "SwiftKart Technologies",
+  "role": "DevOps & Cloud Automation Engineer",
+  "location": "Bengaluru / On-site",
+  "salary_range": "9 - 15 LPA",
+  "career_category": "devops engineer",
+  "description": "SwiftKart is hiring a DevOps Engineer to manage high-traffic e-commerce microservices infrastructure. Focus on container orchestration, automated release pipelines, and cloud reliability.",
+  "required_skills": [
+    "linux",
+    "docker",
+    "kubernetes",
+    "git",
+    "ci/cd",
+    "bash"
+  ],
+  "preferred_skills": [
+    "aws",
+    "terraform",
+    "monitoring",
+    "python"
+  ],
+  "responsibilities": "Maintain Kubernetes production clusters; build automated CI/CD pipelines in GitHub Actions; manage Docker container registries; monitor server latency with Prometheus and Grafana.",
+  "source": "SwiftKart Infrastructure Hiring Portal - Req #DO-550"
+}

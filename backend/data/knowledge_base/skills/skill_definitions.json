@@ -1,0 +1,210 @@
+{
+  "python": {
+    "canonical_name": "python",
+    "category": "Programming Languages",
+    "definition": "High-level, interpreted programming language widely used for machine learning, data analysis, web backend APIs, and automation.",
+    "synonyms": [
+      "py",
+      "python3",
+      "python programming"
+    ],
+    "key_ecosystem": [
+      "pandas",
+      "numpy",
+      "scikit-learn",
+      "flask",
+      "fastapi",
+      "django",
+      "pytorch"
+    ]
+  },
+  "sql": {
+    "canonical_name": "sql",
+    "category": "Databases & Querying",
+    "definition": "Standard domain-specific language for storing, querying, manipulating, and retrieving relational data across enterprise databases.",
+    "synonyms": [
+      "structured query language",
+      "postgresql",
+      "mysql",
+      "sqlite",
+      "tsql"
+    ],
+    "key_ecosystem": [
+      "joins",
+      "indexes",
+      "ctes",
+      "window functions",
+      "stored procedures"
+    ]
+  },
+  "machine learning": {
+    "canonical_name": "machine learning",
+    "category": "Artificial Intelligence",
+    "definition": "Branch of artificial intelligence focusing on algorithms that learn patterns from training data to make predictions or decisions without explicit programming.",
+    "synonyms": [
+      "ml",
+      "statistical learning",
+      "predictive modeling"
+    ],
+    "key_ecosystem": [
+      "scikit-learn",
+      "xgboost",
+      "regression",
+      "classification",
+      "clustering",
+      "cross-validation"
+    ]
+  },
+  "react": {
+    "canonical_name": "react",
+    "category": "Frontend Frameworks",
+    "definition": "Declarative, component-based JavaScript library developed by Meta for building dynamic, reactive user interfaces and single page applications.",
+    "synonyms": [
+      "react.js",
+      "reactjs"
+    ],
+    "key_ecosystem": [
+      "jsx",
+      "hooks",
+      "virtual dom",
+      "react router",
+      "redux",
+      "state management"
+    ]
+  },
+  "docker": {
+    "canonical_name": "docker",
+    "category": "DevOps & Containers",
+    "definition": "OS-level virtualization platform for packaging software applications and their exact dependencies into isolated, reproducible containers.",
+    "synonyms": [
+      "containerization",
+      "containers",
+      "dockerfile"
+    ],
+    "key_ecosystem": [
+      "docker-compose",
+      "container image",
+      "docker hub",
+      "kubernetes"
+    ]
+  },
+  "git": {
+    "canonical_name": "git",
+    "category": "Developer Tools & Version Control",
+    "definition": "Distributed version control system for tracking changes in source code during software development, enabling branching, merging, and collaboration.",
+    "synonyms": [
+      "version control",
+      "github",
+      "gitlab"
+    ],
+    "key_ecosystem": [
+      "commit",
+      "branch",
+      "pull request",
+      "merge",
+      "rebase"
+    ]
+  },
+  "power bi": {
+    "canonical_name": "power bi",
+    "category": "Business Intelligence & Visualization",
+    "definition": "Microsoft business analytics service providing interactive visualizations and business intelligence capabilities with an interface for reports.",
+    "synonyms": [
+      "powerbi",
+      "microsoft power bi",
+      "dax"
+    ],
+    "key_ecosystem": [
+      "power query",
+      "dax",
+      "data modeling",
+      "reports",
+      "dashboards"
+    ]
+  },
+  "tableau": {
+    "canonical_name": "tableau",
+    "category": "Business Intelligence & Visualization",
+    "definition": "Visual analytics platform transforming raw data into intuitive, interactive dashboards, visual charts, and exploratory business reports.",
+    "synonyms": [
+      "tableau desktop",
+      "tableau public"
+    ],
+    "key_ecosystem": [
+      "calculated fields",
+      "parameters",
+      "visual dashboards",
+      "story points"
+    ]
+  },
+  "aws": {
+    "canonical_name": "aws",
+    "category": "Cloud Computing",
+    "definition": "Amazon Web Services comprehensive cloud computing platform offering compute (EC2), storage (S3), databases (RDS), and serverless architectures.",
+    "synonyms": [
+      "amazon web services",
+      "amazon cloud"
+    ],
+    "key_ecosystem": [
+      "s3",
+      "ec2",
+      "lambda",
+      "iam",
+      "rds",
+      "vpc",
+      "cloudformation"
+    ]
+  },
+  "kubernetes": {
+    "canonical_name": "kubernetes",
+    "category": "DevOps & Containers",
+    "definition": "Open-source container orchestration platform for automating deployment, scaling, and management of containerized applications.",
+    "synonyms": [
+      "k8s",
+      "container orchestration"
+    ],
+    "key_ecosystem": [
+      "pods",
+      "deployments",
+      "services",
+      "helm",
+      "ingress",
+      "cluster"
+    ]
+  },
+  "data structures": {
+    "canonical_name": "data structures",
+    "category": "Computer Science Fundamentals",
+    "definition": "Specialized formats for organizing, processing, retrieving, and storing data efficiently in memory (arrays, linked lists, trees, graphs, hash tables).",
+    "synonyms": [
+      "dsa",
+      "data structures and algorithms"
+    ],
+    "key_ecosystem": [
+      "arrays",
+      "hashmaps",
+      "trees",
+      "graphs",
+      "stacks",
+      "queues"
+    ]
+  },
+  "algorithms": {
+    "canonical_name": "algorithms",
+    "category": "Computer Science Fundamentals",
+    "definition": "Step-by-step procedures or formulas for solving problems and computational tasks with defined time and space complexities.",
+    "synonyms": [
+      "sorting",
+      "searching",
+      "dynamic programming",
+      "graph algorithms"
+    ],
+    "key_ecosystem": [
+      "time complexity",
+      "big o",
+      "recursion",
+      "dynamic programming",
+      "binary search"
+    ]
+  }
+}

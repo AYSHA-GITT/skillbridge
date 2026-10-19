@@ -99,9 +99,26 @@ def ask_career_assistant(profile, question):
     top_career = profile.get("top_recommended_career") or "Technology Track"
     top_match = profile.get("top_career_match_percent") or 0.0
 
+    # Retrieve RAG context from knowledge base
+    rag_context_str = ""
+    citations = []
+    try:
+        from rag.knowledge_manager import get_knowledge_manager
+        km = get_knowledge_manager()
+        retrieved_chunks = km.search(f"{target_career} {question}", top_k=2, min_score=0.20)
+        if retrieved_chunks:
+            rag_parts = []
+            for c in retrieved_chunks:
+                source_label = c.get('source', 'Industry Knowledge Base')
+                citations.append(source_label)
+                rag_parts.append(f"• From {source_label}:\n  {c.get('text')}")
+            rag_context_str = "\nRETRIEVED INDUSTRY BENCHMARK CONTEXT:\n" + "\n".join(rag_parts) + "\n"
+    except Exception as e:
+        logging.warning(f"RAG context retrieval in career assistant skipped: {e}")
+
     prompt = f"""
 You are the SkillBridge Career Assistant, an expert, encouraging, concise career advisor.
-You MUST answer the student's question strictly grounded on the factual profile data provided below.
+You MUST answer the student's question strictly grounded on the factual profile data and retrieved industry benchmarks provided below.
 DO NOT hallucinate skills, scores, or careers not present in the profile.
 
 STUDENT PROFILE DATA:
@@ -111,7 +128,7 @@ STUDENT PROFILE DATA:
 - Missing Required Skills (Gaps): {', '.join(missing) if missing else 'None (All core verified)'}
 - Estimated Salary: {salary} LPA
 - Top Recommended Career: {top_career} ({top_match}% match)
-
+{rag_context_str}
 STUDENT QUESTION:
 "{question}"
 
@@ -119,6 +136,7 @@ INSTRUCTIONS:
 - Keep the answer between 2 to 4 sentences.
 - Be concrete, actionable, and reference their actual skills and target career.
 - Format key skill names or metrics in bold.
+- If relevant, cite the industry benchmark source.
 """
 
     ai_client = get_genai_client()
@@ -133,7 +151,8 @@ INSTRUCTIONS:
                 if text:
                     return {
                         "answer": text,
-                        "source": "Gemini 3.6 Flash (Grounded)",
+                        "source": "Gemini 3.6 Flash (RAG Grounded)",
+                        "citations": citations,
                         "grounded_on": {
                             "target_career": target_career,
                             "readiness_score": readiness,
@@ -148,6 +167,7 @@ INSTRUCTIONS:
     return {
         "answer": fallback_text,
         "source": "Grounded Career Engine",
+        "citations": citations,
         "grounded_on": {
             "target_career": target_career,
             "readiness_score": readiness,

@@ -1,0 +1,25 @@
+{
+  "job_id": "jd_edtech_software_engineer",
+  "company": "EduLearn Systems",
+  "role": "Software Engineer (Backend)",
+  "location": "Gurugram / Hybrid",
+  "salary_range": "7 - 11 LPA",
+  "career_category": "software engineer",
+  "description": "We are seeking a Backend Software Engineer with strong algorithmic foundations in Python/Java to power our live educational platform and interactive student assessment systems.",
+  "required_skills": [
+    "python",
+    "java",
+    "data structures",
+    "algorithms",
+    "sql",
+    "git"
+  ],
+  "preferred_skills": [
+    "flask",
+    "docker",
+    "rest api",
+    "unit testing"
+  ],
+  "responsibilities": "Develop scalable backend services with optimal time and space complexity; implement database transactions and indexing; maintain automated testing suites; review code and collaborate with frontend developers.",
+  "source": "EduLearn Systems Job Requisition #SE-204"
+}

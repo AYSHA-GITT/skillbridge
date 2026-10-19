@@ -151,45 +151,45 @@ def extract_skills_endpoint(resume_id):
                          'skills': []}), 200
 
     try:
-        # Skills that already have a verification must be preserved —
-        # deleting them would break skill_verifications' foreign key
-        # and destroy the student's proven quiz history
+        # Fetch all existing skills for this student across all resumes
+        existing_skills = Skill.query.filter_by(student_id=current_user.id).all()
+        existing_skills_by_name = {s.skill_name.lower().strip(): s for s in existing_skills}
+
+        # Skills that already have a verification must be preserved
         verified_skill_ids = {
             v.skill_id for v in SkillVerification.query.filter_by(
                 student_id=current_user.id
             ).all()
         }
 
-        existing_skills = Skill.query.filter_by(resume_id=resume.id).all()
-
-        kept_verified_skills = [
-            s for s in existing_skills if s.id in verified_skill_ids
-        ]
-        kept_verified_names = {s.skill_name.lower().strip() for s in kept_verified_skills}
-
-        # Delete only the unverified ones — safe to regenerate
-        for s in existing_skills:
-            if s.id not in verified_skill_ids:
-                db.session.delete(s)
-
         for item in extracted:
             skill_name_clean = item['skill_name'].strip()
-            if skill_name_clean.lower() in kept_verified_names:
-                continue  # already have a verified version, don't duplicate
+            key = skill_name_clean.lower()
+            confidence = item.get('extraction_confidence', 0.85)
 
-            skill = Skill(
-                student_id=current_user.id,
-                resume_id=resume.id,
-                skill_name=skill_name_clean,
-                extraction_confidence=item['extraction_confidence'],
-                proficiency=None
-            )
-            db.session.add(skill)
+            if key in existing_skills_by_name:
+                existing = existing_skills_by_name[key]
+                # Update confidence to the highest observed value
+                if confidence > (existing.extraction_confidence or 0.0):
+                    existing.extraction_confidence = confidence
+                # Keep pointer to latest resume if not locked by verification
+                if existing.id not in verified_skill_ids:
+                    existing.resume_id = resume.id
+            else:
+                skill = Skill(
+                    student_id=current_user.id,
+                    resume_id=resume.id,
+                    skill_name=skill_name_clean,
+                    extraction_confidence=confidence,
+                    proficiency=None
+                )
+                db.session.add(skill)
+                existing_skills_by_name[key] = skill
 
         db.session.commit()
 
-        # Query fresh skills from DB to prevent ObjectDeletedError on expired session instances
-        all_skills = Skill.query.filter_by(resume_id=resume.id).all()
+        # Query all student skills
+        all_skills = Skill.query.filter_by(student_id=current_user.id).all()
 
         return jsonify({
             'message': f'{len(all_skills)} skills extracted',
@@ -521,7 +521,13 @@ def get_student_skills():
     verification_map = {v.skill_id: v.to_dict() for v in verifications}
 
     result = []
+    seen_names = set()
     for s in skills:
+        clean_name = s.skill_name.lower().strip()
+        if clean_name in seen_names:
+            continue
+        seen_names.add(clean_name)
+
         item = s.to_dict()
         verification = verification_map.get(s.id)
         item['is_verified'] = verification is not None
@@ -641,17 +647,31 @@ def get_career_insights():
 def get_student_assessments():
     """
     Returns available skills eligible for quizzes and completed assessment attempts.
+    Guarantees unique skill representation without duplicates.
     """
     skills = Skill.query.filter_by(student_id=current_user.id).all()
     verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
     v_map = {v.skill_id: v for v in verifications}
 
+    # Also build a lookup of verifications by skill name
+    v_by_name = {}
+    for v in verifications:
+        sk = db.session.get(Skill, v.skill_id)
+        if sk:
+            v_by_name[sk.skill_name.lower().strip()] = v
+
     available = []
     completed = []
+    seen_names = set()
 
     for s in skills:
-        if s.id in v_map:
-            v = v_map[s.id]
+        clean_name = s.skill_name.lower().strip()
+        if clean_name in seen_names:
+            continue
+        seen_names.add(clean_name)
+
+        v = v_map.get(s.id) or v_by_name.get(clean_name)
+        if v:
             completed.append({
                 'skill_id': s.id,
                 'skill_name': s.skill_name,
@@ -659,7 +679,7 @@ def get_student_assessments():
                 'score_percent': v.quiz_score_percent,
                 'verification_score': v.verification_score,
                 'verified_on': v.verified_on.isoformat(),
-                'passed': v.quiz_score_percent >= 60.0
+                'passed': (v.quiz_score_percent or 0) >= 60.0
             })
         else:
             available.append({
@@ -753,8 +773,14 @@ def get_verified_skill_profile():
     verified_list = []
     needs_improvement_list = []
     needs_verification_list = []
+    seen_names = set()
 
     for s in skills:
+        clean_name = s.skill_name.lower().strip()
+        if clean_name in seen_names:
+            continue
+        seen_names.add(clean_name)
+
         if s.id in v_map:
             v = v_map[s.id]
             is_passed = (v.quiz_score_percent or 0) >= 70.0
@@ -888,3 +914,192 @@ def ask_assistant_endpoint():
 
     result = ask_career_assistant(profile, question)
     return jsonify(result), 200
+
+
+# =============================================================================
+# RAG (RETRIEVAL-AUGMENTED GENERATION) ENDPOINTS
+# =============================================================================
+
+@student_bp.route('/rag/analyze_resume/<int:resume_id>', methods=['POST'])
+@login_required
+def rag_analyze_resume_endpoint(resume_id):
+    """
+    Semantic RAG analysis of an uploaded resume:
+    Retrieves matching industry benchmarks, segregates explicit vs. inferred skills,
+    and returns a grounded AI career evaluation citing authoritative sources.
+    """
+    resume = Resume.query.filter_by(id=resume_id, student_id=current_user.id).first()
+    if not resume:
+        return jsonify({'error': 'Resume not found or does not belong to you'}), 404
+
+    # Ensure text is parsed
+    if not resume.parsed_text:
+        target_path = resume.file_path
+        if not os.path.exists(target_path):
+            alt_path = os.path.join(current_app.root_path, target_path)
+            if os.path.exists(alt_path):
+                target_path = alt_path
+        try:
+            resume.parsed_text = parse_resume(target_path)
+            resume.parsed_on = datetime.now(timezone.utc)
+            db.session.commit()
+        except Exception as e:
+            return jsonify({'error': f'Resume parsing required before RAG analysis: {str(e)}'}), 400
+
+    try:
+        from rag.rag_pipeline import get_rag_pipeline
+        pipeline = get_rag_pipeline(current_app.root_path)
+        data = request.get_json(silent=True) or {}
+        target_career = data.get('target_career') or current_user.target_career
+
+        result = pipeline.analyze_resume_rag(resume.parsed_text, target_career=target_career)
+        return jsonify({
+            'status': 'success',
+            'resume_id': resume.id,
+            'rag_analysis': result
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"RAG Resume Analysis error: {e}", exc_info=True)
+        return jsonify({'error': f'RAG Analysis encountered an error: {str(e)}'}), 500
+
+
+@student_bp.route('/rag/match_job', methods=['POST'])
+@login_required
+def rag_match_job_endpoint():
+    """
+    Evaluates candidate's skills and resume against a custom job description using RAG:
+    Computes semantic similarity, identifies explicit matches vs missing requirements,
+    and produces grounded interview advice.
+    """
+    data = request.get_json(silent=True) or {}
+    job_desc = data.get('job_description', '').strip()
+    if not job_desc:
+        return jsonify({'error': 'Please provide a job description to match against'}), 400
+
+    # Retrieve candidate verified skills
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+
+    # Retrieve candidate resume text if available
+    resume_text = ""
+    resume_id = data.get('resume_id')
+    if resume_id:
+        res = Resume.query.filter_by(id=resume_id, student_id=current_user.id).first()
+        if res and res.parsed_text:
+            resume_text = res.parsed_text
+    if not resume_text:
+        latest_res = Resume.query.filter_by(student_id=current_user.id, is_latest=True).first()
+        if latest_res and latest_res.parsed_text:
+            resume_text = latest_res.parsed_text
+
+    try:
+        from rag.rag_pipeline import get_rag_pipeline
+        pipeline = get_rag_pipeline(current_app.root_path)
+        result = pipeline.match_job_rag(
+            resume_text=resume_text,
+            job_description_text=job_desc,
+            student_skills=verified_skills
+        )
+        return jsonify({
+            'status': 'success',
+            'match_results': result
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"RAG Job Match error: {e}", exc_info=True)
+        return jsonify({'error': f'Job Match encountered an error: {str(e)}'}), 500
+
+
+@student_bp.route('/rag/explain_gap', methods=['POST'])
+@login_required
+def rag_explain_gap_endpoint():
+    """
+    Generates an authoritative, citation-backed skill gap explanation for the student's career track.
+    """
+    data = request.get_json(silent=True) or {}
+    career_name = data.get('career') or current_user.target_career or 'Software Engineer'
+
+    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
+    verified_ids = [v.skill_id for v in verifications]
+    verified_skills = [
+        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
+    ]
+
+    try:
+        from rag.rag_pipeline import get_rag_pipeline
+        pipeline = get_rag_pipeline(current_app.root_path)
+        result = pipeline.explain_skill_gap_rag(
+            student_verified_skills=verified_skills,
+            career_name=career_name
+        )
+        return jsonify({
+            'status': 'success',
+            'gap_report': result
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"RAG Explain Gap error: {e}", exc_info=True)
+        return jsonify({'error': f'Skill Gap Explanation error: {str(e)}'}), 500
+
+
+@student_bp.route('/rag/catalog', methods=['GET'])
+@login_required
+def rag_catalog_endpoint():
+    """
+    Returns available career benchmarks and real-world job postings currently indexed in RAG.
+    """
+    try:
+        from rag.knowledge_manager import get_knowledge_manager
+        km = get_knowledge_manager(current_app.root_path)
+        careers = km.get_all_careers()
+        jds = km.get_all_job_descriptions()
+        return jsonify({
+            'status': 'success',
+            'careers': careers,
+            'job_descriptions': jds,
+            'total_indexed_chunks': km.vector_store.size()
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"RAG Catalog error: {e}", exc_info=True)
+        return jsonify({'error': f'Could not retrieve RAG catalog: {str(e)}'}), 500
+
+
+@student_bp.route('/rag/add_job', methods=['POST'])
+@login_required
+def rag_add_job_endpoint():
+    """
+    Allows adding a new job description to the persistent RAG knowledge base.
+    """
+    data = request.get_json(silent=True) or {}
+    role = data.get('role', '').strip()
+    company = data.get('company', '').strip()
+    description = data.get('description', '').strip()
+    required_skills = data.get('required_skills', [])
+
+    if not role or not description:
+        return jsonify({'error': 'Role and description are required'}), 400
+
+    try:
+        from rag.knowledge_manager import get_knowledge_manager
+        km = get_knowledge_manager(current_app.root_path)
+        chunk = km.add_custom_job_description({
+            'role': role,
+            'company': company or 'Enterprise Organization',
+            'location': data.get('location', 'Remote'),
+            'salary_range': data.get('salary_range', 'Industry Standard'),
+            'career_category': data.get('career_category', role).lower(),
+            'description': description,
+            'required_skills': required_skills,
+            'preferred_skills': data.get('preferred_skills', []),
+            'responsibilities': data.get('responsibilities', description[:200]),
+            'source': data.get('source', f"{company or 'Custom'} Hiring Specification")
+        })
+        return jsonify({
+            'status': 'success',
+            'message': f"Job description for '{role}' successfully added to RAG knowledge base",
+            'job_id': chunk.get('chunk_id')
+        }), 201
+    except Exception as e:
+        current_app.logger.error(f"Add custom JD error: {e}", exc_info=True)
+        return jsonify({'error': f'Could not add job description: {str(e)}'}), 500

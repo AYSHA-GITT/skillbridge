@@ -34,6 +34,8 @@ cookies.txt
 # Flask & uploads
 backend/uploads/
 backend/*.json
+backend/data/cache/
+*.faiss
 uploads/
 instance/
 *.db

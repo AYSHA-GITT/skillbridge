@@ -1,0 +1,25 @@
+{
+  "job_id": "jd_ai_ml_engineer",
+  "company": "CognitiveAI Labs",
+  "role": "Machine Learning Engineer (NLP / CV)",
+  "location": "Bengaluru / Remote",
+  "salary_range": "10 - 18 LPA",
+  "career_category": "machine learning engineer",
+  "description": "CognitiveAI Labs is expanding its foundational AI team. Build, fine-tune, and deploy transformer models and computer vision pipelines into scalable production endpoints.",
+  "required_skills": [
+    "python",
+    "machine learning",
+    "deep learning",
+    "pytorch",
+    "docker",
+    "sql"
+  ],
+  "preferred_skills": [
+    "transformers",
+    "fastapi",
+    "aws",
+    "kubernetes"
+  ],
+  "responsibilities": "Fine-tune pretrained deep learning and transformer models; deploy low-latency inference containers; build data preprocessing pipelines; evaluate model performance and monitor for data drift.",
+  "source": "CognitiveAI Labs Research & Engineering - Job #ML-772"
+}

@@ -20,7 +20,20 @@ export default function Assessment() {
     setLoading(true);
     skillService.getAssessments()
       .then((res) => {
-        setData(res);
+        const dedupe = (list) => {
+          if (!Array.isArray(list)) return [];
+          const seen = new Set();
+          return list.filter((item) => {
+            const name = (item.skill_name || '').toLowerCase().trim();
+            if (!name || seen.has(name)) return false;
+            seen.add(name);
+            return true;
+          });
+        };
+        setData({
+          available: dedupe(res?.available),
+          completed: dedupe(res?.completed)
+        });
       })
       .catch(() => {
         setAlert({ type: 'error', message: 'Failed to load assessment catalog.' });

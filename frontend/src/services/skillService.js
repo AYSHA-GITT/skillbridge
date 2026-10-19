@@ -153,6 +153,34 @@ export const skillService = {
   askAssistant: async (question) => {
     const response = await api.post('/student/ask_assistant', { question });
     return response.data;
+  },
+
+  // RAG (Retrieval-Augmented Generation) Intelligence
+  analyzeResumeRAG: async (resumeId, targetCareer = null) => {
+    const response = await api.post(`/student/rag/analyze_resume/${resumeId}`, {
+      target_career: targetCareer,
+    });
+    return response.data;
+  },
+
+  matchJobRAG: async (payload) => {
+    const response = await api.post('/student/rag/match_job', payload);
+    return response.data;
+  },
+
+  explainGapRAG: async (career = null) => {
+    const response = await api.post('/student/rag/explain_gap', { career });
+    return response.data;
+  },
+
+  getRAGCatalog: async () => {
+    const response = await api.get('/student/rag/catalog');
+    return response.data;
+  },
+
+  addJobRAG: async (jobData) => {
+    const response = await api.post('/student/rag/add_job', jobData);
+    return response.data;
   }
 };
 

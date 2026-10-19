@@ -1,0 +1,31 @@
+{
+  "career_id": "data_scientist",
+  "title": "Data Scientist",
+  "industry_domain": "Artificial Intelligence & Predictive Modeling",
+  "description": "Designs and trains predictive machine learning models, statistical algorithms, and data pipelines to solve complex business problems from large structured and unstructured datasets.",
+  "experience_level": "Mid to Senior Level",
+  "required_skills": [
+    "python",
+    "sql",
+    "machine learning",
+    "statistics",
+    "pandas",
+    "numpy"
+  ],
+  "nice_to_have_skills": [
+    "tensorflow",
+    "pytorch",
+    "scikit-learn",
+    "tableau",
+    "power bi",
+    "deep learning",
+    "nlp"
+  ],
+  "responsibilities": [
+    "Develop end-to-end predictive machine learning pipelines using Scikit-Learn, XGBoost, and PyTorch.",
+    "Formulate statistical experiments, A/B testing frameworks, and feature engineering strategies.",
+    "Query large-scale data warehouses using SQL to extract training and validation datasets.",
+    "Deploy inference models into production environments with monitoring and drift detection."
+  ],
+  "source": "ACM Computing Classification System: Data Science Framework 2026"
+}

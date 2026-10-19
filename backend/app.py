@@ -33,7 +33,7 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(student_id):
     from models import Student
-    return Student.query.get(int(student_id))
+    return db.session.get(Student, int(student_id))
 
 @login_manager.unauthorized_handler
 def unauthorized():
@@ -49,11 +49,12 @@ app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
 @app.route('/')
+@app.route('/api/health')
 def home():
     return {
         'message': 'SkillBridge API is running!',
         'version': '1.0.0',
-        'status': 'success'
+        'status': 'healthy'
     }
 
 

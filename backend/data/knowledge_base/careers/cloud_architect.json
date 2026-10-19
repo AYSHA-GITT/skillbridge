@@ -1,0 +1,30 @@
+{
+  "career_id": "cloud_architect",
+  "title": "Cloud Architect",
+  "industry_domain": "Enterprise Cloud Infrastructure",
+  "description": "Designs resilient, fault-tolerant, cost-effective cloud architectures and hybrid multi-cloud migrations following the Well-Architected Framework.",
+  "experience_level": "Senior Level",
+  "required_skills": [
+    "aws",
+    "linux",
+    "docker",
+    "kubernetes",
+    "networking",
+    "terraform"
+  ],
+  "nice_to_have_skills": [
+    "azure",
+    "gcp",
+    "security",
+    "python",
+    "serverless",
+    "microservices"
+  ],
+  "responsibilities": [
+    "Architect high-availability multi-region cloud infrastructures across AWS VPC, EC2, S3, and RDS.",
+    "Define security boundaries, IAM role policies, encryption at rest/transit, and compliance baselines.",
+    "Automate enterprise cloud deployments with reusable Terraform and CloudFormation IaC modules.",
+    "Optimize resource allocation, auto-scaling policies, and cloud cost management."
+  ],
+  "source": "AWS Well-Architected Framework & Enterprise Architecture Benchmark"
+}

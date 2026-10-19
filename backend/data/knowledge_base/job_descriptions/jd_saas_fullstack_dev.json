@@ -1,0 +1,26 @@
+{
+  "job_id": "jd_saas_fullstack_dev",
+  "company": "CloudForge Software",
+  "role": "Full Stack Software Engineer",
+  "location": "Pune / Remote",
+  "salary_range": "7 - 12 LPA",
+  "career_category": "full stack developer",
+  "description": "Join our fast-growing B2B SaaS platform engineering team. You will build user-facing React dashboards and robust backend REST APIs using Python and Node.js.",
+  "required_skills": [
+    "javascript",
+    "react",
+    "python",
+    "sql",
+    "git",
+    "html",
+    "css"
+  ],
+  "preferred_skills": [
+    "docker",
+    "flask",
+    "aws",
+    "typescript"
+  ],
+  "responsibilities": "Develop modular responsive React components; design secure REST API endpoints in Python / Flask; optimize SQL queries and database schemas; write automated tests and participate in sprint code reviews.",
+  "source": "CloudForge Engineering Recruitment - Ref #FS-319"
+}

@@ -1,0 +1,30 @@
+{
+  "career_id": "data_analyst",
+  "title": "Data Analyst",
+  "industry_domain": "Business Intelligence & Data Analytics",
+  "description": "Translates quantitative data into actionable business intelligence. Uses SQL for database querying, Python/R and Excel for statistical analysis, and Tableau/Power BI for executive dashboard visualizations.",
+  "experience_level": "Entry to Mid Level",
+  "required_skills": [
+    "sql",
+    "excel",
+    "python",
+    "power bi",
+    "tableau",
+    "statistics"
+  ],
+  "nice_to_have_skills": [
+    "pandas",
+    "numpy",
+    "data visualization",
+    "r",
+    "communication",
+    "etl"
+  ],
+  "responsibilities": [
+    "Query complex relational databases using advanced SQL joins, CTEs, and window functions.",
+    "Build automated Power BI and Tableau dashboards for cross-functional stakeholders.",
+    "Cleanse and transform unstructured datasets using Python Pandas and Excel Power Query.",
+    "Perform statistical hypothesis testing, cohort analysis, and retention metrics calculation."
+  ],
+  "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026"
+}

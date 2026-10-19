@@ -1,0 +1,31 @@
+{
+  "career_id": "machine_learning_engineer",
+  "title": "Machine Learning Engineer",
+  "industry_domain": "Applied ML & MLOps",
+  "description": "Bridges the gap between data science experimentation and production software engineering by building scalable training pipelines, model registries, and inference APIs.",
+  "experience_level": "Mid to Senior Level",
+  "required_skills": [
+    "python",
+    "machine learning",
+    "deep learning",
+    "pytorch",
+    "docker",
+    "sql"
+  ],
+  "nice_to_have_skills": [
+    "tensorflow",
+    "scikit-learn",
+    "mlflow",
+    "kubernetes",
+    "aws",
+    "fastapi",
+    "git"
+  ],
+  "responsibilities": [
+    "Scale model training across distributed GPU environments using PyTorch and PyTorch Lightning.",
+    "Serve low-latency real-time and batch model inference endpoints using FastAPI, Docker, and ONNX.",
+    "Establish automated MLOps pipelines with MLflow for experiment tracking, model registry, and versioning.",
+    "Implement differential privacy, model monitoring, data drift alarms, and continuous retraining."
+  ],
+  "source": "IEEE Computer Society Artificial Intelligence & Machine Learning Benchmark 2026"
+}

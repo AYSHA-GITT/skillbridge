@@ -1,0 +1,30 @@
+{
+  "career_id": "cybersecurity_analyst",
+  "title": "Cybersecurity Analyst",
+  "industry_domain": "Information Security & Security Operations",
+  "description": "Monitors networks for security breaches, investigates suspicious incidents, performs vulnerability assessments, and implements defense-in-depth security controls.",
+  "experience_level": "Entry to Mid Level",
+  "required_skills": [
+    "networking",
+    "linux",
+    "python",
+    "wireshark",
+    "security",
+    "git"
+  ],
+  "nice_to_have_skills": [
+    "siem",
+    "splunk",
+    "ethical hacking",
+    "cryptography",
+    "bash",
+    "incident response"
+  ],
+  "responsibilities": [
+    "Monitor SIEM security event logs, IDS/IPS alerts, and system anomalies across corporate networks.",
+    "Conduct vulnerability scans, risk assessments, and patch management verification.",
+    "Triage security incident escalations, containment procedures, and root-cause post-mortems.",
+    "Validate compliance with NIST, ISO 27001, and privacy regulations."
+  ],
+  "source": "NIST National Initiative for Cybersecurity Education (NICE) Framework 2026"
+}

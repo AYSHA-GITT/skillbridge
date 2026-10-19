@@ -1,0 +1,29 @@
+{
+  "career_id": "web_developer",
+  "title": "Web Developer",
+  "industry_domain": "Frontend Web Technologies",
+  "description": "Builds responsive, accessible, and dynamic user interfaces using modern HTML, CSS, JavaScript, and frontend frameworks like React, following progressive disclosure and mobile-first principles.",
+  "experience_level": "Entry to Mid Level",
+  "required_skills": [
+    "html",
+    "css",
+    "javascript",
+    "react",
+    "git"
+  ],
+  "nice_to_have_skills": [
+    "flask",
+    "node.js",
+    "mongodb",
+    "tailwind css",
+    "responsive design",
+    "typescript"
+  ],
+  "responsibilities": [
+    "Build interactive, accessible client-side single page applications using React and modern JavaScript.",
+    "Translate UI/UX wireframes into responsive Tailwind CSS / vanilla CSS components across mobile and desktop.",
+    "Integrate client-side states with asynchronous REST APIs using Axios or fetch.",
+    "Manage code versions, issue tracking, and deployment branches using Git and GitHub."
+  ],
+  "source": "W3C Front-End Web Engineering Competency Standard 2026"
+}

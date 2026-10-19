@@ -1,0 +1,24 @@
+{
+  "job_id": "jd_healthtech_data_scientist",
+  "company": "PulseHealth Analytics",
+  "role": "Associate Data Scientist",
+  "location": "Hyderabad / Hybrid",
+  "salary_range": "8 - 14 LPA",
+  "career_category": "data scientist",
+  "description": "PulseHealth is looking for an Associate Data Scientist to build clinical risk prediction models and analyze patient health outcomes using advanced statistical techniques and machine learning.",
+  "required_skills": [
+    "python",
+    "machine learning",
+    "sql",
+    "pandas",
+    "numpy",
+    "statistics"
+  ],
+  "preferred_skills": [
+    "pytorch",
+    "scikit-learn",
+    "data visualization"
+  ],
+  "responsibilities": "Clean and preprocess large electronic medical records; train predictive classifiers using Scikit-Learn and XGBoost; perform feature selection and cross-validation; present statistical insights to clinical directors.",
+  "source": "PulseHealth Analytics Careers - Job Posting #DS-882"
+}

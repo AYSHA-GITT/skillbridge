@@ -1,0 +1,31 @@
+{
+  "career_id": "software_engineer",
+  "title": "Software Engineer",
+  "industry_domain": "Software Development & Systems Engineering",
+  "description": "Designs, writes, tests, and maintains robust software systems, backend APIs, and scalable algorithmic services utilizing core object-oriented principles, data structures, and version control.",
+  "experience_level": "Entry to Senior Level",
+  "required_skills": [
+    "python",
+    "java",
+    "sql",
+    "git",
+    "data structures",
+    "algorithms"
+  ],
+  "nice_to_have_skills": [
+    "flask",
+    "react",
+    "docker",
+    "aws",
+    "rest api",
+    "unit testing",
+    "c++"
+  ],
+  "responsibilities": [
+    "Design modular, object-oriented software architectures with robust data structures and algorithms.",
+    "Implement high-throughput RESTful APIs, database transactions, and backend business logic.",
+    "Collaborate through Git branching workflows, pull requests, automated CI/CD pipelines, and peer code reviews.",
+    "Write comprehensive unit and integration tests to ensure system reliability and regression prevention."
+  ],
+  "source": "ISO/IEC 12207 Software Engineering Lifecycle Industry Standards"
+}

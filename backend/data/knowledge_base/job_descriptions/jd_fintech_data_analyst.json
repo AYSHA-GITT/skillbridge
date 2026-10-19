@@ -1,0 +1,23 @@
+{
+  "job_id": "jd_fintech_data_analyst",
+  "company": "FinTech Capital Global",
+  "role": "Junior Data Analyst",
+  "location": "Bengaluru / Remote",
+  "salary_range": "6 - 9 LPA",
+  "career_category": "data analyst",
+  "description": "We are seeking a detail-oriented Data Analyst to join our quantitative risk team. You will query transaction records, design real-time portfolio dashboards, and synthesize trends for executive leadership.",
+  "required_skills": [
+    "sql",
+    "python",
+    "excel",
+    "power bi",
+    "statistics"
+  ],
+  "preferred_skills": [
+    "pandas",
+    "tableau",
+    "communication"
+  ],
+  "responsibilities": "Query financial transaction databases using PostgreSQL; develop interactive executive risk dashboards in Power BI; prepare weekly executive metric summaries; perform cohort and retention analysis.",
+  "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104"
+}
