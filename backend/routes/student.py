@@ -1169,13 +1169,29 @@ def get_jobs():
     saved_ids = set(
         sj.job_id for sj in SavedJob.query.filter_by(student_id=current_user.id).all()
     )
+
+    # Attach whether the student has applied to each job
+    from models import JobApplication
+    applications_map = {
+        app.job_id: app.to_dict()
+        for app in JobApplication.query.filter_by(student_id=current_user.id).all()
+    }
+
+    # Filter applied_only if requested
+    applied_only = request.args.get('applied_only')
+    if applied_only and applied_only.lower() in ['true', '1']:
+        jobs = [j for j in jobs if j['id'] in applications_map]
+
     for j in jobs:
         j['is_saved'] = j['id'] in saved_ids
+        j['is_applied'] = j['id'] in applications_map
+        j['application'] = applications_map.get(j['id'])
 
     return jsonify({
         'jobs': jobs,
         'total': len(jobs),
-        'total_count': len(jobs)
+        'total_count': len(jobs),
+        'applied_count': len(applications_map)
     }), 200
 
 
@@ -1251,6 +1267,119 @@ def get_saved_jobs_endpoint():
     from utils.job_discovery import job_discovery_service
     saved = job_discovery_service.get_saved_jobs_for_student(current_user.id)
     return jsonify({'saved_jobs': saved, 'total': len(saved)}), 200
+
+
+# ─────────────────────────────────────────
+# JOB APPLICATION ACTIONS
+# ─────────────────────────────────────────
+@student_bp.route('/jobs/<int:job_id>/apply', methods=['POST'])
+@student_bp.route('/jobs/apply', methods=['POST'])
+@login_required
+def apply_to_job(job_id=None):
+    from models import JobListing, JobApplication, Resume
+    from utils.job_matcher import evaluate_job_match
+
+    data = request.get_json(silent=True) or {}
+    target_job_id = job_id or data.get('job_id')
+    if not target_job_id:
+        return jsonify({'error': 'job_id is required'}), 400
+
+    job = JobListing.query.get(target_job_id)
+    if not job:
+        return jsonify({'error': 'Job listing not found'}), 404
+
+    # Check if already applied
+    existing = JobApplication.query.filter_by(
+        student_id=current_user.id,
+        job_id=target_job_id
+    ).first()
+
+    if existing:
+        return jsonify({
+            'message': 'You have already applied for this role',
+            'status': 'already_applied',
+            'application': existing.to_dict()
+        }), 200
+
+    # Determine resume to attach
+    resume_id = data.get('resume_id')
+    if not resume_id:
+        latest_resume = Resume.query.filter_by(student_id=current_user.id, is_latest=True).first()
+        if latest_resume:
+            resume_id = latest_resume.id
+
+    cover_note = (data.get('cover_note') or '').strip()
+    contact_email = (data.get('contact_email') or current_user.email).strip()
+    portfolio_url = (data.get('portfolio_url') or '').strip()
+
+    # Calculate deterministic match score at time of application
+    try:
+        eval_res = evaluate_job_match(current_user, job)
+        match_score = float(eval_res.get('match_score', 0.0))
+    except Exception:
+        match_score = 0.0
+
+    new_app = JobApplication(
+        student_id=current_user.id,
+        job_id=target_job_id,
+        applied_at=datetime.now(timezone.utc),
+        status='Applied',
+        resume_id=resume_id,
+        cover_note=cover_note,
+        contact_email=contact_email,
+        portfolio_url=portfolio_url,
+        match_score=match_score
+    )
+    db.session.add(new_app)
+    db.session.commit()
+
+    return jsonify({
+        'message': f'Application for {job.title} at {job.company} submitted successfully!',
+        'status': 'applied',
+        'application': new_app.to_dict()
+    }), 201
+
+
+@student_bp.route('/jobs/applied', methods=['GET'])
+@student_bp.route('/jobs/applications', methods=['GET'])
+@login_required
+def get_applied_jobs():
+    from models import JobApplication
+    apps = JobApplication.query.filter_by(
+        student_id=current_user.id
+    ).order_by(JobApplication.applied_at.desc()).all()
+    return jsonify({
+        'applications': [a.to_dict() for a in apps],
+        'total_count': len(apps)
+    }), 200
+
+
+@student_bp.route('/jobs/<int:job_id>/withdraw', methods=['POST', 'DELETE'])
+@student_bp.route('/jobs/withdraw', methods=['POST'])
+@login_required
+def withdraw_application(job_id=None):
+    from models import JobApplication
+    data = request.get_json(silent=True) or {}
+    target_job_id = job_id or data.get('job_id')
+    if not target_job_id:
+        return jsonify({'error': 'job_id is required'}), 400
+
+    app_record = JobApplication.query.filter_by(
+        student_id=current_user.id,
+        job_id=target_job_id
+    ).first()
+
+    if not app_record:
+        return jsonify({'error': 'Application record not found'}), 404
+
+    db.session.delete(app_record)
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Application withdrawn successfully',
+        'status': 'withdrawn',
+        'job_id': target_job_id
+    }), 200
 
 
 # ─────────────────────────────────────────

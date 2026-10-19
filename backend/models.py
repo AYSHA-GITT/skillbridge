@@ -50,6 +50,8 @@ class Student(BaseModel, UserMixin):
                                      lazy=True, cascade='all, delete-orphan')
     saved_jobs = db.relationship('SavedJob', backref='student',
                                   lazy=True, cascade='all, delete-orphan')
+    applications = db.relationship('JobApplication', backref='student',
+                                   lazy=True, cascade='all, delete-orphan')
     interviews = db.relationship('InterviewSession', backref='student',
                                   lazy=True, cascade='all, delete-orphan')
 
@@ -339,6 +341,7 @@ class JobListing(BaseModel):
     collected_at = db.Column(db.DateTime, default=utc_now)
 
     saved_by = db.relationship('SavedJob', back_populates='job', lazy=True, cascade='all, delete-orphan')
+    applications = db.relationship('JobApplication', back_populates='job', lazy=True, cascade='all, delete-orphan')
 
 
 
@@ -415,6 +418,54 @@ class SavedJob(BaseModel):
                 if k not in res:
                     res[k] = v
         return res
+
+
+# ─────────────────────────────────────────
+# JOB APPLICATION MODEL
+# ─────────────────────────────────────────
+class JobApplication(BaseModel):
+    __tablename__ = 'job_applications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=False)
+    applied_at = db.Column(db.DateTime, default=utc_now)
+    status = db.Column(db.String(50), default='Applied')  # Applied, Under Review, Interviewing, Offer, Rejected
+    resume_id = db.Column(db.Integer, db.ForeignKey('resumes.id'), nullable=True)
+    cover_note = db.Column(db.Text, nullable=True)
+    contact_email = db.Column(db.String(100), nullable=True)
+    portfolio_url = db.Column(db.String(300), nullable=True)
+    match_score = db.Column(db.Float, default=0.0)
+
+    job = db.relationship('JobListing', back_populates='applications', foreign_keys=[job_id])
+    resume = db.relationship('Resume', foreign_keys=[resume_id])
+
+    def to_dict(self):
+        job_data = None
+        j = getattr(self, 'job', None)
+        if j and hasattr(j, 'to_dict'):
+            job_data = j.to_dict()
+
+        resume_name = None
+        r = getattr(self, 'resume', None)
+        if r and hasattr(r, 'original_filename'):
+            resume_name = r.original_filename
+
+        return {
+            'id': self.id,
+            'application_id': self.id,
+            'job_id': self.job_id,
+            'student_id': self.student_id,
+            'applied_at': self.applied_at.isoformat() if self.applied_at else None,
+            'status': self.status,
+            'resume_id': self.resume_id,
+            'resume_name': resume_name,
+            'cover_note': self.cover_note,
+            'contact_email': self.contact_email,
+            'portfolio_url': self.portfolio_url,
+            'match_score': self.match_score,
+            'job': job_data
+        }
 
 
 

@@ -22,7 +22,8 @@ import {
   TbArrowsDiff,
   TbBrandYoutube,
   TbBrandGithub,
-  TbScale
+  TbScale,
+  TbSend
 } from 'react-icons/tb';
 
 
@@ -77,6 +78,19 @@ export default function Jobs() {
   // Saved Jobs tracking
   const [savedJobIds, setSavedJobIds] = useState(new Set());
 
+  // Applied Jobs tracking
+  const [appliedJobsMap, setAppliedJobsMap] = useState({});
+  const [showAppliedOnly, setShowAppliedOnly] = useState(false);
+
+  // Apply Modal state
+  const [applyModalJob, setApplyModalJob] = useState(null);
+  const [applying, setApplying] = useState(false);
+  const [applyForm, setApplyForm] = useState({
+    cover_note: '',
+    portfolio_url: '',
+    contact_email: ''
+  });
+
   // Match Modal
   const [matchModalJob, setMatchModalJob] = useState(null);
   const [matchData, setMatchData] = useState(null);
@@ -107,12 +121,38 @@ export default function Jobs() {
     }
   }, []);
 
+  const loadAppliedJobs = useCallback(async () => {
+    try {
+      const res = await skillService.getAppliedJobs();
+      if (res && res.applications) {
+        const map = {};
+        res.applications.forEach((a) => {
+          map[a.job_id] = a;
+        });
+        setAppliedJobsMap(map);
+      }
+    } catch {
+      // Applied jobs failure non-blocking
+    }
+  }, []);
+
   const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
       if (showSavedOnly) {
         const res = await skillService.getSavedJobs();
         const list = res.saved_jobs || [];
+        setJobs(list);
+        setTotalCount(list.length);
+      } else if (showAppliedOnly) {
+        const res = await skillService.getAppliedJobs();
+        const apps = res.applications || [];
+        const list = apps.map((a) => ({
+          ...(a.job || {}),
+          id: a.job_id,
+          is_applied: true,
+          application: a
+        }));
         setJobs(list);
         setTotalCount(list.length);
       } else {
@@ -139,12 +179,71 @@ export default function Jobs() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, remoteOnly, sourceFilter, showSavedOnly]);
+  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, remoteOnly, sourceFilter, showSavedOnly, showAppliedOnly]);
 
   useEffect(() => {
     loadSavedJobs();
+    loadAppliedJobs();
     loadJobs();
-  }, [loadSavedJobs, loadJobs]);
+  }, [loadSavedJobs, loadAppliedJobs, loadJobs]);
+
+  const handleOpenApply = (job) => {
+    setApplyModalJob(job);
+    setApplyForm({
+      cover_note: `I am enthusiastic to apply for the ${job.title} position at ${job.company}. My verified technical competencies and practical project background align closely with your team's objectives.`,
+      portfolio_url: '',
+      contact_email: ''
+    });
+  };
+
+  const handleSubmitApply = async (e) => {
+    e.preventDefault();
+    if (!applyModalJob) return;
+    setApplying(true);
+    try {
+      const res = await skillService.applyForJob(applyModalJob.id, applyForm);
+      setAppliedJobsMap((prev) => ({
+        ...prev,
+        [applyModalJob.id]: res.application
+      }));
+      setAlert({
+        type: 'success',
+        message: `Application submitted successfully for ${applyModalJob.title} at ${applyModalJob.company}!`
+      });
+      setApplyModalJob(null);
+      loadJobs();
+      loadAppliedJobs();
+    } catch {
+      setAlert({
+        type: 'error',
+        message: 'Failed to submit application. Please try again.'
+      });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  const handleWithdrawApply = async (jobId) => {
+    try {
+      await skillService.withdrawApplication(jobId);
+      setAppliedJobsMap((prev) => {
+        const next = { ...prev };
+        delete next[jobId];
+        return next;
+      });
+      setAlert({
+        type: 'info',
+        message: 'Application withdrawn successfully.'
+      });
+      loadJobs();
+      loadAppliedJobs();
+    } catch {
+      setAlert({
+        type: 'error',
+        message: 'Failed to withdraw application.'
+      });
+    }
+  };
 
   // Handle Sync
   const handleSyncJobs = async () => {
@@ -319,7 +418,11 @@ export default function Jobs() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowSavedOnly(!showSavedOnly)}
+                onClick={() => {
+                  const next = !showSavedOnly;
+                  setShowSavedOnly(next);
+                  if (next) setShowAppliedOnly(false);
+                }}
                 className={`text-xs px-3.5 py-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
                   showSavedOnly
                     ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-glow'
@@ -327,7 +430,23 @@ export default function Jobs() {
                 }`}
               >
                 {showSavedOnly ? <TbBookmarkFilled className="w-3.5 h-3.5" /> : <TbBookmark className="w-3.5 h-3.5" />}
-                <span>Saved Only ({savedJobIds.size})</span>
+                <span>Saved ({savedJobIds.size})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  const next = !showAppliedOnly;
+                  setShowAppliedOnly(next);
+                  if (next) setShowSavedOnly(false);
+                }}
+                className={`text-xs px-3.5 py-2 rounded-xl border flex items-center space-x-1.5 transition-all ${
+                  showAppliedOnly
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-glow'
+                    : 'bg-base-950/80 text-white/70 border-base-700/80 hover:text-white'
+                }`}
+              >
+                <TbCheck className="w-3.5 h-3.5" />
+                <span>Applied ({Object.keys(appliedJobsMap).length})</span>
               </button>
             </div>
           </div>
@@ -454,6 +573,7 @@ export default function Jobs() {
                 setRemoteOnly(false);
                 setSourceFilter('all');
                 setShowSavedOnly(false);
+                setShowAppliedOnly(false);
               }}
               className="btn-ghost text-xs py-1.5 px-3 mx-auto"
             >
@@ -464,6 +584,7 @@ export default function Jobs() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {jobs.map((job) => {
               const isSaved = savedJobIds.has(job.id);
+              const isApplied = Boolean(appliedJobsMap[job.id] || job.is_applied);
               const isSelected = selectedForCompare.includes(job.id);
               const score = cardMatches[job.id];
 
@@ -494,6 +615,14 @@ export default function Jobs() {
                         <span className="text-[10px] px-2 py-0.5 rounded-md bg-base-800 text-white/70 border border-base-700">
                           {job.job_type}
                         </span>
+
+                        {/* Applied Status Badge */}
+                        {isApplied && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold flex items-center space-x-1">
+                            <TbCheck className="w-3 h-3" />
+                            <span>Applied</span>
+                          </span>
+                        )}
 
                         {/* Regional Location Badge */}
                         {job.region_badge === 'India' && (
@@ -601,11 +730,38 @@ export default function Jobs() {
                   <div className="pt-4 mt-4 border-t border-base-800/80 flex items-center justify-between gap-2">
                     <button
                       onClick={() => handleOpenMatch(job)}
-                      className="btn-primary text-xs py-1.5 px-3 flex items-center space-x-1.5 flex-1 justify-center shadow-glow"
+                      className="btn-primary text-xs py-1.5 px-2.5 flex items-center space-x-1 shadow-glow"
+                      title="Explain deterministic match fit"
                     >
                       <TbSparkles className="w-3.5 h-3.5" />
-                      <span>{score !== undefined ? `Match: ${score}%` : 'Explain Match'}</span>
+                      <span>{score !== undefined ? `${score}% Fit` : 'Match'}</span>
                     </button>
+
+                    {/* Apply Button */}
+                    {isApplied ? (
+                      <div className="flex items-center space-x-1">
+                        <span className="text-xs px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium flex items-center space-x-1">
+                          <TbCheck className="w-3.5 h-3.5" />
+                          <span>Applied</span>
+                        </span>
+                        <button
+                          onClick={() => handleWithdrawApply(job.id)}
+                          className="text-[10px] text-white/40 hover:text-rose-400 px-1 py-0.5"
+                          title="Withdraw application"
+                        >
+                          Withdraw
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleOpenApply(job)}
+                        className="bg-accent-500 hover:bg-accent-400 text-base-950 font-semibold text-xs py-1.5 px-3 rounded-xl flex items-center space-x-1.5 transition-all shadow-glow hover:scale-[1.02]"
+                        title="Apply for this role"
+                      >
+                        <TbSend className="w-3.5 h-3.5" />
+                        <span>Apply Role</span>
+                      </button>
+                    )}
 
                     <button
                       onClick={() =>
@@ -613,7 +769,7 @@ export default function Jobs() {
                           `/interview-prep?job_id=${job.id}&role=${encodeURIComponent(job.title)}`
                         )
                       }
-                      className="btn-ghost text-xs py-1.5 px-3 flex items-center space-x-1.5"
+                      className="btn-ghost text-xs py-1.5 px-2.5 flex items-center space-x-1"
                       title="Practice realistic interview for this role"
                     >
                       <TbMicrophone className="w-3.5 h-3.5 text-teal-300" />
@@ -626,7 +782,7 @@ export default function Jobs() {
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors border border-base-800"
-                        title="View original posting"
+                        title="View company career page"
                       >
                         <TbExternalLink className="w-3.5 h-3.5" />
                       </a>
@@ -714,16 +870,37 @@ export default function Jobs() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setMatchModalJob(null);
-                        navigate(`/interview-prep?job_id=${matchModalJob.id}&role=${encodeURIComponent(matchModalJob.title)}`);
-                      }}
-                      className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5 shadow-glow"
-                    >
-                      <TbMicrophone className="w-4 h-4" />
-                      <span>Prepare Interview</span>
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      {appliedJobsMap[matchModalJob.id] ? (
+                        <span className="text-xs px-3 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center space-x-1.5 font-medium">
+                          <TbCheck className="w-4 h-4" />
+                          <span>Applied</span>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const j = matchModalJob;
+                            setMatchModalJob(null);
+                            handleOpenApply(j);
+                          }}
+                          className="bg-accent-500 hover:bg-accent-400 text-base-950 font-semibold text-xs py-2 px-3.5 rounded-xl flex items-center space-x-1.5 shadow-glow"
+                        >
+                          <TbSend className="w-4 h-4" />
+                          <span>Apply for Role</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          setMatchModalJob(null);
+                          navigate(`/interview-prep?job_id=${matchModalJob.id}&role=${encodeURIComponent(matchModalJob.title)}`);
+                        }}
+                        className="btn-ghost text-xs py-2 px-3.5 flex items-center space-x-1.5"
+                      >
+                        <TbMicrophone className="w-4 h-4 text-teal-300" />
+                        <span>Practice</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* 4 Scoring Pillars Breakdown */}
@@ -1131,6 +1308,146 @@ export default function Jobs() {
                   </div>
                 </div>
               ) : null}
+            </div>
+          </div>
+        )}
+        {/* Apply for Role Modal */}
+        {applyModalJob && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="surface max-w-xl w-full rounded-3xl border border-accent-400/40 p-6 space-y-5 animate-scale-in max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-accent-500/20 text-accent-300 border border-accent-400/30 font-semibold">
+                      Candidate Application
+                    </span>
+                    {applyModalJob.region_badge === 'India' && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                        🇮🇳 India
+                      </span>
+                    )}
+                    {applyModalJob.region_badge === 'Asia' && (
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/15 text-sky-300 border border-sky-500/30 font-medium">
+                        🌏 Asia
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="font-heading text-lg font-bold text-white mt-1.5">
+                    Apply for {applyModalJob.title}
+                  </h2>
+                  <p className="text-xs text-white/50">
+                    {applyModalJob.company} · {applyModalJob.location}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setApplyModalJob(null)}
+                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10"
+                >
+                  <TbX className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Verified Profile Pitch Banner */}
+              <div className="bg-base-950/80 p-4 rounded-2xl border border-base-800 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/60">Verified SkillBridge Portfolio:</span>
+                  <span className="text-emerald-400 font-mono font-bold flex items-center space-x-1">
+                    <TbCheck className="w-3.5 h-3.5" />
+                    <span>Auto-Bundled</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-white/50 leading-relaxed">
+                  Your verified quizzes, skill confidence scores, and current readiness matrix are automatically attached to give recruiters verified evidence of competence.
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmitApply} className="space-y-4 text-xs">
+                {/* Contact Email */}
+                <div>
+                  <label className="block text-white/70 font-medium mb-1">
+                    Contact Email <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="your.email@example.com"
+                    value={applyForm.contact_email}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, contact_email: e.target.value })
+                    }
+                    className="input-field text-xs py-2 w-full bg-base-950/80 border-base-700/80 rounded-xl"
+                  />
+                </div>
+
+                {/* Portfolio / GitHub URL */}
+                <div>
+                  <label className="block text-white/70 font-medium mb-1">
+                    Portfolio / GitHub URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/yourusername"
+                    value={applyForm.portfolio_url}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, portfolio_url: e.target.value })
+                    }
+                    className="input-field text-xs py-2 w-full bg-base-950/80 border-base-700/80 rounded-xl"
+                  />
+                </div>
+
+                {/* Candidate Cover Note */}
+                <div>
+                  <label className="block text-white/70 font-medium mb-1">
+                    Candidate Cover Pitch / Note
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={applyForm.cover_note}
+                    onChange={(e) =>
+                      setApplyForm({ ...applyForm, cover_note: e.target.value })
+                    }
+                    className="input-field text-xs py-2 w-full bg-base-950/80 border-base-700/80 rounded-xl resize-none"
+                    placeholder="Highlight your relevant verified skills and why you're a great fit..."
+                  />
+                </div>
+
+                {/* External Portal Fallback */}
+                {applyModalJob.application_url && (
+                  <div className="bg-accent-500/10 p-3 rounded-xl border border-accent-500/20 flex items-center justify-between text-xs">
+                    <span className="text-accent-300">
+                      Company Career Portal:
+                    </span>
+                    <a
+                      href={applyModalJob.application_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-white hover:text-accent-300 flex items-center space-x-1 font-mono text-[11px] underline"
+                    >
+                      <span>Direct Portal Post</span>
+                      <TbExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center justify-end space-x-2 pt-2 border-t border-base-800">
+                  <button
+                    type="button"
+                    onClick={() => setApplyModalJob(null)}
+                    className="btn-ghost text-xs py-2 px-3.5"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={applying}
+                    className="btn-primary text-xs py-2 px-4 flex items-center space-x-1.5 shadow-glow"
+                  >
+                    <TbSend className="w-3.5 h-3.5" />
+                    <span>{applying ? 'Submitting...' : 'Submit Application'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

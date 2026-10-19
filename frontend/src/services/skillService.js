@@ -205,6 +205,22 @@ export const skillService = {
     return response.data;
   },
 
+  // Job Applications
+  applyForJob: async (jobId, applicationData = {}) => {
+    const response = await api.post(`/student/jobs/${jobId}/apply`, applicationData);
+    return response.data;
+  },
+
+  getAppliedJobs: async () => {
+    const response = await api.get('/student/jobs/applied');
+    return response.data;
+  },
+
+  withdrawApplication: async (jobId) => {
+    const response = await api.post(`/student/jobs/${jobId}/withdraw`);
+    return response.data;
+  },
+
   // Explainable Job Matching & Comparison
   getJobMatch: async (jobId) => {
     const response = await api.get(`/student/jobs/${jobId}/match`);
