@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import AdminFLCenter from '../components/AdminFLCenter';
+import AdminJobSync from '../components/AdminJobSync';
 import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
 import authService from '../services/authService';
@@ -336,7 +337,10 @@ export default function Admin() {
                   Decentralized Federated Learning Center
                 </h3>
                 <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                  {stats.federated_learning?.participating_institutions || 4} participating campus partitions synchronized via Flower FedAvg. Global Accuracy: {Math.round((stats.federated_learning?.current_global_accuracy || 0.78) * 100)}%.
+                  {stats.federated_learning?.participating_institutions || 4} simulated partitions (synthetic data) trained with FedAvg.{' '}
+                  {stats.federated_learning?.current_global_accuracy != null
+                    ? `Measured accuracy on held-out synthetic data: ${Math.round(stats.federated_learning.current_global_accuracy * 100)}%.`
+                    : 'No training rounds run yet.'}
                 </p>
               </div>
 
@@ -552,6 +556,13 @@ export default function Admin() {
         {/* ============================================================ */}
         {activeTab === 'federated' && (
           <AdminFLCenter />
+        )}
+
+        {/* ============================================================ */}
+        {/* JOB SYNC & SYSTEM HEALTH */}
+        {/* ============================================================ */}
+        {activeTab === 'jobs' && (
+          <AdminJobSync />
         )}
 
         {/* ============================================================ */}

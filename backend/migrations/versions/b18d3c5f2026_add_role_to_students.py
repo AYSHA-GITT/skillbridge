@@ -17,6 +17,10 @@ depends_on = None
 
 
 def upgrade():
+    # Idempotent: skip if the column already exists (e.g. created by db.create_all()).
+    cols = {c['name'] for c in sa.inspect(op.get_bind()).get_columns('students')}
+    if 'role' in cols:
+        return
     with op.batch_alter_table('students', schema=None) as batch_op:
         batch_op.add_column(sa.Column('role', sa.String(length=20), nullable=False, server_default='student'))
 

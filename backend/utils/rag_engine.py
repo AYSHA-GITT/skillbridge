@@ -27,10 +27,12 @@ class DocumentChunk:
 
 class DeterministicEmbeddingEngine:
     """
-    High-performance, pure-Python/NumPy dense embedding engine.
-    Computes normalized 128-dimensional term-frequency and subword hash projection.
-    Provides robust, deterministic semantic and keyword matching without requiring
-    external model downloads or unstable C++ extensions on Windows.
+    Pure NumPy hashed term/sub-word projection (128 dims, signed MD5 hashing of
+    words and character 3-grams). It measures LEXICAL overlap with some typo
+    tolerance; it is NOT a semantic embedding model and does not understand
+    synonyms or meaning. See rag/embedding_engine.py for the pretrained
+    sentence-transformer encoder, and rag/eval_retrieval.py for a measured
+    comparison of the two.
     """
 
     DIM = 128
@@ -63,15 +65,58 @@ class DeterministicEmbeddingEngine:
         return vec
 
 
+class SemanticEmbedder:
+    """
+    Pretrained sentence-transformer embeddings (all-MiniLM-L6-v2) via the shared
+    rag.embedding_engine. On the retrieval test set (rag/eval_retrieval.py) it
+    scored Recall@1 0.852 / MRR 0.926 vs 0.519 / 0.655 for the hashed engine,
+    with the largest gain on paraphrased questions (0.778 vs 0.333 Recall@1).
+    """
+    name = "minilm"
+    # Calibrated on the eval set: relevant docs >= 0.218, off-topic queries <= 0.12
+    default_threshold = 0.20
+
+    def __init__(self):
+        from rag.embedding_engine import get_embedding_engine
+        self._engine = get_embedding_engine()
+
+    def available(self) -> bool:
+        return "semantic" in self._engine.engine_name
+
+    def embed_text(self, text: str) -> np.ndarray:
+        return np.asarray(self._engine.encode(text, normalize=True), dtype=np.float32)
+
+
+def _choose_embedder():
+    """RAG_EMBEDDER=auto (default) uses MiniLM when it loads, else the hashed engine."""
+    import os
+    choice = os.getenv("RAG_EMBEDDER", "auto").lower()
+    if choice in ("auto", "minilm"):
+        try:
+            emb = SemanticEmbedder()
+            if emb.available():
+                return emb
+        except Exception:
+            pass
+    fallback = DeterministicEmbeddingEngine()
+    fallback.name = "hash128"
+    fallback.default_threshold = 0.22
+    return fallback
+
+
 class LocalVectorStore:
     """
     In-memory vector store enforcing strict tenant isolation.
     Guarantees user A can never retrieve documents belonging to user B.
     """
 
-    def __init__(self):
+    # Drop candidates far below the best hit so weakly related documents
+    # do not enter the generation context.
+    RELATIVE_MARGIN = 0.15
+
+    def __init__(self, embedder=None):
         self.chunks: List[DocumentChunk] = []
-        self.embedder = DeterministicEmbeddingEngine()
+        self.embedder = embedder or _choose_embedder()
 
     def add_document(
         self,
@@ -127,12 +172,14 @@ class LocalVectorStore:
         query: str,
         requesting_user_id: Optional[int],
         top_k: int = 4,
-        similarity_threshold: float = 0.22,
+        similarity_threshold: Optional[float] = None,
         source_type_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Retrieves top-k relevant chunks respecting user access control.
         """
+        if similarity_threshold is None:
+            similarity_threshold = getattr(self.embedder, "default_threshold", 0.22)
         query_vec = self.embedder.embed_text(query)
         if np.linalg.norm(query_vec) < 1e-7:
             return []
@@ -157,6 +204,9 @@ class LocalVectorStore:
 
         # Sort descending by similarity
         candidates.sort(key=lambda x: x[0], reverse=True)
+        if candidates:
+            best = candidates[0][0]
+            candidates = [c for c in candidates if c[0] >= best - self.RELATIVE_MARGIN]
 
         results = []
         for rank, (score, chunk) in enumerate(candidates[:top_k], 1):

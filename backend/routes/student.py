@@ -171,16 +171,24 @@ def extract_skills_endpoint(resume_id):
 
         saved_skills = []
 
+        import json as _json
         for item in extracted:
             skill_name_clean = item['skill_name'].strip()
             key = skill_name_clean.lower()
-            confidence = item.get('extraction_confidence', 0.85)
+            confidence = item.get('extraction_confidence', 1.0)
+            evidence_fields = {
+                'evidence_strength': item.get('evidence_strength'),
+                'evidence': _json.dumps(item.get('evidence', [])),
+                'extraction_explanation': (item.get('explanation') or '')[:400],
+                'category': item.get('category'),
+            }
 
             if key in existing_skills_by_name:
                 existing = existing_skills_by_name[key]
-                # Update confidence to the highest observed value
-                if confidence > (existing.extraction_confidence or 0.0):
-                    existing.extraction_confidence = confidence
+                # The latest resume is the current evidence for this skill
+                existing.extraction_confidence = confidence
+                for f, v in evidence_fields.items():
+                    setattr(existing, f, v)
                 # Keep pointer to latest resume if not locked by verification
                 if existing.id not in verified_skill_ids:
                     existing.resume_id = resume.id
@@ -191,7 +199,8 @@ def extract_skills_endpoint(resume_id):
                     resume_id=resume.id,
                     skill_name=skill_name_clean,
                     extraction_confidence=confidence,
-                    proficiency=None
+                    proficiency=None,
+                    **evidence_fields
                 )
                 db.session.add(skill)
                 existing_skills_by_name[key] = skill
@@ -201,7 +210,10 @@ def extract_skills_endpoint(resume_id):
 
         return jsonify({
             'message': f'{len(saved_skills)} skills extracted',
-            'skills': [s.to_dict() for s in saved_skills]
+            'skills': [s.to_dict() for s in saved_skills],
+            'note': ('Extraction confidence says how sure we are the resume mentions the skill; '
+                     'evidence strength says how well the resume supports it. Proficiency is only '
+                     'established by passing the skill quiz.')
         }), 201
     except Exception as e:
         db.session.rollback()
@@ -210,13 +222,20 @@ def extract_skills_endpoint(resume_id):
 import random
 from models import QuestionBank, SkillVerification
 
-def get_quiz_question_count(confidence):
+EVIDENCE_WEIGHT = {'applied': 1.0, 'supporting': 0.7, 'listed_only': 0.4, 'unclassified': 0.4}
+
+
+def get_quiz_question_count(confidence, evidence_strength=None):
+    """Weaker resume evidence -> more questions are needed to verify the skill."""
+    if evidence_strength in EVIDENCE_WEIGHT:
+        return {'applied': 5, 'supporting': 6, 'listed_only': 8, 'unclassified': 8}[evidence_strength]
+    # legacy rows (extracted before evidence tracking)
+    confidence = confidence or 0.0
     if confidence >= 0.7:
-        return 3
-    elif confidence >= 0.4:
         return 5
-    else:
-        return 8
+    elif confidence >= 0.4:
+        return 6
+    return 8
 
 
 @student_bp.route('/get_quiz/<int:skill_id>', methods=['GET'])
@@ -229,7 +248,7 @@ def get_quiz(skill_id):
     if not skill:
         return jsonify({'error': 'Skill not found or does not belong to you'}), 404
 
-    question_count = get_quiz_question_count(skill.extraction_confidence)
+    question_count = get_quiz_question_count(skill.extraction_confidence, skill.evidence_strength)
 
 #from here
     
@@ -254,11 +273,20 @@ def get_quiz(skill_id):
 
     
 
-    # Pick up to question_count questions, randomly, without repeats
-    selected = random.sample(
-        available_questions,
-        min(question_count, len(available_questions))
-    )
+    # Balanced difficulty mix (Easy/Medium/Hard round-robin), random within each level
+    by_level = {}
+    for q in available_questions:
+        by_level.setdefault((q.difficulty or 'Medium').title(), []).append(q)
+    for qs in by_level.values():
+        random.shuffle(qs)
+    order = [lvl for lvl in ('Easy', 'Medium', 'Hard') if lvl in by_level] + \
+            [lvl for lvl in by_level if lvl not in ('Easy', 'Medium', 'Hard')]
+    selected = []
+    target = min(question_count, len(available_questions))
+    while len(selected) < target:
+        for lvl in order:
+            if by_level[lvl] and len(selected) < target:
+                selected.append(by_level[lvl].pop())
 
     return jsonify({
         'skill_id': skill.id,
@@ -278,36 +306,76 @@ def submit_quiz(skill_id):
     if not skill:
         return jsonify({'error': 'Skill not found or does not belong to you'}), 404
 
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     # Expected format: {"answers": {"3": "B", "7": "A", "12": "C"}}
     # keys are QuestionBank ids (as strings from JSON), values are the
     # student's chosen option letter
     submitted_answers = data.get('answers', {})
 
-    if not submitted_answers:
+    if not submitted_answers or not isinstance(submitted_answers, dict):
         return jsonify({'error': 'No answers submitted'}), 400
 
-    question_ids = [int(qid) for qid in submitted_answers.keys()]
+    try:
+        question_ids = [int(qid) for qid in submitted_answers.keys()]
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Answer keys must be question ids'}), 400
+
+    # Only questions belonging to THIS skill count (prevents answering easier
+    # questions from another skill to get verified).
     questions = QuestionBank.query.filter(
-        QuestionBank.id.in_(question_ids)
+        QuestionBank.id.in_(question_ids),
+        QuestionBank.skill_name == skill.skill_name
     ).all()
+    if len(questions) != len(set(question_ids)):
+        return jsonify({'error': 'Some answers do not belong to this skill\'s quiz'}), 400
+
+    # A verification needs the full quiz, not a hand-picked subset of answers
+    available = QuestionBank.query.filter_by(skill_name=skill.skill_name).count()
+    required_count = min(get_quiz_question_count(skill.extraction_confidence, skill.evidence_strength), available)
+    if len(questions) < required_count:
+        return jsonify({'error': f'Please answer all {required_count} questions of the quiz '
+                                 f'({len(questions)} answered).'}), 400
 
     correct_count = 0
+    review = []
+    weak_by_level = {}
     for question in questions:
         submitted = submitted_answers.get(str(question.id))
-        if submitted and submitted.upper() == question.correct_answer:
+        is_correct = bool(submitted) and str(submitted).upper() == (question.correct_answer or '').upper()
+        if is_correct:
             correct_count += 1
+        else:
+            lvl = (question.difficulty or 'Medium').title()
+            weak_by_level[lvl] = weak_by_level.get(lvl, 0) + 1
+        review.append({
+            'question_id': question.id,
+            'question': question.question,
+            'difficulty': question.difficulty,
+            'your_answer': (str(submitted).upper() if submitted else None),
+            'correct_answer': question.correct_answer,
+            'correct_option_text': getattr(question, f'option_{(question.correct_answer or "a").lower()}', None),
+            'is_correct': is_correct,
+        })
 
     total_questions = len(questions)
     quiz_score_percent = round((correct_count / total_questions) * 100, 2) \
         if total_questions > 0 else 0
 
-    # Combine resume-evidence confidence with quiz performance
+    # Verification score: quiz performance dominates (it is the only direct
+    # measurement of proficiency); resume evidence adds a smaller component.
+    # Extraction confidence is NOT used - it only says the skill was mentioned.
+    evidence_weight = EVIDENCE_WEIGHT.get(skill.evidence_strength, 0.4)
     verification_score = round(
-        (skill.extraction_confidence * 0.4) +
-        ((quiz_score_percent / 100) * 0.6),
+        (evidence_weight * 0.25) +
+        ((quiz_score_percent / 100) * 0.75),
         2
     )
+    if quiz_score_percent >= 80:
+        skill.proficiency = 'Advanced' if quiz_score_percent >= 90 and total_questions >= 6 else 'Intermediate'
+    elif quiz_score_percent >= 50:
+        skill.proficiency = 'Beginner'
+    else:
+        skill.proficiency = 'Not yet demonstrated'
 
     verification = SkillVerification(
         student_id=current_user.id,
@@ -327,7 +395,10 @@ def submit_quiz(skill_id):
         'quiz_score_percent': quiz_score_percent,
         'correct_count': correct_count,
         'total_questions': total_questions,
-        'verification_score': verification_score
+        'verification_score': verification_score,
+        'proficiency': skill.proficiency,
+        'review': review,
+        'incorrect_by_difficulty': weak_by_level,
     }), 201
 
 
@@ -469,34 +540,61 @@ def generate_roadmap():
 
     db.session.commit()
 
-    plan_rows = StudyPlan.query.filter_by(student_id=current_user.id) \
-        .order_by(StudyPlan.skill_name, StudyPlan.day_number).all()
+    return jsonify({'roadmap': _ordered_roadmap(current_user.id)}), 200
+
+
+def _ordered_roadmap(student_id):
+    """Roadmap grouped by skill, ordered required gaps first (in the career's
+    priority order), then nice-to-have gaps. Each group says whether the skill
+    already appears on the student's resume, so they can verify it with a quiz
+    instead of studying it from scratch."""
+    plan_rows = StudyPlan.query.filter_by(student_id=student_id) \
+        .order_by(StudyPlan.day_number).all()
+    if not plan_rows:
+        return []
+
+    gaps = SkillGap.query.filter_by(student_id=student_id).order_by(SkillGap.id).all()
+    rank = {'high': 0, 'medium': 1, 'low': 2}
+    gap_order = {}
+    for pos, g in enumerate(gaps):
+        key = (g.missing_skill or '').lower()
+        gap_order.setdefault(key, (rank.get((g.importance or '').lower(), 3), pos, g))
+
+    resume_skills = {s.skill_name.lower(): s for s in Skill.query.filter_by(student_id=student_id).all()}
 
     grouped = {}
     for p in plan_rows:
         grouped.setdefault(p.skill_name, []).append(p.to_dict())
 
-    return jsonify({
-        'roadmap': [{'skill': s, 'days': d} for s, d in grouped.items()]
-    }), 200
+    def sort_key(skill):
+        return gap_order.get((skill or '').lower(), (9, 999, None))[:2]
+
+    out = []
+    for skill in sorted(grouped, key=sort_key):
+        g = gap_order.get((skill or '').lower(), (None, None, None))[2]
+        on_resume = resume_skills.get((skill or '').lower())
+        out.append({
+            'skill': skill,
+            'importance': g.importance if g else None,
+            'category': g.category if g else None,
+            'already_on_resume': on_resume is not None,
+            'evidence_strength': on_resume.evidence_strength if on_resume else None,
+            'recommendation': (
+                f"Your resume already shows {skill}. Take its verification quiz first - "
+                f"you may only need the later, more advanced days."
+                if on_resume is not None else None),
+            'days': grouped[skill],
+        })
+    return out
 
 
 @student_bp.route('/get_roadmap', methods=['GET'])
 @login_required
 def get_roadmap():
-    plan_rows = StudyPlan.query.filter_by(student_id=current_user.id) \
-        .order_by(StudyPlan.skill_name, StudyPlan.day_number).all()
-
-    if not plan_rows:
+    roadmap = _ordered_roadmap(current_user.id)
+    if not roadmap:
         return jsonify({'roadmap': [], 'message': 'No roadmap yet.'}), 200
-
-    grouped = {}
-    for p in plan_rows:
-        grouped.setdefault(p.skill_name, []).append(p.to_dict())
-
-    return jsonify({
-        'roadmap': [{'skill': s, 'days': d} for s, d in grouped.items()]
-    }), 200
+    return jsonify({'roadmap': roadmap}), 200
 
 
 @student_bp.route('/complete_roadmap_day/<int:plan_id>', methods=['POST'])
@@ -857,18 +955,19 @@ def get_student_privacy_info():
     """
     return jsonify({
         'title': 'Privacy-Preserving Intelligence',
-        'description': 'Your career data is protected using privacy-preserving learning techniques.',
+        'description': 'How SkillBridge handles your data, stated plainly.',
         'guarantees': [
-            'Raw training data remains local',
-            'Model updates are shared',
-            'Federated aggregation is used',
-            'Differential Privacy provides additional protection'
+            'Your resume, skills and quiz results are only accessible to your account',
+            'You can export or permanently delete your data at any time',
+            'The federated-learning module is a simulation on synthetic data',
+            'Federated updates are clipped and noised; no formal differential-privacy guarantee is claimed'
         ],
         'details': {
-            'local_sovereignty': 'Raw resumes, transcripts, and quiz responses remain on-premise.',
-            'gradient_sharing': 'Only numerical model weights (gradients) are communicated.',
-            'aggregation_method': 'Federated Averaging (FedAvg) aggregates distributed updates.',
-            'differential_privacy': 'Calibrated Gaussian perturbation prevents reconstruction attacks.'
+            'data_storage': 'Uploaded resumes are stored on the SkillBridge server so they can be parsed and analysed.',
+            'access_control': 'Every student endpoint is scoped to the logged-in account.',
+            'aggregation_method': 'The FL simulation uses Federated Averaging over simulated partitions.',
+            'differential_privacy': 'Update clipping + Gaussian noise are applied, but no privacy accountant is '
+                                    'implemented, so no epsilon/delta is claimed.'
         }
     }), 200
 
@@ -1161,7 +1260,28 @@ def get_jobs():
     except (ValueError, TypeError):
         limit = 50
 
-    jobs = job_discovery_service.search_jobs(
+    def _flag(name):
+        v = request.args.get(name)
+        return v is not None and v.lower() in ('true', '1', 'yes')
+
+    def _float(name):
+        try:
+            v = request.args.get(name)
+            return float(v) if v not in (None, '') else None
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+    except (TypeError, ValueError):
+        page = 1
+    sort = request.args.get('sort', 'relevance')
+    if sort not in ('relevance', 'recent', 'match', 'salary'):
+        sort = 'relevance'
+    opportunity = (request.args.get('opportunity') or '').lower()  # job | internship
+    internship = True if opportunity == 'internship' else False if opportunity == 'job' else None
+
+    result = job_discovery_service.search_jobs(
         query=query,
         job_type=job_type,
         domain=domain,
@@ -1169,8 +1289,22 @@ def get_jobs():
         skill=skill,
         is_sample=is_sample,
         region=region,
-        limit=limit
+        limit=limit,
+        location=request.args.get('location'),
+        company=request.args.get('company'),
+        entry_level=_flag('entry_level'),
+        internship=internship,
+        experience_max=_float('experience_max'),
+        salary_min=_float('salary_min'),
+        date_posted=request.args.get('date_posted'),
+        include_expired=_flag('include_expired'),
+        sort=sort,
+        page=page,
+        student=current_user,
+        min_match=_float('min_match'),
+        return_meta=True,
     )
+    jobs = result['jobs']
 
     # Attach whether the student has saved each job
     saved_ids = set(
@@ -1196,8 +1330,12 @@ def get_jobs():
 
     return jsonify({
         'jobs': jobs,
-        'total': len(jobs),
-        'total_count': len(jobs),
+        'total': result['total'],
+        'total_count': result['total'],
+        'page': result['page'],
+        'pages': result['pages'],
+        'per_page': result['per_page'],
+        'sort': sort,
         'applied_count': len(applications_map)
     }), 200
 
@@ -1219,9 +1357,181 @@ def get_job_detail(job_id):
 @student_bp.route('/jobs/sync', methods=['POST'])
 @login_required
 def sync_job_sources():
+    # Provider quotas are small and shared by everyone, so only admins may
+    # trigger an extra sync. Listings refresh automatically every two hours.
+    if not current_user.is_admin:
+        from utils.job_discovery.sync_service import next_due_at
+        return jsonify({
+            'error': 'Job listings refresh automatically every two hours. Manual sync is limited to administrators.',
+            'next_scheduled_sync': next_due_at().isoformat()
+        }), 403
     from utils.job_discovery import job_discovery_service
-    result = job_discovery_service.sync_all_sources(limit_per_source=25)
+    from utils.audit import audit
+    result = job_discovery_service.discover_and_sync(trigger='manual', actor_id=current_user.id)
+    audit('jobs.manual_sync', actor_id=current_user.id, target=f"job_sync_run:{result['run']['id']}",
+          details={'status': result['status']})
     return jsonify(result), 200
+
+
+# ─────────────────────────────────────────
+# JOB PREFERENCES & ALERTS
+# ─────────────────────────────────────────
+def _clean_str_list(value, max_items=15, max_len=80):
+    if not isinstance(value, list):
+        return []
+    out = []
+    for v in value[:max_items]:
+        if isinstance(v, str) and v.strip():
+            out.append(v.strip()[:max_len])
+    return out
+
+
+@student_bp.route('/job_preferences', methods=['GET'])
+@login_required
+def get_job_preferences():
+    from models import JobPreference
+    pref = JobPreference.query.filter_by(student_id=current_user.id).first()
+    default = {'preferred_roles': [], 'preferred_locations': [], 'work_modes': [], 'job_types': [],
+               'experience_years': 0.0, 'open_to_relocation': False, 'updated_at': None}
+    return jsonify({'preferences': pref.to_dict() if pref else default, 'is_set': pref is not None}), 200
+
+
+@student_bp.route('/job_preferences', methods=['PUT', 'POST'])
+@login_required
+def update_job_preferences():
+    import json as _json
+    from models import JobPreference
+    data = request.get_json(silent=True) or {}
+    try:
+        years = float(data.get('experience_years', 0) or 0)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'experience_years must be a number'}), 400
+    if not 0 <= years <= 50:
+        return jsonify({'error': 'experience_years must be between 0 and 50'}), 400
+    modes = [m for m in _clean_str_list(data.get('work_modes')) if m.lower() in ('remote', 'hybrid', 'onsite')]
+    pref = JobPreference.query.filter_by(student_id=current_user.id).first()
+    if pref is None:
+        pref = JobPreference(student_id=current_user.id)
+        db.session.add(pref)
+    pref.preferred_roles = _json.dumps(_clean_str_list(data.get('preferred_roles')))
+    pref.preferred_locations = _json.dumps(_clean_str_list(data.get('preferred_locations')))
+    pref.work_modes = _json.dumps(modes)
+    pref.job_types = _json.dumps(_clean_str_list(data.get('job_types')))
+    pref.experience_years = years
+    pref.open_to_relocation = bool(data.get('open_to_relocation', False))
+    db.session.commit()
+    return jsonify({'message': 'Job preferences saved', 'preferences': pref.to_dict()}), 200
+
+
+@student_bp.route('/job_alerts', methods=['GET'])
+@login_required
+def list_job_alerts():
+    from models import JobAlert
+    alerts = JobAlert.query.filter_by(student_id=current_user.id).order_by(JobAlert.created_at.desc()).all()
+    return jsonify({'alerts': [a.to_dict() for a in alerts]}), 200
+
+
+def _apply_alert_payload(alert, data):
+    import json as _json
+    name = (data.get('name') or '').strip()
+    if not name and alert.name is None:
+        return 'name is required'
+    if name:
+        alert.name = name[:120]
+    for field in ('roles', 'locations', 'skills', 'job_types', 'work_modes'):
+        if field in data:
+            setattr(alert, field, _json.dumps(_clean_str_list(data.get(field))))
+    if 'frequency' in data:
+        if data['frequency'] not in ('instant', 'daily', 'weekly'):
+            return "frequency must be 'instant', 'daily' or 'weekly'"
+        alert.frequency = data['frequency']
+    if 'min_match_score' in data:
+        try:
+            score = float(data['min_match_score'])
+        except (TypeError, ValueError):
+            return 'min_match_score must be a number'
+        if not 0 <= score <= 100:
+            return 'min_match_score must be between 0 and 100'
+        alert.min_match_score = score
+    if 'is_active' in data:
+        alert.is_active = bool(data['is_active'])
+    if not any(_json.loads(getattr(alert, f) or '[]') for f in ('roles', 'skills', 'locations')):
+        return 'An alert needs at least one role, skill or location'
+    return None
+
+
+@student_bp.route('/job_alerts', methods=['POST'])
+@login_required
+def create_job_alert():
+    from models import JobAlert
+    if JobAlert.query.filter_by(student_id=current_user.id).count() >= 10:
+        return jsonify({'error': 'You can have at most 10 job alerts'}), 400
+    data = request.get_json(silent=True) or {}
+    alert = JobAlert(student_id=current_user.id, name=None, roles='[]', locations='[]', skills='[]',
+                     job_types='[]', work_modes='[]', frequency='daily', min_match_score=50.0, is_active=True)
+    err = _apply_alert_payload(alert, data)
+    if err:
+        return jsonify({'error': err}), 400
+    db.session.add(alert)
+    db.session.commit()
+    return jsonify({'message': 'Job alert created', 'alert': alert.to_dict()}), 201
+
+
+@student_bp.route('/job_alerts/<int:alert_id>', methods=['PUT', 'PATCH'])
+@login_required
+def update_job_alert(alert_id):
+    from models import JobAlert
+    alert = JobAlert.query.filter_by(id=alert_id, student_id=current_user.id).first()
+    if not alert:
+        return jsonify({'error': 'Alert not found'}), 404
+    err = _apply_alert_payload(alert, request.get_json(silent=True) or {})
+    if err:
+        db.session.rollback()
+        return jsonify({'error': err}), 400
+    db.session.commit()
+    return jsonify({'message': 'Job alert updated', 'alert': alert.to_dict()}), 200
+
+
+@student_bp.route('/job_alerts/<int:alert_id>', methods=['DELETE'])
+@login_required
+def delete_job_alert(alert_id):
+    from models import JobAlert
+    alert = JobAlert.query.filter_by(id=alert_id, student_id=current_user.id).first()
+    if not alert:
+        return jsonify({'error': 'Alert not found'}), 404
+    db.session.delete(alert)
+    db.session.commit()
+    return jsonify({'message': 'Job alert deleted'}), 200
+
+
+@student_bp.route('/job_alerts/notifications', methods=['GET'])
+@login_required
+def get_job_alert_notifications():
+    from models import JobAlertMatch
+    unread_only = request.args.get('unread_only', '').lower() in ('1', 'true')
+    q = JobAlertMatch.query.filter(JobAlertMatch.student_id == current_user.id,
+                                   JobAlertMatch.released_at.isnot(None))
+    if unread_only:
+        q = q.filter(JobAlertMatch.is_read.is_(False))
+    items = q.order_by(JobAlertMatch.released_at.desc()).limit(50).all()
+    unread = JobAlertMatch.query.filter(JobAlertMatch.student_id == current_user.id,
+                                        JobAlertMatch.released_at.isnot(None),
+                                        JobAlertMatch.is_read.is_(False)).count()
+    return jsonify({'notifications': [m.to_dict() for m in items], 'unread_count': unread}), 200
+
+
+@student_bp.route('/job_alerts/notifications/read', methods=['POST'])
+@login_required
+def mark_job_alert_notifications_read():
+    from models import JobAlertMatch
+    data = request.get_json(silent=True) or {}
+    ids = data.get('ids')
+    q = JobAlertMatch.query.filter(JobAlertMatch.student_id == current_user.id)
+    if isinstance(ids, list) and ids:
+        q = q.filter(JobAlertMatch.id.in_([int(i) for i in ids if str(i).isdigit()]))
+    updated = q.update({'is_read': True}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'updated': updated}), 200
 
 
 @student_bp.route('/jobs/quality_metrics', methods=['GET'])
@@ -1321,10 +1631,11 @@ def apply_to_job(job_id=None):
 
     # Calculate deterministic match score at time of application
     try:
-        eval_res = evaluate_job_match(current_user, job)
-        match_score = float(eval_res.get('match_score', 0.0))
+        eval_res = evaluate_job_match(current_user, job, include_resources=False)
+        match_score = eval_res.get('match_score')  # None when the posting lists no skills
     except Exception:
-        match_score = 0.0
+        current_app.logger.exception('Match scoring failed during application')
+        match_score = None
 
     new_app = JobApplication(
         student_id=current_user.id,
@@ -1409,8 +1720,9 @@ def get_job_match_breakdown(job_id):
         matched_list.append({'skill': s, 'is_verified': True})
     for s in evaluation.get('matched_skills', {}).get('unverified', []):
         matched_list.append({'skill': s, 'is_verified': False})
+    status = evaluation.get('skill_status', {})
     for s in evaluation.get('matched_skills', {}).get('preferred', []):
-        matched_list.append({'skill': s, 'is_verified': True, 'is_preferred': True})
+        matched_list.append({'skill': s, 'is_verified': status.get(s) == 'verified', 'is_preferred': True})
 
     missing_mandatory = evaluation.get('missing_skills', {}).get('mandatory', [])
     missing_preferred = evaluation.get('missing_skills', {}).get('preferred', [])
@@ -1419,12 +1731,13 @@ def get_job_match_breakdown(job_id):
     resource_map = {}
     for r in evaluation.get('curated_resources', []):
         sk = r.get('skill_query') or (missing_mandatory[0] if missing_mandatory else 'technology')
+        url = r.get('url') or ''
         if sk not in resource_map:
             resource_map[sk] = {}
-        if r.get('source_type') == 'YouTube':
-            resource_map[sk]['youtube'] = r.get('url')
-        elif r.get('source_type') == 'GitHub':
-            resource_map[sk]['github'] = r.get('url')
+        if 'youtube.com' in url and 'youtube' not in resource_map[sk]:
+            resource_map[sk]['youtube'] = url
+        elif 'github.com' in url and 'github' not in resource_map[sk]:
+            resource_map[sk]['github'] = url
 
     # Format transferable bridges with transfer_coefficient
     bridges = []

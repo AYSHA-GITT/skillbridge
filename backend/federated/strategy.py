@@ -55,7 +55,8 @@ class PrivacyPreservingFedAvg(fl.server.strategy.FedAvg):
         metrics_aggregated: Dict[str, Scalar] = {
             'server_round': server_round,
             'participating_nodes': len(results),
-            'privacy_epsilon': round(0.85 + (server_round * 0.04), 3)
+            # No privacy accountant is implemented, so no epsilon is claimed.
+            'privacy_epsilon': None
         }
 
         return parameters_aggregated, metrics_aggregated

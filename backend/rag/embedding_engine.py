@@ -94,15 +94,27 @@ class EmbeddingEngine:
 
         return embeddings
 
+    @property
+    def engine_name(self) -> str:
+        """Which encoder is actually producing vectors (reported to the UI/admin)."""
+        self._load_model()
+        if self._model is not None and not self._use_fallback:
+            return f"sentence-transformers/{self.model_name} (semantic embeddings)"
+        return "hashed bag-of-words fallback (keyword overlap only, NOT semantic)"
+
     def _fallback_encode(self, texts: list[str]) -> np.ndarray:
         """
-        Deterministic word-hash bag-of-words projection for zero-downtime fallback.
+        Hashed bag-of-words projection used only when the sentence-transformer
+        model cannot be loaded. It captures keyword overlap, not meaning.
+        Uses a stable CRC32 hash: Python's built-in hash() is randomized per
+        process, which made fallback vectors differ after every restart.
         """
+        import zlib
         embeddings = np.zeros((len(texts), self._dim), dtype='float32')
         for i, text in enumerate(texts):
             words = text.lower().replace(",", " ").replace(".", " ").split()
             for w in words:
-                h = abs(hash(w)) % self._dim
+                h = zlib.crc32(w.encode('utf-8')) % self._dim
                 embeddings[i, h] += 1.0
             norm = np.linalg.norm(embeddings[i])
             if norm > 0:

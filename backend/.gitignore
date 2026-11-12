@@ -5,3 +5,6 @@ uploads/
 cookies.txt
 venv/
 .venv/
+
+# runtime artifacts
+ml/models/fl_global.npz

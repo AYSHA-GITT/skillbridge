@@ -54,6 +54,11 @@ class Student(BaseModel, UserMixin):
                                    lazy=True, cascade='all, delete-orphan')
     interviews = db.relationship('InterviewSession', backref='student',
                                   lazy=True, cascade='all, delete-orphan')
+    job_preference = db.relationship('JobPreference', uselist=False, lazy=True,
+                                     cascade='all, delete-orphan')
+    job_alerts = db.relationship('JobAlert', lazy=True, cascade='all, delete-orphan')
+    job_alert_matches = db.relationship('JobAlertMatch', lazy=True, cascade='all, delete-orphan',
+                                        overlaps='matches')
 
 
     def set_password(self, password):
@@ -115,17 +120,33 @@ class Skill(BaseModel):
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     resume_id = db.Column(db.Integer, db.ForeignKey('resumes.id'))
     skill_name = db.Column(db.String(100), nullable=False)
-    extraction_confidence = db.Column(db.Float)  # 0.0 to 1.0, from NLP
+    # Rule-based certainty that the resume text refers to this skill (not a probability)
+    extraction_confidence = db.Column(db.Float)
     proficiency = db.Column(db.String(50))  # inferred: Beginner/Intermediate/Advanced
+    # How well the resume supports the skill: applied | supporting | listed_only | unclassified
+    evidence_strength = db.Column(db.String(20))
+    evidence = db.Column(db.Text)  # JSON list of {section, snippet}
+    extraction_explanation = db.Column(db.String(400))
+    category = db.Column(db.String(50))
     added_on = db.Column(db.DateTime, default=utc_now)
+
+    def get_evidence(self):
+        try:
+            return json.loads(self.evidence) if self.evidence else []
+        except Exception:
+            return []
 
     def to_dict(self):
         return {
             'id': self.id,
             'skill_name': self.skill_name,
             'extraction_confidence': self.extraction_confidence,
+            'evidence_strength': self.evidence_strength,
+            'evidence': self.get_evidence(),
+            'extraction_explanation': self.extraction_explanation,
+            'category': self.category,
             'proficiency': self.proficiency,
-            'added_on': self.added_on.isoformat()
+            'added_on': self.added_on.isoformat() if self.added_on else None
         }
 
 
@@ -336,14 +357,85 @@ class JobListing(BaseModel):
     application_url = db.Column(db.String(500))
     source = db.Column(db.String(100), default='SkillBridge Verified Index')
     is_sample = db.Column(db.Boolean, default=False)  # Clearly labels demo vs live scraped
-    posting_date = db.Column(db.DateTime, default=utc_now)
+    # Date the PROVIDER says the job was posted. NULL when the provider does not supply one;
+    # never filled with the fetch time, so re-fetching cannot make an old job look new.
+    posting_date = db.Column(db.DateTime, nullable=True)
     deadline = db.Column(db.DateTime, nullable=True)
     collected_at = db.Column(db.DateTime, default=utc_now)
+
+    # ── Provenance & deduplication ───────────────────────────────────────
+    source_provider = db.Column(db.String(50), index=True)    # adzuna | jooble | arbeitnow | curated_sample
+    source_job_id = db.Column(db.String(200))                 # provider's own identifier
+    original_url = db.Column(db.String(1000))                 # posting URL as given by provider
+    canonical_url = db.Column(db.String(1000), index=True)    # normalized URL used for dedup
+    fingerprint = db.Column(db.String(64), index=True)        # hash(title|company|city) for cross-provider dup detection
+    content_hash = db.Column(db.String(64))                   # detects changed descriptions/metadata
+    duplicate_of_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=True)
+
+    # ── Location / structured metadata ───────────────────────────────────
+    country = db.Column(db.String(60))
+    state = db.Column(db.String(120))
+    city = db.Column(db.String(120))
+    career_category = db.Column(db.String(100), index=True)
+    is_entry_level = db.Column(db.Boolean)
+    experience_min_years = db.Column(db.Float)
+    experience_max_years = db.Column(db.Float)
+    skills_source = db.Column(db.String(30))  # provider_tags | description_text | curated | none
+
+    # ── Salary (only what the provider states) ───────────────────────────
+    salary_min = db.Column(db.Float)
+    salary_max = db.Column(db.Float)
+    salary_currency = db.Column(db.String(8))
+    salary_period = db.Column(db.String(20))           # year | month | week | day | hour
+    salary_is_estimated = db.Column(db.Boolean)        # True when the provider flags it as predicted
+
+    # ── Freshness / lifecycle ────────────────────────────────────────────
+    status = db.Column(db.String(20), default='active', index=True)  # active | stale | expired | sample
+    first_seen_at = db.Column(db.DateTime, default=utc_now)
+    last_seen_at = db.Column(db.DateTime)        # last time the provider returned this job
+    last_verified_at = db.Column(db.DateTime)    # last evidence from source that the job is open
+    last_synced_at = db.Column(db.DateTime)
+    last_changed_at = db.Column(db.DateTime)
+    expired_at = db.Column(db.DateTime)
+    expiry_reason = db.Column(db.String(200))
+    times_seen = db.Column(db.Integer, default=1)
 
     saved_by = db.relationship('SavedJob', back_populates='job', lazy=True, cascade='all, delete-orphan')
     applications = db.relationship('JobApplication', back_populates='job', lazy=True, cascade='all, delete-orphan')
 
+    def freshness(self, now=None):
+        """User-facing freshness labels derived from real timestamps only."""
+        now = now or datetime.now(timezone.utc)
 
+        def _aware(dt):
+            if dt is None:
+                return None
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+        posted = _aware(self.posting_date)
+        verified = _aware(self.last_verified_at)
+        posted_days = (now - posted).days if posted else None
+        if self.is_sample or self.status == 'sample':
+            verification = 'sample'
+        elif self.status == 'expired':
+            verification = 'expired'
+        elif verified and (now - verified).total_seconds() <= 26 * 3600:
+            verification = 'verified'
+        elif verified:
+            verification = 'unverified_recently'
+        else:
+            verification = 'unverified'
+        return {
+            'posted_days_ago': posted_days,
+            'posted_label': (
+                'Posting date not provided' if posted_days is None else
+                'Posted today' if posted_days <= 0 else
+                f'Posted {posted_days} day{"s" if posted_days != 1 else ""} ago'
+            ),
+            'is_recent': posted_days is not None and posted_days <= 3,
+            'last_checked_at': verified.isoformat() if verified else None,
+            'verification_status': verification,
+        }
 
     def get_required_skills(self):
         try:
@@ -381,6 +473,36 @@ class JobListing(BaseModel):
             'posting_date': self.posting_date.isoformat() if self.posting_date else None,
             'deadline': self.deadline.isoformat() if self.deadline else None,
             'collected_at': self.collected_at.isoformat() if self.collected_at else None,
+            'source_provider': self.source_provider,
+            'original_url': self.original_url,
+            'country': self.country,
+            'state': self.state,
+            'city': self.city,
+            'career_category': self.career_category,
+            'is_entry_level': self.is_entry_level,
+            'experience_min_years': self.experience_min_years,
+            'experience_max_years': self.experience_max_years,
+            'skills_source': self.skills_source,
+            'salary': {
+                'min': self.salary_min,
+                'max': self.salary_max,
+                'currency': self.salary_currency,
+                'period': self.salary_period,
+                'is_estimated': self.salary_is_estimated,
+                'label': (
+                    None if (self.salary_min is None and self.salary_max is None) else
+                    'Estimated by provider' if self.salary_is_estimated else 'Advertised by employer'
+                ),
+            },
+            'status': self.status or 'active',
+            'duplicate_of_id': self.duplicate_of_id,
+            'first_seen_at': self.first_seen_at.isoformat() if self.first_seen_at else None,
+            'last_seen_at': self.last_seen_at.isoformat() if self.last_seen_at else None,
+            'last_verified_at': self.last_verified_at.isoformat() if self.last_verified_at else None,
+            'last_synced_at': self.last_synced_at.isoformat() if self.last_synced_at else None,
+            'expired_at': self.expired_at.isoformat() if self.expired_at else None,
+            'expiry_reason': self.expiry_reason,
+            'freshness': self.freshness(),
         }
 
 
@@ -550,4 +672,205 @@ class InterviewQA(BaseModel):
             'missing_points': self.get_missing_points(),
             'sample_answer': self.sample_answer,
             'answered_at': self.answered_at.isoformat() if self.answered_at else None,
+        }
+
+
+# ─────────────────────────────────────────
+# JOB SYNCHRONIZATION BOOKKEEPING
+# ─────────────────────────────────────────
+class JobSyncRun(BaseModel):
+    """One execution of the job synchronization pipeline (scheduled, manual or CLI)."""
+    __tablename__ = 'job_sync_runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    trigger = db.Column(db.String(20), nullable=False)          # scheduled | manual | cli
+    triggered_by = db.Column(db.Integer, nullable=True)         # student id of admin (no FK: survives deletion)
+    status = db.Column(db.String(20), nullable=False, default='running', index=True)
+    # running | success | partial | failed | skipped
+    started_at = db.Column(db.DateTime, default=utc_now, index=True)
+    finished_at = db.Column(db.DateTime)
+    fetched_count = db.Column(db.Integer, default=0)
+    inserted_count = db.Column(db.Integer, default=0)
+    updated_count = db.Column(db.Integer, default=0)
+    unchanged_count = db.Column(db.Integer, default=0)
+    duplicate_count = db.Column(db.Integer, default=0)
+    invalid_count = db.Column(db.Integer, default=0)
+    expired_count = db.Column(db.Integer, default=0)
+    stale_count = db.Column(db.Integer, default=0)
+    alerts_created = db.Column(db.Integer, default=0)
+    provider_results = db.Column(db.Text, default='{}')  # JSON {provider: {...}}
+    error = db.Column(db.Text)
+
+    def get_provider_results(self):
+        try:
+            return json.loads(self.provider_results) if self.provider_results else {}
+        except Exception:
+            return {}
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'trigger': self.trigger,
+            'triggered_by': self.triggered_by,
+            'status': self.status,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'finished_at': self.finished_at.isoformat() if self.finished_at else None,
+            'fetched_count': self.fetched_count,
+            'inserted_count': self.inserted_count,
+            'updated_count': self.updated_count,
+            'unchanged_count': self.unchanged_count,
+            'duplicate_count': self.duplicate_count,
+            'invalid_count': self.invalid_count,
+            'expired_count': self.expired_count,
+            'stale_count': self.stale_count,
+            'alerts_created': self.alerts_created,
+            'provider_results': self.get_provider_results(),
+            'error': self.error,
+        }
+
+
+class SchedulerLease(BaseModel):
+    """
+    Database lease that guarantees only ONE sync runs at a time, across
+    processes, workers and machines. A lease expires automatically so a
+    crashed worker cannot block synchronization forever.
+    """
+    __tablename__ = 'scheduler_leases'
+
+    name = db.Column(db.String(64), primary_key=True)
+    owner = db.Column(db.String(128))
+    acquired_at = db.Column(db.DateTime)
+    expires_at = db.Column(db.DateTime)
+
+
+# ─────────────────────────────────────────
+# STUDENT JOB PREFERENCES & ALERTS
+# ─────────────────────────────────────────
+def _json_list(value):
+    try:
+        data = json.loads(value) if value else []
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+class JobPreference(BaseModel):
+    __tablename__ = 'job_preferences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, unique=True)
+    preferred_roles = db.Column(db.Text, default='[]')
+    preferred_locations = db.Column(db.Text, default='[]')
+    work_modes = db.Column(db.Text, default='[]')        # Remote / Hybrid / Onsite
+    job_types = db.Column(db.Text, default='[]')         # Full-time / Internship / Contract ...
+    experience_years = db.Column(db.Float, default=0.0)
+    open_to_relocation = db.Column(db.Boolean, default=False)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+    def to_dict(self):
+        return {
+            'preferred_roles': _json_list(self.preferred_roles),
+            'preferred_locations': _json_list(self.preferred_locations),
+            'work_modes': _json_list(self.work_modes),
+            'job_types': _json_list(self.job_types),
+            'experience_years': self.experience_years or 0.0,
+            'open_to_relocation': bool(self.open_to_relocation),
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class JobAlert(BaseModel):
+    __tablename__ = 'job_alerts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    roles = db.Column(db.Text, default='[]')
+    locations = db.Column(db.Text, default='[]')
+    skills = db.Column(db.Text, default='[]')
+    job_types = db.Column(db.Text, default='[]')
+    work_modes = db.Column(db.Text, default='[]')
+    min_match_score = db.Column(db.Float, default=50.0)
+    frequency = db.Column(db.String(20), default='daily')   # instant | daily | weekly
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=utc_now)
+    last_evaluated_at = db.Column(db.DateTime)
+    last_notified_at = db.Column(db.DateTime)
+
+    matches = db.relationship('JobAlertMatch', lazy=True, cascade='all, delete-orphan',
+                              overlaps='job_alert_matches')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'roles': _json_list(self.roles),
+            'locations': _json_list(self.locations),
+            'skills': _json_list(self.skills),
+            'job_types': _json_list(self.job_types),
+            'work_modes': _json_list(self.work_modes),
+            'min_match_score': self.min_match_score,
+            'frequency': self.frequency,
+            'is_active': bool(self.is_active),
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'last_evaluated_at': self.last_evaluated_at.isoformat() if self.last_evaluated_at else None,
+            'last_notified_at': self.last_notified_at.isoformat() if self.last_notified_at else None,
+        }
+
+
+class JobAlertMatch(BaseModel):
+    """A job surfaced to a student by an alert. Unique per (student, job) so the
+    same job is never alerted twice, even if several alerts match it."""
+    __tablename__ = 'job_alert_matches'
+    __table_args__ = (db.UniqueConstraint('student_id', 'job_id', name='uq_alert_match_student_job'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    alert_id = db.Column(db.Integer, db.ForeignKey('job_alerts.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=False)
+    match_score = db.Column(db.Float)
+    created_at = db.Column(db.DateTime, default=utc_now)
+    released_at = db.Column(db.DateTime)   # when it became visible (respects alert frequency)
+    is_read = db.Column(db.Boolean, default=False)
+
+    job = db.relationship('JobListing', foreign_keys=[job_id])
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'alert_id': self.alert_id,
+            'job_id': self.job_id,
+            'match_score': self.match_score,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'released_at': self.released_at.isoformat() if self.released_at else None,
+            'is_read': bool(self.is_read),
+            'job': self.job.to_dict() if self.job else None,
+        }
+
+
+# ─────────────────────────────────────────
+# AUDIT LOG
+# ─────────────────────────────────────────
+class AuditLog(BaseModel):
+    __tablename__ = 'audit_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    actor_id = db.Column(db.Integer, nullable=True, index=True)   # no FK: entries survive account deletion
+    action = db.Column(db.String(80), nullable=False, index=True)
+    target = db.Column(db.String(200))
+    details = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=utc_now, index=True)
+
+    def to_dict(self):
+        try:
+            details = json.loads(self.details) if self.details else None
+        except Exception:
+            details = self.details
+        return {
+            'id': self.id,
+            'actor_id': self.actor_id,
+            'action': self.action,
+            'target': self.target,
+            'details': details,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

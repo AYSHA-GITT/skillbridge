@@ -190,6 +190,63 @@ export const skillService = {
     return response.data;
   },
 
+  // Job preferences & alerts
+  getJobPreferences: async () => {
+    const response = await api.get('/student/job_preferences');
+    return response.data;
+  },
+
+  saveJobPreferences: async (prefs) => {
+    const response = await api.put('/student/job_preferences', prefs);
+    return response.data;
+  },
+
+  getJobAlerts: async () => {
+    const response = await api.get('/student/job_alerts');
+    return response.data;
+  },
+
+  createJobAlert: async (alert) => {
+    const response = await api.post('/student/job_alerts', alert);
+    return response.data;
+  },
+
+  updateJobAlert: async (alertId, changes) => {
+    const response = await api.put(`/student/job_alerts/${alertId}`, changes);
+    return response.data;
+  },
+
+  deleteJobAlert: async (alertId) => {
+    const response = await api.delete(`/student/job_alerts/${alertId}`);
+    return response.data;
+  },
+
+  getJobAlertNotifications: async () => {
+    const response = await api.get('/student/job_alerts/notifications');
+    return response.data;
+  },
+
+  markJobAlertNotificationsRead: async (ids = null) => {
+    const response = await api.post('/student/job_alerts/notifications/read', ids ? { ids } : {});
+    return response.data;
+  },
+
+  // Admin job sync monitoring
+  getAdminJobsOverview: async () => {
+    const response = await api.get('/admin/jobs/overview');
+    return response.data;
+  },
+
+  adminSyncJobs: async () => {
+    const response = await api.post('/admin/jobs/sync');
+    return response.data;
+  },
+
+  getAdminSystemHealth: async () => {
+    const response = await api.get('/admin/system/health');
+    return response.data;
+  },
+
   saveJob: async (jobId) => {
     const response = await api.post('/student/jobs/save', { job_id: jobId });
     return response.data;

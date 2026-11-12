@@ -128,7 +128,7 @@ export default function Readiness() {
 
                 <div className="pt-2 border-t border-base-800 flex items-center justify-between text-xs text-white/40">
                   <span>Privacy Mode: Active</span>
-                  <span className="text-accent-400">Differential Privacy Guaranteed</span>
+                  <span className="text-accent-400">Your data is only visible to your account</span>
                 </div>
               </div>
             </div>

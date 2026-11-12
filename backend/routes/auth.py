@@ -8,25 +8,33 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     required_fields = ['name', 'email', 'password', 'college', 'course']
     for field in required_fields:
-        if not data.get(field):
+        if not data.get(field) or not isinstance(data.get(field), str):
             return jsonify({'error': f'{field} is required'}), 400
 
-    existing_student = Student.query.filter_by(email=data['email']).first()
+    email = data['email'].strip().lower()
+    if '@' not in email or '.' not in email.split('@')[-1] or len(email) > 100:
+        return jsonify({'error': 'Please enter a valid email address'}), 400
+    if len(data['password']) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    existing_student = Student.query.filter(db.func.lower(Student.email) == email).first()
     if existing_student:
         return jsonify({'error': 'An account with this email already exists'}), 409
 
+    # SECURITY: role is never taken from the request - self-registration always
+    # creates a student. Admins are created with `flask --app app users make-admin`.
     new_student = Student(
-        name=data['name'],
-        email=data['email'],
-        college=data['college'],
-        course=data['course'],
+        name=data['name'].strip()[:100],
+        email=email,
+        college=data['college'].strip()[:200],
+        course=data['course'].strip()[:200],
         year=data.get('year'),
         target_career=data.get('target_career'),
-        role=data.get('role', 'student')
+        role='student'
     )
     new_student.set_password(data['password'])
 
@@ -43,12 +51,14 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
     if not data.get('email') or not data.get('password'):
         return jsonify({'error': 'Email and password are required'}), 400
 
-    student = Student.query.filter_by(email=data['email']).first()
+    email = str(data['email']).strip()
+    student = Student.query.filter_by(email=email).first() or \
+        Student.query.filter(db.func.lower(Student.email) == email.lower()).first()
 
     if not student or not student.check_password(data['password']):
         return jsonify({'error': 'Invalid email or password'}), 401

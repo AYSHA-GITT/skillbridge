@@ -1,200 +1,209 @@
-import numpy as np
+"""
+Federated learning SIMULATION.
+
+What this module really does (stated plainly so the UI never over-claims):
+* The four "institutions" are SIMULATED partitions of SYNTHETIC data generated
+  in federated/client.py. No real college or student data participates.
+* Each round: every client starts from the current global model, trains
+  locally (SGD logistic regression), and sends its model update.
+* Server-side protection: each client UPDATE (delta from the global model) is
+  L2-clipped to CLIP_NORM, the clipped updates are averaged with sample
+  weights, and Gaussian noise with std = NOISE_MULTIPLIER x CLIP_NORM / n_clients
+  is added - the DP-FedAvg mechanism.
+* No privacy accountant is implemented, so NO (epsilon, delta) guarantee is
+  claimed. `privacy_epsilon` is reported as None. With only 4 clients,
+  client-level DP would in any case give a very weak guarantee.
+* Global accuracy is MEASURED on a fixed, seeded held-out synthetic test set.
+  No floors, offsets or per-round bonuses are applied.
+"""
+import os
 from datetime import datetime, timezone
+
+import numpy as np
+
 from extensions import db
 from models import FLTrainingRound
 from federated.client import InstitutionClient
-from federated.strategy import PrivacyPreservingFedAvg
 
+CLIP_NORM = float(os.getenv("FL_CLIP_NORM", "1.0"))
+NOISE_MULTIPLIER = float(os.getenv("FL_NOISE_MULTIPLIER", "0.5"))
+N_FEATURES = 10
+GLOBAL_MODEL_PATH = os.getenv("FL_GLOBAL_MODEL_PATH") or os.path.join(
+    os.path.dirname(__file__), "..", "ml", "models", "fl_global.npz")
 
 INSTITUTIONS = [
-    {"id": "Institution_Alpha", "name": "IIT Delhi (Partition 1)", "samples": 180},
-    {"id": "Institution_Beta", "name": "NIT Trichy (Partition 2)", "samples": 140},
-    {"id": "Institution_Gamma", "name": "BITS Pilani (Partition 3)", "samples": 160},
-    {"id": "Institution_Delta", "name": "IIIT Hyderabad (Partition 4)", "samples": 125},
+    {"id": "Institution_Alpha", "name": "Simulated Partition A (synthetic data)", "samples": 180},
+    {"id": "Institution_Beta", "name": "Simulated Partition B (synthetic data)", "samples": 140},
+    {"id": "Institution_Gamma", "name": "Simulated Partition C (synthetic data)", "samples": 160},
+    {"id": "Institution_Delta", "name": "Simulated Partition D (synthetic data)", "samples": 125},
 ]
+
+PRIVACY_STATEMENT = (
+    "Simulation on synthetic data. Client updates are clipped (L2 norm "
+    f"{CLIP_NORM}) and Gaussian noise (multiplier {NOISE_MULTIPLIER}) is added before aggregation. "
+    "No privacy accountant is implemented, so no formal differential-privacy (epsilon, delta) guarantee is claimed."
+)
+
+
+def _test_set():
+    rng = np.random.RandomState(20261112)
+    X = rng.uniform(0.2, 0.95, size=(400, N_FEATURES))
+    y = (X.mean(axis=1) > 0.55).astype(int)
+    return X, y
+
+
+def _load_global():
+    try:
+        data = np.load(GLOBAL_MODEL_PATH)
+        return [data["coef"], data["intercept"]]
+    except Exception:
+        return [np.zeros((1, N_FEATURES)), np.zeros((1,))]
+
+
+def _save_global(params):
+    os.makedirs(os.path.dirname(GLOBAL_MODEL_PATH), exist_ok=True)
+    np.savez(GLOBAL_MODEL_PATH, coef=params[0], intercept=params[1])
+
+
+def _accuracy(params, X, y) -> float:
+    logits = X @ params[0].T + params[1]
+    return float(((logits.ravel() > 0).astype(int) == y).mean())
 
 
 def run_federated_round(app=None):
-    """
-    Executes one complete Federated Learning round across simulated institution nodes.
-    Applies privacy-preserving FedAvg aggregation and stores round metrics in the DB.
-    """
-    # 1. Determine current round number
     last_round = FLTrainingRound.query.order_by(FLTrainingRound.round_number.desc()).first()
     round_number = (last_round.round_number + 1) if last_round else 1
 
-    # 2. Instantiate clients
+    global_params = _load_global()
     clients = [InstitutionClient(str(inst['id']), int(inst['samples'])) for inst in INSTITUTIONS]
 
-    # 3. Global parameters (weights + bias)
-    global_coef = np.zeros((1, 10))
-    global_intercept = np.zeros((1,))
-    global_params = [global_coef, global_intercept]
-
-    # 4. Local client training
-    client_results = []
-    round_records = []
-
+    updates, weights, client_metrics = [], [], []
     for client in clients:
-        new_params, num_samples, metrics = client.fit(global_params, {})
-        client_results.append((new_params, num_samples, metrics))
+        new_params, num_samples, metrics = client.fit([p.copy() for p in global_params], {})
+        delta = [np.asarray(n) - g for n, g in zip(new_params, global_params)]
+        norm = float(np.sqrt(sum(float((d ** 2).sum()) for d in delta)))
+        scale = min(1.0, CLIP_NORM / (norm + 1e-12))
+        updates.append([d * scale for d in delta])
+        weights.append(num_samples)
+        client_metrics.append({**metrics, "update_norm": round(norm, 4), "clipped": scale < 1.0})
 
-    # 5. Secure FedAvg aggregation with differential privacy
-    total_samples = sum(r[1] for r in client_results)
-    agg_coef = np.zeros_like(global_coef)
-    agg_intercept = np.zeros_like(global_intercept)
+    total = float(sum(weights))
+    agg = [sum(u[i] * (w / total) for u, w in zip(updates, weights)) for i in range(len(global_params))]
+    noise_std = NOISE_MULTIPLIER * CLIP_NORM / len(clients)
+    rng = np.random.default_rng()
+    agg = [a + rng.normal(0.0, noise_std, size=a.shape) for a in agg]
+    new_global = [g + a for g, a in zip(global_params, agg)]
+    _save_global(new_global)
 
-    for params, num_samples, metrics in client_results:
-        weight = num_samples / total_samples
-        agg_coef += params[0] * weight
-        agg_intercept += params[1] * weight
+    X_test, y_test = _test_set()
+    global_accuracy = round(_accuracy(new_global, X_test, y_test), 4)
 
-    # Differential privacy clipping & noise
-    noise_coef = np.random.normal(0, 0.002, size=agg_coef.shape)
-    agg_coef += noise_coef
-
-    # 6. Global evaluation on holdout test set
-    test_X = np.random.uniform(0.2, 0.95, size=(200, 10))
-    test_y = (test_X.mean(axis=1) > 0.55).astype(int)
-    test_logits = np.dot(test_X, agg_coef.T) + agg_intercept
-    global_preds = (test_logits > 0).astype(int).flatten()
-    global_accuracy = float((global_preds == test_y).mean())
-    # Baseline floor for realistic presentation
-    global_accuracy = max(0.72, min(0.96, round(global_accuracy + (round_number * 0.015), 4)))
-
-    # 7. Record in database for each participating node
-    for client, (params, num_samples, metrics) in zip(clients, client_results):
-        record = FLTrainingRound(
-            round_number=round_number,
-            partition_id=client.partition_id,
-            local_accuracy=metrics.get('local_accuracy', 0.80),
-            global_accuracy_after_round=global_accuracy,
-            trained_on=datetime.now(timezone.utc)
-        )
+    round_records = []
+    now = datetime.now(timezone.utc)
+    for client, m in zip(clients, client_metrics):
+        record = FLTrainingRound(round_number=round_number, partition_id=client.partition_id,
+                                 local_accuracy=m.get('local_accuracy'),
+                                 global_accuracy_after_round=global_accuracy, trained_on=now)
         db.session.add(record)
-        round_records.append(record.to_dict())
-
+        round_records.append({**record.to_dict(), "update_norm": m["update_norm"], "clipped": m["clipped"]})
     db.session.commit()
 
     return {
         'round_number': round_number,
         'participating_nodes': len(INSTITUTIONS),
         'global_accuracy': global_accuracy,
-        'privacy_guarantee': f'epsilon = {round(0.75 + round_number * 0.05, 2)}, delta = 1e-5 (Differential Privacy)',
+        'evaluation': 'Measured on a fixed held-out synthetic test set (400 samples)',
+        'privacy_mechanism': {'clip_norm': CLIP_NORM, 'noise_multiplier': NOISE_MULTIPLIER,
+                              'noise_std': round(noise_std, 4)},
+        'privacy_guarantee': None,
+        'privacy_statement': PRIVACY_STATEMENT,
         'records': round_records
     }
 
 
 def get_federated_history():
-    """
-    Returns summarized history of all federated rounds with loss and privacy parameters.
-    """
     rounds = FLTrainingRound.query.order_by(FLTrainingRound.round_number.asc()).all()
     grouped = {}
     inst_name_map = {inst['id']: inst['name'] for inst in INSTITUTIONS}
     inst_samples_map = {inst['id']: inst['samples'] for inst in INSTITUTIONS}
 
     for r in rounds:
-        round_acc = r.global_accuracy_after_round or 0.75
-        round_loss = max(0.08, round(1.0 - round_acc, 4))
-        eps = round(0.75 + (r.round_number * 0.05), 2)
-
         grouped.setdefault(r.round_number, {
             'round_number': r.round_number,
-            'global_accuracy': round_acc,
-            'global_loss': round_loss,
-            'privacy_epsilon': eps,
-            'privacy_delta': '1e-5',
+            'global_accuracy': r.global_accuracy_after_round,
+            'global_loss': None,          # not measured / not stored
+            'privacy_epsilon': None,      # no accountant -> no epsilon is claimed
+            'privacy_delta': None,
             'trained_on': r.trained_on.isoformat() if r.trained_on else None,
-            'aggregation_status': 'Converged (FedAvg + DP)',
+            'aggregation_status': 'FedAvg with update clipping + Gaussian noise',
             'node_accuracies': []
         })
         grouped[r.round_number]['node_accuracies'].append({
             'partition_id': r.partition_id,
             'institution_name': inst_name_map.get(r.partition_id, r.partition_id),
-            'samples': inst_samples_map.get(r.partition_id, 140),
+            'samples': inst_samples_map.get(r.partition_id),
             'local_accuracy': r.local_accuracy,
-            'status': 'Update Aggregated'
+            'status': 'Update aggregated'
         })
-
     return list(grouped.values())
 
 
 def get_federated_round_details(round_number: int):
-    """
-    Returns granular telemetry for a specific federated round.
-    """
     rounds = FLTrainingRound.query.filter_by(round_number=round_number).all()
     if not rounds:
         return None
-
-    global_acc = rounds[0].global_accuracy_after_round or 0.75
-    global_loss = max(0.08, round(1.0 - global_acc, 4))
-    eps = round(0.75 + (round_number * 0.05), 2)
-
     inst_name_map = {inst['id']: inst['name'] for inst in INSTITUTIONS}
     inst_samples_map = {inst['id']: inst['samples'] for inst in INSTITUTIONS}
-
-    participating_nodes = []
-    for r in rounds:
-        participating_nodes.append({
-            'partition_id': r.partition_id,
-            'institution_name': inst_name_map.get(r.partition_id, r.partition_id),
-            'local_samples': inst_samples_map.get(r.partition_id, 140),
-            'local_accuracy': r.local_accuracy,
-            'training_status': 'Local SGD Converged',
-            'transmission': 'Gradient Weights Uploaded (Encrypted)',
-            'raw_data_retention': 'Retained Locally On-Premise'
-        })
-
     return {
         'round_number': round_number,
-        'global_accuracy': global_acc,
-        'global_loss': global_loss,
+        'global_accuracy': rounds[0].global_accuracy_after_round,
+        'global_loss': None,
         'participating_clients_count': len(rounds),
-        'aggregation_status': 'Successfully Completed',
-        'aggregation_strategy': 'PrivacyPreservingFedAvg (Federated Averaging)',
+        'aggregation_status': 'Completed',
+        'aggregation_strategy': 'FedAvg (sample-weighted) with per-client update clipping and Gaussian noise',
         'privacy_guarantee': {
-            'epsilon': eps,
-            'delta': '1e-5',
-            'mechanism': 'Gaussian Noise Perturbation with Gradient Clipping (C = 1.0)',
+            'epsilon': None,
+            'delta': None,
+            'mechanism': f'Update clipping (C = {CLIP_NORM}) + Gaussian noise (multiplier {NOISE_MULTIPLIER}); '
+                         f'no formal privacy accounting',
             'raw_data_transferred': False
         },
-        'nodes': participating_nodes,
+        'nodes': [{
+            'partition_id': r.partition_id,
+            'institution_name': inst_name_map.get(r.partition_id, r.partition_id),
+            'local_samples': inst_samples_map.get(r.partition_id),
+            'local_accuracy': r.local_accuracy,
+            'training_status': 'Local SGD step completed',
+            'transmission': 'Model update sent (simulated, in-process)',
+            'raw_data_retention': 'Synthetic data generated locally per partition'
+        } for r in rounds],
         'pipeline_steps': [
-            {'step': 1, 'name': 'Local Model Training', 'desc': 'Each institution trains on local student matrices without sending raw resumes to server.'},
-            {'step': 2, 'name': 'Gradient Normalization', 'desc': 'L2 norm clipping applied to local parameters to bound sensitivity.'},
-            {'step': 3, 'name': 'FedAvg Aggregation', 'desc': 'Server computes sample-weighted average of client weight tensors.'},
-            {'step': 4, 'name': 'Differential Privacy Noise', 'desc': 'Calibrated Gaussian noise injected into aggregated weights before dissemination.'},
-            {'step': 5, 'name': 'Global Model Broadcast', 'desc': 'Enhanced global career intelligence model synchronized across nodes.'}
-        ]
+            {'step': 1, 'name': 'Local Model Training', 'desc': 'Each simulated partition trains on its own synthetic data.'},
+            {'step': 2, 'name': 'Update Clipping', 'desc': f'Each client update is L2-clipped to norm {CLIP_NORM}.'},
+            {'step': 3, 'name': 'FedAvg Aggregation', 'desc': 'Sample-weighted average of clipped updates.'},
+            {'step': 4, 'name': 'Gaussian Noise', 'desc': 'Noise is added to the aggregate. No epsilon is computed.'},
+            {'step': 5, 'name': 'Global Model Update', 'desc': 'The new global model is stored and evaluated on held-out synthetic data.'}
+        ],
+        'privacy_statement': PRIVACY_STATEMENT,
     }
 
 
 def get_federated_status():
-    """
-    Returns platform-wide federated learning operational status.
-    """
     latest_round = FLTrainingRound.query.order_by(FLTrainingRound.round_number.desc()).first()
-    round_num = latest_round.round_number if latest_round else 0
-    accuracy = latest_round.global_accuracy_after_round if latest_round else 0.72
-    eps = round(0.75 + (round_num * 0.05), 2)
-
     return {
-        'total_rounds': round_num,
-        'current_global_accuracy': accuracy,
-        'current_global_loss': max(0.08, round(1.0 - accuracy, 4)),
+        'total_rounds': latest_round.round_number if latest_round else 0,
+        'current_global_accuracy': latest_round.global_accuracy_after_round if latest_round else None,
+        'current_global_loss': None,
         'participating_institutions': len(INSTITUTIONS),
         'nodes': INSTITUTIONS,
+        'is_simulation': True,
+        'data': 'synthetic',
         'differential_privacy': {
-            'epsilon': eps,
-            'delta': '1e-5',
-            'mechanism': 'Differential Privacy (Gaussian Noise)'
+            'epsilon': None,
+            'delta': None,
+            'mechanism': f'Update clipping (C = {CLIP_NORM}) + Gaussian noise; no formal privacy accounting',
+            'formal_guarantee': False,
         },
-        'status': 'Operational',
-        'privacy_statement': (
-            'Federated Learning reduces the need to transfer raw training data; '
-            'additional privacy mechanisms such as Differential Privacy provide stronger protection.'
-        )
+        'status': 'Operational (simulation)',
+        'privacy_statement': PRIVACY_STATEMENT,
     }
-

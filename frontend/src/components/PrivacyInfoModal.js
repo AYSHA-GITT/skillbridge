@@ -75,16 +75,17 @@ export default function PrivacyInfoModal({ isOpen, onClose }) {
               <TbCheck className="w-3.5 h-3.5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white">Differential Privacy provides additional protection</p>
+              <p className="text-xs font-semibold text-white">Clipping and noise in the federated simulation</p>
               <p className="text-[11px] text-white/50 mt-0.5">
-                Calibrated Gaussian noise and gradient clipping provide mathematical guarantees against membership inference or data reconstruction.
+                The federated-learning simulation clips model updates and adds Gaussian noise. No privacy accountant is
+                implemented, so no formal (ε, δ) differential-privacy guarantee is claimed.
               </p>
             </div>
           </div>
         </div>
 
         <div className="p-3 bg-teal-950/30 border border-teal-500/20 rounded-xl text-[11px] text-teal-200/80 mb-5">
-          Federated Learning reduces the need to transfer raw training data. Differential Privacy provides an additional mathematical privacy protection layer.
+          The federated module runs on synthetic, simulated partitions — your resume is stored on the SkillBridge server for analysis and is not used for federated training.
         </div>
 
         <div className="flex justify-end">

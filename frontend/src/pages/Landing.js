@@ -107,7 +107,7 @@ export default function Landing() {
             </div>
             <h3 className="font-heading font-semibold text-lg mb-2">Federated Learning</h3>
             <p className="text-white/50 text-sm leading-relaxed">
-              Models are trained on localized institutional partitions. Only secure, differentially private weight updates are aggregated to the central server.
+              A federated-learning simulation demonstrates how partitions can train locally and share only clipped, noised model updates with a central aggregator.
             </p>
           </div>
 
@@ -159,7 +159,7 @@ export default function Landing() {
               </div>
               <div className="flex items-center space-x-3 text-sm text-white/80">
                 <span className="w-6 h-6 rounded-full bg-accent-500/20 text-accent-400 flex items-center justify-center font-mono text-xs">3</span>
-                <span>Noise is added via Differential Privacy ($\epsilon = 0.85$), preventing model inversion.</span>
+                <span>Updates are clipped and Gaussian noise is added before aggregation (no formal privacy guarantee is claimed).</span>
               </div>
             </div>
           </div>

@@ -4,7 +4,13 @@ import AppLayout from '../components/AppLayout';
 import AlertBanner from '../components/AlertBanner';
 import ProgressBar from '../components/ProgressBar';
 import skillService from '../services/skillService';
+import authService from '../services/authService';
+import JobAlertsPanel from '../components/JobAlertsPanel';
 import {
+  TbBell,
+  TbClock,
+  TbShieldCheck,
+  TbAlertTriangle,
   TbBriefcase,
   TbSearch,
   TbRefresh,
@@ -27,17 +33,75 @@ import {
 } from 'react-icons/tb';
 
 
+// Must match backend CAREER_CATEGORY_RULES (utils/job_discovery/normalizer.py)
 const DOMAINS = [
   'All Domains',
   'Software Development',
+  'Backend Engineering',
+  'Frontend Engineering',
+  'Full Stack Development',
+  'Data Analytics',
+  'Data Science',
+  'Data Engineering',
   'Machine Learning & AI',
   'Cloud & DevOps',
-  'Data Science',
   'Cybersecurity',
-  'Frontend Engineering'
+  'Mobile Development',
+  'QA & Testing'
 ];
 
 const JOB_TYPES = ['All Types', 'Full-time', 'Internship', 'Contract', 'Part-time'];
+
+const WORK_MODES = ['All Work Modes', 'Remote', 'Hybrid', 'Onsite'];
+
+const DATE_POSTED = [
+  { value: '', label: 'Any time' },
+  { value: '24h', label: 'Last 24 hours' },
+  { value: '3d', label: 'Last 3 days' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' }
+];
+
+const SORTS = [
+  { value: 'relevance', label: 'Relevance (India first)' },
+  { value: 'recent', label: 'Most recently posted' },
+  { value: 'match', label: 'Best skill match' },
+  { value: 'salary', label: 'Highest salary (where stated)' }
+];
+
+const PER_PAGE = 20;
+
+function formatSalary(salary) {
+  if (!salary || (salary.min == null && salary.max == null)) return null;
+  const fmt = (v) => {
+    if (v == null) return null;
+    if (salary.currency === 'INR') {
+      return v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${Math.round(v).toLocaleString('en-IN')}`;
+    }
+    return `${salary.currency || ''} ${Math.round(v).toLocaleString()}`.trim();
+  };
+  const range = salary.min != null && salary.max != null && salary.min !== salary.max
+    ? `${fmt(salary.min)}–${fmt(salary.max)}`
+    : fmt(salary.max ?? salary.min);
+  return `${range}${salary.period ? ` / ${salary.period}` : ''}`;
+}
+
+function relativeTime(iso) {
+  if (!iso) return null;
+  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diffMin < 0) return `in ${Math.abs(diffMin) < 60 ? `${Math.abs(diffMin)} min` : `${Math.round(Math.abs(diffMin) / 60)} h`}`;
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffMin < 60 * 48) return `${Math.round(diffMin / 60)} h ago`;
+  return `${Math.round(diffMin / 1440)} days ago`;
+}
+
+const VERIFICATION_BADGE = {
+  verified: { label: 'Checked < 24h ago', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  unverified_recently: { label: 'Not re-checked recently', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  unverified: { label: 'Unverified', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  expired: { label: 'Expired / archived', cls: 'bg-rose-500/15 text-rose-300 border-rose-500/30' },
+  sample: { label: 'Demo listing', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' }
+};
 
 const REGIONS = [
   { value: 'All Regions', label: 'All Regions (India & Asia First)' },
@@ -71,9 +135,27 @@ export default function Jobs() {
   const [selectedDomain, setSelectedDomain] = useState('All Domains');
   const [selectedJobType, setSelectedJobType] = useState('All Types');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
-  const [remoteOnly, setRemoteOnly] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState('all'); // 'all', 'live', 'sample'
+  const [workMode, setWorkMode] = useState('All Work Modes');
+  const [opportunity, setOpportunity] = useState('all'); // 'all' | 'job' | 'internship'
+  const [entryLevel, setEntryLevel] = useState(false);
+  const [locationFilter, setLocationFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [skillFilter, setSkillFilter] = useState('');
+  const [experienceMax, setExperienceMax] = useState('');
+  const [salaryMinLpa, setSalaryMinLpa] = useState('');
+  const [datePosted, setDatePosted] = useState('');
+  const [sortBy, setSortBy] = useState('relevance');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [showSavedOnly, setShowSavedOnly] = useState(false);
+
+  // Sync status & role
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [syncInfo, setSyncInfo] = useState(null);
+
+  // Alerts panel
+  const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
 
   // Saved Jobs tracking
   const [savedJobIds, setSavedJobIds] = useState(new Set());
@@ -157,7 +239,9 @@ export default function Jobs() {
         setTotalCount(list.length);
       } else {
         const params = {
-          per_page: 50,
+          per_page: PER_PAGE,
+          page,
+          sort: sortBy,
         };
         if (searchQuery.trim()) params.query = searchQuery.trim();
         if (selectedDomain !== 'All Domains') params.domain = selectedDomain;
@@ -165,27 +249,97 @@ export default function Jobs() {
         if (selectedRegion === 'India') params.region = 'india';
         else if (selectedRegion === 'Asia') params.region = 'asia';
         else if (selectedRegion === 'Remote') params.region = 'remote';
-        if (remoteOnly) params.remote_only = true;
-        if (sourceFilter === 'sample') params.sample_only = true;
-        if (sourceFilter === 'live') params.live_only = true;
+        if (workMode !== 'All Work Modes') params.work_arrangement = workMode;
+        if (opportunity !== 'all') params.opportunity = opportunity;
+        if (entryLevel) params.entry_level = true;
+        if (locationFilter.trim()) params.location = locationFilter.trim();
+        if (companyFilter.trim()) params.company = companyFilter.trim();
+        if (skillFilter.trim()) params.skill = skillFilter.trim();
+        if (experienceMax !== '') params.experience_max = experienceMax;
+        if (salaryMinLpa !== '') params.salary_min = Number(salaryMinLpa) * 100000;
+        if (datePosted) params.date_posted = datePosted;
 
         const res = await skillService.getJobs(params);
         const list = res.jobs || [];
         setJobs(list);
         setTotalCount(res.total_count ?? res.total ?? list.length);
+        setTotalPages(res.pages || 1);
+        // match scores now come with each listing
+        const scores = {};
+        list.forEach((j) => {
+          if (j.match_score !== undefined) scores[j.id] = j.match_score;
+        });
+        setCardMatches((prev) => ({ ...prev, ...scores }));
       }
     } catch {
       setAlert({ type: 'error', message: 'Failed to retrieve job opportunities.' });
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, remoteOnly, sourceFilter, showSavedOnly, showAppliedOnly]);
+  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, workMode, opportunity, entryLevel,
+      locationFilter, companyFilter, skillFilter, experienceMax, salaryMinLpa, datePosted, sortBy, page,
+      showSavedOnly, showAppliedOnly]);
+
+  const loadSyncInfo = useCallback(async () => {
+    try {
+      const res = await skillService.getJobQualityMetrics();
+      setSyncInfo(res?.metrics || res);
+    } catch {
+      // status line is informational only
+    }
+  }, []);
+
+  const loadUnreadAlerts = useCallback(async () => {
+    try {
+      const res = await skillService.getJobAlertNotifications();
+      setUnreadAlerts(res.unread_count || 0);
+    } catch {
+      // non-blocking
+    }
+  }, []);
 
   useEffect(() => {
-    loadSavedJobs();
-    loadAppliedJobs();
-    loadJobs();
+    authService.getCurrentUser()
+      .then((u) => setIsAdmin((u?.role || '').toLowerCase() === 'admin'))
+      .catch(() => setIsAdmin(false));
+    loadSyncInfo();
+    loadUnreadAlerts();
+  }, [loadSyncInfo, loadUnreadAlerts]);
+
+  // Debounce typing in search/text filters
+  useEffect(() => {
+    const t = setTimeout(() => {
+      loadSavedJobs();
+      loadAppliedJobs();
+      loadJobs();
+    }, 300);
+    return () => clearTimeout(t);
   }, [loadSavedJobs, loadAppliedJobs, loadJobs]);
+
+  // Any filter change returns to the first page
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, workMode, opportunity, entryLevel,
+      locationFilter, companyFilter, skillFilter, experienceMax, salaryMinLpa, datePosted, sortBy]);
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSelectedDomain('All Domains');
+    setSelectedJobType('All Types');
+    setSelectedRegion('All Regions');
+    setWorkMode('All Work Modes');
+    setOpportunity('all');
+    setEntryLevel(false);
+    setLocationFilter('');
+    setCompanyFilter('');
+    setSkillFilter('');
+    setExperienceMax('');
+    setSalaryMinLpa('');
+    setDatePosted('');
+    setSortBy('relevance');
+    setShowSavedOnly(false);
+    setShowAppliedOnly(false);
+  };
 
   const handleOpenApply = (job) => {
     setApplyModalJob(job);
@@ -208,7 +362,8 @@ export default function Jobs() {
       }));
       setAlert({
         type: 'success',
-        message: `Application submitted successfully for ${applyModalJob.title} at ${applyModalJob.company}!`
+        message: `Recorded in your tracker: ${applyModalJob.title} at ${applyModalJob.company}. ` +
+          'Remember to complete the application on the employer\'s site.'
       });
       setApplyModalJob(null);
       loadJobs();
@@ -245,19 +400,28 @@ export default function Jobs() {
     }
   };
 
-  // Handle Sync
+  // Manual sync (administrators only - listings refresh automatically every two hours)
   const handleSyncJobs = async () => {
     setSyncing(true);
     setAlert(null);
     try {
-      const res = await skillService.syncJobs();
+      const res = await skillService.adminSyncJobs();
+      const run = res.run || {};
       setAlert({
-        type: 'success',
-        message: `Synced ${res.new_jobs_added} new live opportunities (${res.total_jobs_in_db} total in catalog).`
+        type: run.status === 'success' ? 'success' : run.status === 'failed' ? 'error' : 'warning',
+        message: `Sync ${run.status}: ${run.inserted_count ?? 0} new, ${run.updated_count ?? 0} updated, ` +
+          `${run.expired_count ?? 0} expired.${run.error ? ` ${run.error}` : ''}`
       });
       loadJobs();
-    } catch {
-      setAlert({ type: 'error', message: 'Failed to synchronize live job sources.' });
+      loadSyncInfo();
+    } catch (err) {
+      const status = err.response?.status;
+      setAlert({
+        type: status === 409 ? 'warning' : 'error',
+        message: status === 409
+          ? 'A synchronization is already running. Please try again in a few minutes.'
+          : (err.response?.data?.error || 'Failed to synchronize job sources.')
+      });
     } finally {
       setSyncing(false);
     }
@@ -295,7 +459,7 @@ export default function Jobs() {
       const res = await skillService.getJobMatch(job.id);
       const matchObj = res?.match || res;
       setMatchData(matchObj);
-      const score = matchObj?.match_score ?? matchObj?.score_breakdown?.overall_fit_score;
+      const score = matchObj?.match_score;
       if (score !== undefined) {
         setCardMatches((prev) => ({ ...prev, [job.id]: score }));
       }
@@ -371,27 +535,56 @@ export default function Jobs() {
               </span>
             </div>
             <p className="text-white/50 text-sm mt-1">
-              Discover real-world openings and curated benchmarks scored transparently against your verified skills.
+              Real openings from authorized job sources, refreshed automatically every two hours and scored against your verified skills.
             </p>
+            {syncInfo && (
+              <p className="text-[11px] text-white/40 mt-1 flex items-center gap-1.5">
+                <TbClock className="w-3.5 h-3.5" />
+                <span>
+                  {syncInfo.last_successful_sync
+                    ? `Last refreshed ${relativeTime(syncInfo.last_successful_sync)}`
+                    : 'Not refreshed yet'}
+                  {syncInfo.next_scheduled_sync && ` · next refresh ${relativeTime(syncInfo.next_scheduled_sync)}`}
+                  {syncInfo.last_sync_status && syncInfo.last_sync_status !== 'success' &&
+                    ` · last run: ${syncInfo.last_sync_status}`}
+                </span>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setAlertsPanelOpen(true)}
+              className="btn-ghost text-xs py-2 px-3 flex items-center space-x-1.5 relative"
+              title="Job preferences and alerts"
+            >
+              <TbBell className="w-4 h-4 text-accent-300" />
+              <span>Alerts & Preferences</span>
+              {unreadAlerts > 0 && (
+                <span className="ml-1 text-[10px] font-mono px-1.5 rounded-full bg-rose-500 text-white">
+                  {unreadAlerts}
+                </span>
+              )}
+            </button>
             <button
               onClick={handleOpenTelemetry}
               className="btn-ghost text-xs py-2 px-3 flex items-center space-x-1.5"
               title="Inspect discovery pipeline metrics"
             >
               <TbChartBar className="w-4 h-4 text-accent-300" />
-              <span>Data Telemetry</span>
+              <span>Data Sources</span>
             </button>
-            <button
-              onClick={handleSyncJobs}
-              disabled={syncing}
-              className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5 shadow-glow"
-            >
-              <TbRefresh className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-              <span>{syncing ? 'Syncing...' : 'Sync Live Feeds'}</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={handleSyncJobs}
+                disabled={syncing}
+                className="btn-primary text-xs py-2 px-3.5 flex items-center space-x-1.5 shadow-glow"
+                title="Administrators only: run a synchronization now"
+              >
+                <TbRefresh className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+                <span>{syncing ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -491,50 +684,109 @@ export default function Jobs() {
               ))}
             </select>
 
-            {/* Source Pill Filter */}
+            {/* Work mode */}
+            <select
+              value={workMode}
+              onChange={(e) => setWorkMode(e.target.value)}
+              className="bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs focus:border-accent-400 outline-none"
+            >
+              {WORK_MODES.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+
+            {/* Job vs internship */}
             <div className="flex items-center bg-base-950 p-0.5 rounded-xl border border-base-800">
-              <button
-                onClick={() => setSourceFilter('all')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-                  sourceFilter === 'all'
-                    ? 'bg-accent-500/20 text-accent-300'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                All Sources
-              </button>
-              <button
-                onClick={() => setSourceFilter('live')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-                  sourceFilter === 'live'
-                    ? 'bg-emerald-500/20 text-emerald-300'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                Live Feeds
-              </button>
-              <button
-                onClick={() => setSourceFilter('sample')}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
-                  sourceFilter === 'sample'
-                    ? 'bg-purple-500/20 text-purple-300'
-                    : 'text-white/50 hover:text-white'
-                }`}
-              >
-                Curated Benchmarks
-              </button>
+              {[['all', 'Jobs & Internships'], ['job', 'Jobs'], ['internship', 'Internships']].map(([val, label]) => (
+                <button
+                  key={val}
+                  onClick={() => setOpportunity(val)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                    opportunity === val ? 'bg-accent-500/20 text-accent-300' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Remote Only Toggle */}
-            <label className="flex items-center space-x-1.5 cursor-pointer ml-auto text-white/70 hover:text-white">
+            <label className="flex items-center space-x-1.5 cursor-pointer text-white/70 hover:text-white">
               <input
                 type="checkbox"
-                checked={remoteOnly}
-                onChange={(e) => setRemoteOnly(e.target.checked)}
+                checked={entryLevel}
+                onChange={(e) => setEntryLevel(e.target.checked)}
                 className="w-3.5 h-3.5 accent-accent-400 rounded bg-base-950 border-base-700"
               />
-              <span className="text-[11px]">Remote Only</span>
+              <span className="text-[11px]">Fresher / entry level</span>
             </label>
+
+            {/* Sort */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="ml-auto bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs focus:border-accent-400 outline-none"
+              title="Sort results"
+            >
+              {SORTS.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Detailed filters */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-xs">
+            <input
+              type="text"
+              placeholder="Location (e.g. Mangaluru)"
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="input-field text-xs py-1.5 bg-base-950/80 border-base-700/80 rounded-xl"
+            />
+            <input
+              type="text"
+              placeholder="Company"
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="input-field text-xs py-1.5 bg-base-950/80 border-base-700/80 rounded-xl"
+            />
+            <input
+              type="text"
+              placeholder="Required skill (e.g. SQL)"
+              value={skillFilter}
+              onChange={(e) => setSkillFilter(e.target.value)}
+              className="input-field text-xs py-1.5 bg-base-950/80 border-base-700/80 rounded-xl"
+            />
+            <select
+              value={experienceMax}
+              onChange={(e) => setExperienceMax(e.target.value)}
+              className="bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs outline-none"
+              title="Maximum years of experience required"
+            >
+              <option value="">Any experience</option>
+              <option value="0">0 years (fresher)</option>
+              <option value="1">Up to 1 year</option>
+              <option value="2">Up to 2 years</option>
+              <option value="5">Up to 5 years</option>
+            </select>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="Min salary (LPA)"
+              value={salaryMinLpa}
+              onChange={(e) => setSalaryMinLpa(e.target.value)}
+              className="input-field text-xs py-1.5 bg-base-950/80 border-base-700/80 rounded-xl"
+              title="Only listings that state a salary are shown when this is set"
+            />
+            <select
+              value={datePosted}
+              onChange={(e) => setDatePosted(e.target.value)}
+              className="bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs outline-none"
+            >
+              {DATE_POSTED.map((d) => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -562,19 +814,11 @@ export default function Jobs() {
             <TbBriefcase className="w-10 h-10 text-white/20 mx-auto" />
             <h3 className="font-heading text-sm font-semibold text-white">No Matching Opportunities Found</h3>
             <p className="text-xs text-white/50 max-w-sm mx-auto">
-              Try adjusting your search terms, removing filters, or syncing live feeds to fetch the latest postings.
+              Try adjusting your search terms or removing filters. Listings refresh automatically every two hours
+              {syncInfo?.next_scheduled_sync ? ` (next refresh ${relativeTime(syncInfo.next_scheduled_sync)})` : ''}.
             </p>
             <button
-              onClick={() => {
-                setSearchQuery('');
-                setSelectedDomain('All Domains');
-                setSelectedJobType('All Types');
-                setSelectedRegion('All Regions');
-                setRemoteOnly(false);
-                setSourceFilter('all');
-                setShowSavedOnly(false);
-                setShowAppliedOnly(false);
-              }}
+              onClick={resetFilters}
               className="btn-ghost text-xs py-1.5 px-3 mx-auto"
             >
               Reset All Filters
@@ -601,14 +845,27 @@ export default function Jobs() {
                     {/* Top Row: Meta badges & actions */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex flex-wrap items-center gap-1.5">
-                        {/* Sample vs Live Feed */}
-                        {job.is_sample ? (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30">
-                            Benchmark Data
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                            Live Feed
+                        {/* Verification / freshness (from real timestamps) */}
+                        {(() => {
+                          const v = VERIFICATION_BADGE[job.freshness?.verification_status] ||
+                            (job.is_sample ? VERIFICATION_BADGE.sample : VERIFICATION_BADGE.unverified);
+                          return (
+                            <span
+                              className={`text-[10px] font-mono px-2 py-0.5 rounded-md border flex items-center gap-1 ${v.cls}`}
+                              title={job.freshness?.last_checked_at
+                                ? `Last confirmed by ${job.source}: ${new Date(job.freshness.last_checked_at).toLocaleString()}`
+                                : 'Not confirmed by the source'}
+                            >
+                              {job.freshness?.verification_status === 'verified'
+                                ? <TbShieldCheck className="w-3 h-3" />
+                                : <TbAlertTriangle className="w-3 h-3" />}
+                              {v.label}
+                            </span>
+                          );
+                        })()}
+                        {job.freshness?.is_recent && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                            Recently posted
                           </span>
                         )}
 
@@ -698,6 +955,22 @@ export default function Jobs() {
                           <TbMapPin className="w-3.5 h-3.5" />
                           <span>{job.location}</span>
                         </span>
+                        {job.work_arrangement && job.work_arrangement !== 'Unspecified' && (
+                          <span>{job.work_arrangement}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/40 mt-1">
+                        <span>{job.freshness?.posted_label}</span>
+                        <span>Source: {job.source}</span>
+                        {job.experience_level && job.experience_level !== 'Not specified' && (
+                          <span>{job.experience_level}</span>
+                        )}
+                        {formatSalary(job.salary) && (
+                          <span className="text-emerald-300/80" title={job.salary.label}>
+                            {formatSalary(job.salary)}
+                            {job.salary.is_estimated ? ' (estimated by provider)' : ''}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -708,6 +981,11 @@ export default function Jobs() {
 
                     {/* Skills Chips */}
                     <div className="space-y-1.5 pt-1">
+                      {(job.required_skills || []).length === 0 && (
+                        <p className="text-[11px] text-white/40 italic">
+                          No skills listed in the source summary — read the full posting.
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-1">
                         {(job.required_skills || []).slice(0, 5).map((skill, idx) => (
                           <span
@@ -734,7 +1012,7 @@ export default function Jobs() {
                       title="Explain deterministic match fit"
                     >
                       <TbSparkles className="w-3.5 h-3.5" />
-                      <span>{score !== undefined ? `${score}% Fit` : 'Match'}</span>
+                      <span>{score === null ? 'Fit: n/a' : score !== undefined ? `${score}% Fit` : 'Match'}</span>
                     </button>
 
                     {/* Apply Button */}
@@ -782,7 +1060,7 @@ export default function Jobs() {
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors border border-base-800"
-                        title="View company career page"
+                        title={`View the original posting on ${job.source}`}
                       >
                         <TbExternalLink className="w-3.5 h-3.5" />
                       </a>
@@ -791,6 +1069,27 @@ export default function Jobs() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && !showSavedOnly && !showAppliedOnly && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 text-xs text-white/60">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="btn-ghost text-xs py-1.5 px-3 disabled:opacity-30"
+            >
+              Previous
+            </button>
+            <span className="font-mono">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="btn-ghost text-xs py-1.5 px-3 disabled:opacity-30"
+            >
+              Next
+            </button>
           </div>
         )}
 
@@ -851,22 +1150,27 @@ export default function Jobs() {
               {matchLoading ? (
                 <div className="py-12 text-center space-y-3">
                   <div className="w-8 h-8 border-2 border-accent-400/30 border-t-accent-400 rounded-full animate-spin mx-auto" />
-                  <p className="text-xs text-white/50">Calculating 4-pillar deterministic match matrix...</p>
+                  <p className="text-xs text-white/50">Comparing the posting with your verified skills...</p>
                 </div>
               ) : matchData ? (
                 <div className="space-y-5">
                   {/* Total Deterministic Score Card */}
                   <div className="bg-base-950/80 p-4 rounded-2xl border border-base-800 flex items-center justify-between">
                     <div>
-                      <div className="text-xs text-white/40">Deterministic Fit Score</div>
-                      <div className="font-heading text-3xl font-bold text-white flex items-baseline space-x-1.5">
-                        <span className={matchData.match_score >= 70 ? 'text-emerald-400' : matchData.match_score >= 45 ? 'text-amber-400' : 'text-rose-400'}>
-                          {matchData.match_score}%
-                        </span>
-                        <span className="text-xs text-white/40">/ 100%</span>
-                      </div>
-                      <p className="text-[11px] text-white/50 mt-1">
-                        Calculated deterministically without generative hallucination.
+                      <div className="text-xs text-white/40">Skill Fit Score</div>
+                      {matchData.match_score === null || matchData.match_score === undefined ? (
+                        <div className="font-heading text-lg font-bold text-white/70">Not enough data</div>
+                      ) : (
+                        <div className="font-heading text-3xl font-bold text-white flex items-baseline space-x-1.5">
+                          <span className={matchData.match_score >= 70 ? 'text-emerald-400' : matchData.match_score >= 45 ? 'text-amber-400' : 'text-rose-400'}>
+                            {matchData.match_score}%
+                          </span>
+                          <span className="text-xs text-white/40">{matchData.scoring_breakdown?.fit_label}</span>
+                        </div>
+                      )}
+                      <p className="text-[11px] text-white/50 mt-1 max-w-xs">
+                        Rule-based: required skills count 3× preferred ones, quiz-verified skills count more than
+                        resume claims. It is not a prediction of hiring outcomes.
                       </p>
                     </div>
 
@@ -903,67 +1207,39 @@ export default function Jobs() {
                     </div>
                   </div>
 
-                  {/* 4 Scoring Pillars Breakdown */}
+                  {/* Why this score */}
+                  {Array.isArray(matchData.match_reasons) && matchData.match_reasons.length > 0 && (
+                    <div className="bg-base-950/60 p-3.5 rounded-2xl border border-base-800 space-y-1">
+                      <h4 className="text-xs font-semibold text-white/80">Why this score</h4>
+                      <ul className="list-disc list-inside text-[11px] text-white/60 space-y-0.5">
+                        {matchData.match_reasons.map((r, i) => <li key={i}>{r}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Score components */}
                   <div className="space-y-3">
                     <h4 className="text-xs font-semibold text-white/80 uppercase tracking-wider font-mono">
-                      Deterministic Weight Allocation
+                      Score Components
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {/* Mandatory Skills (50%) */}
-                      <div className="bg-base-950/60 p-3 rounded-xl border border-base-800 space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/70 font-medium">Mandatory Skills</span>
-                          <span className="text-accent-300 font-mono font-bold">
-                            {matchData.scoring_breakdown?.mandatory_skills_score}% (50% wt)
-                          </span>
+                      {[
+                        ['Required skills covered', matchData.scoring_breakdown?.mandatory_skills_score, 'of required skills you have'],
+                        ['Preferred skills covered', matchData.scoring_breakdown?.preferred_skills_score, 'of preferred skills you have'],
+                        ['Experience fit', matchData.scoring_breakdown?.experience_eligibility_score, 'multiplier on the score'],
+                        ['Location / work-mode fit', matchData.scoring_breakdown?.location_fit_score, 'multiplier on the score']
+                      ].map(([label, value, hint]) => (
+                        <div key={label} className="bg-base-950/60 p-3 rounded-xl border border-base-800 space-y-1.5">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/70 font-medium">{label}</span>
+                            <span className="text-accent-300 font-mono font-bold">
+                              {value ?? 0}%
+                            </span>
+                          </div>
+                          <ProgressBar progress={value || 0} size="sm" />
+                          <p className="text-[10px] text-white/40">{hint}</p>
                         </div>
-                        <ProgressBar
-                          progress={matchData.scoring_breakdown?.mandatory_skills_score || 0}
-                          size="sm"
-                        />
-                      </div>
-
-                      {/* Preferred Skills (20%) */}
-                      <div className="bg-base-950/60 p-3 rounded-xl border border-base-800 space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/70 font-medium">Preferred Skills</span>
-                          <span className="text-accent-300 font-mono font-bold">
-                            {matchData.scoring_breakdown?.preferred_skills_score}% (20% wt)
-                          </span>
-                        </div>
-                        <ProgressBar
-                          progress={matchData.scoring_breakdown?.preferred_skills_score || 0}
-                          size="sm"
-                        />
-                      </div>
-
-                      {/* Transferable Skills (15%) */}
-                      <div className="bg-base-950/60 p-3 rounded-xl border border-base-800 space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/70 font-medium">Transferable Bridges</span>
-                          <span className="text-accent-300 font-mono font-bold">
-                            {matchData.scoring_breakdown?.transferable_skills_score}% (15% wt)
-                          </span>
-                        </div>
-                        <ProgressBar
-                          progress={matchData.scoring_breakdown?.transferable_skills_score || 0}
-                          size="sm"
-                        />
-                      </div>
-
-                      {/* Eligibility & Experience (15%) */}
-                      <div className="bg-base-950/60 p-3 rounded-xl border border-base-800 space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white/70 font-medium">Role Eligibility</span>
-                          <span className="text-accent-300 font-mono font-bold">
-                            {matchData.scoring_breakdown?.experience_eligibility_score}% (15% wt)
-                          </span>
-                        </div>
-                        <ProgressBar
-                          progress={matchData.scoring_breakdown?.experience_eligibility_score || 0}
-                          size="sm"
-                        />
-                      </div>
+                      ))}
                     </div>
                   </div>
 
@@ -975,10 +1251,10 @@ export default function Jobs() {
                         <span>Transferable Skill Bridges Identified</span>
                       </div>
                       <p className="text-[11px] text-white/60">
-                        Your existing skills provide partial competency transfer for these requirements:
+                        Related skills you already have make these requirements quicker to learn (partial credit only):
                       </p>                      <div className="space-y-1">
                         {(matchData.transferable_bridges || []).map((bridge, bIdx) => {
-                          const coeff = bridge.transfer_coefficient ?? 0.8;
+                          const coeff = bridge.transfer_coefficient ?? 0.25;
                           return (
                             <div
                               key={bIdx}
@@ -990,7 +1266,7 @@ export default function Jobs() {
                                 <strong className="text-accent-300">{bridge.target_skill}</strong>
                               </span>
                               <span className="text-[10px] font-mono text-teal-400">
-                                {(coeff * 100).toFixed(0)}% affinity
+                                {(coeff * 100).toFixed(0)}% credit
                               </span>
                             </div>
                           );
@@ -1163,7 +1439,20 @@ export default function Jobs() {
 
                   {/* Side by side columns */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {(comparisonData.jobs || []).map((cJob) => (
+                    {(comparisonData.jobs || []).map((ev) => {
+                      const cJob = {
+                        job_id: ev.job?.id,
+                        title: ev.job?.title,
+                        company: ev.job?.company,
+                        match_score: ev.match_score,
+                        matched_skills: [
+                          ...(ev.matched_skills?.verified || []),
+                          ...(ev.matched_skills?.unverified || []),
+                          ...(ev.matched_skills?.preferred || [])
+                        ],
+                        missing_mandatory: ev.missing_skills?.mandatory || []
+                      };
+                      return (
                       <div
                         key={cJob.job_id}
                         className="bg-base-950/70 p-4 rounded-2xl border border-base-800 space-y-3"
@@ -1178,13 +1467,13 @@ export default function Jobs() {
                         <div className="bg-base-900/80 p-3 rounded-xl border border-base-800">
                           <div className="text-[10px] text-white/40">Fit Score</div>
                           <div className="font-heading text-2xl font-bold text-accent-300">
-                            {cJob.match_score}%
+                            {cJob.match_score == null ? 'n/a' : `${cJob.match_score}%`}
                           </div>
                         </div>
 
                         <div className="space-y-1.5 text-xs">
                           <div className="text-[11px] font-semibold text-emerald-400">
-                            Matched ({cJob.matched_skills_count})
+                            Matched ({cJob.matched_skills.length})
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {(cJob.matched_skills || []).map((s, idx) => (
@@ -1229,8 +1518,12 @@ export default function Jobs() {
                           <span>Interview Prep</span>
                         </button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  {comparisonData.recommendation && (
+                    <p className="text-xs text-white/60">{comparisonData.recommendation}</p>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -1266,44 +1559,51 @@ export default function Jobs() {
               ) : telemetryData ? (
                 <div className="space-y-4 text-xs">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-base-950/80 p-3.5 rounded-xl border border-base-800">
-                      <div className="text-white/40 text-[11px]">Total Records Ingested</div>
-                      <div className="font-heading text-2xl font-bold text-white">
-                        {telemetryData.total_ingested}
+                    {[
+                      ['Active listings', telemetryData.listings_by_status?.active, 'text-white'],
+                      ['Not re-confirmed recently', telemetryData.listings_by_status?.stale, 'text-amber-400'],
+                      ['Expired / archived', telemetryData.listings_by_status?.expired, 'text-rose-300'],
+                      ['Cross-source duplicates hidden', telemetryData.duplicates_flagged, 'text-accent-300']
+                    ].map(([label, value, cls]) => (
+                      <div key={label} className="bg-base-950/80 p-3.5 rounded-xl border border-base-800">
+                        <div className="text-white/40 text-[11px]">{label}</div>
+                        <div className={`font-heading text-2xl font-bold ${cls}`}>{value ?? 0}</div>
                       </div>
-                    </div>
-                    <div className="bg-base-950/80 p-3.5 rounded-xl border border-base-800">
-                      <div className="text-white/40 text-[11px]">Duplicates Removed</div>
-                      <div className="font-heading text-2xl font-bold text-amber-400">
-                        {telemetryData.duplicates_removed}
-                      </div>
-                    </div>
-                    <div className="bg-base-950/80 p-3.5 rounded-xl border border-base-800">
-                      <div className="text-white/40 text-[11px]">Valid Schema Compliance</div>
-                      <div className="font-heading text-2xl font-bold text-emerald-400">
-                        {telemetryData.valid_schema_rate}%
-                      </div>
-                    </div>
-                    <div className="bg-base-950/80 p-3.5 rounded-xl border border-base-800">
-                      <div className="text-white/40 text-[11px]">Active Sources Configured</div>
-                      <div className="font-heading text-2xl font-bold text-accent-300">
-                        {telemetryData.sources_configured}
-                      </div>
-                    </div>
+                    ))}
+                  </div>
+
+                  <div className="text-[11px] text-white/50 space-y-0.5">
+                    <p>Last successful refresh: {telemetryData.last_successful_sync
+                      ? new Date(telemetryData.last_successful_sync).toLocaleString() : 'never'}</p>
+                    <p>Next scheduled refresh: {telemetryData.next_scheduled_sync
+                      ? new Date(telemetryData.next_scheduled_sync).toLocaleString() : '—'}</p>
+                    <p>Listings without a stated posting date: {telemetryData.listings_without_posting_date ?? 0}</p>
+                    <p>Listings without recognisable skills: {telemetryData.listings_without_skills ?? 0}</p>
                   </div>
 
                   <div className="space-y-2 pt-2">
-                    <h5 className="font-semibold text-white/70">Source Breakdown</h5>
+                    <h5 className="font-semibold text-white/70">Job Sources</h5>
                     <div className="space-y-1.5">
-                      {Object.entries(telemetryData.source_breakdown || {}).map(([src, count]) => (
-                        <div
-                          key={src}
-                          className="flex justify-between items-center bg-base-950/60 px-3 py-2 rounded-xl border border-base-800"
-                        >
-                          <span className="font-mono text-white/80">{src}</span>
-                          <span className="font-mono font-bold text-accent-300">{count} listings</span>
-                        </div>
-                      ))}
+                      {(telemetryData.adapters || []).filter((a) => !a.is_sample_source).map((a) => {
+                        const h = a.health || {};
+                        const last = h.last_result;
+                        return (
+                          <div
+                            key={a.name}
+                            className="flex justify-between items-center bg-base-950/60 px-3 py-2 rounded-xl border border-base-800"
+                          >
+                            <span className="font-mono text-white/80">{a.name}</span>
+                            <span className={`font-mono text-[11px] ${
+                              !h.configured ? 'text-white/40'
+                                : last?.status === 'ok' ? 'text-emerald-300' : 'text-amber-300'
+                            }`}>
+                              {!h.configured
+                                ? 'Not configured'
+                                : last ? `${last.status} · ${last.accepted ?? 0} jobs last run` : 'Configured, not run yet'}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1319,7 +1619,7 @@ export default function Jobs() {
                 <div>
                   <div className="flex items-center space-x-2">
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-accent-500/20 text-accent-300 border border-accent-400/30 font-semibold">
-                      Candidate Application
+                      Application Tracker
                     </span>
                     {applyModalJob.region_badge === 'India' && (
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
@@ -1347,18 +1647,27 @@ export default function Jobs() {
                 </button>
               </div>
 
-              {/* Verified Profile Pitch Banner */}
-              <div className="bg-base-950/80 p-4 rounded-2xl border border-base-800 space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-white/60">Verified SkillBridge Portfolio:</span>
-                  <span className="text-emerald-400 font-mono font-bold flex items-center space-x-1">
-                    <TbCheck className="w-3.5 h-3.5" />
-                    <span>Auto-Bundled</span>
-                  </span>
+              {/* Honest notice: SkillBridge does not submit applications to employers */}
+              <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/30 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs text-amber-300 font-semibold">
+                  <TbAlertTriangle className="w-4 h-4" />
+                  <span>This does not send anything to the employer</span>
                 </div>
-                <p className="text-[11px] text-white/50 leading-relaxed">
-                  Your verified quizzes, skill confidence scores, and current readiness matrix are automatically attached to give recruiters verified evidence of competence.
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  SkillBridge records the application in your personal tracker. To actually apply, open the
+                  original posting on {applyModalJob.source} and follow the employer's application process.
                 </p>
+                {applyModalJob.application_url && (
+                  <a
+                    href={applyModalJob.application_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-white underline hover:text-accent-300"
+                  >
+                    <span>Open the original posting</span>
+                    <TbExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
 
               <form onSubmit={handleSubmitApply} className="space-y-4 text-xs">
@@ -1411,24 +1720,6 @@ export default function Jobs() {
                   />
                 </div>
 
-                {/* External Portal Fallback */}
-                {applyModalJob.application_url && (
-                  <div className="bg-accent-500/10 p-3 rounded-xl border border-accent-500/20 flex items-center justify-between text-xs">
-                    <span className="text-accent-300">
-                      Company Career Portal:
-                    </span>
-                    <a
-                      href={applyModalJob.application_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-white hover:text-accent-300 flex items-center space-x-1 font-mono text-[11px] underline"
-                    >
-                      <span>Direct Portal Post</span>
-                      <TbExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                )}
-
                 {/* Action Buttons */}
                 <div className="flex items-center justify-end space-x-2 pt-2 border-t border-base-800">
                   <button
@@ -1444,12 +1735,26 @@ export default function Jobs() {
                     className="btn-primary text-xs py-2 px-4 flex items-center space-x-1.5 shadow-glow"
                   >
                     <TbSend className="w-3.5 h-3.5" />
-                    <span>{applying ? 'Submitting...' : 'Submit Application'}</span>
+                    <span>{applying ? 'Saving...' : 'Record in My Tracker'}</span>
                   </button>
                 </div>
               </form>
             </div>
           </div>
+        )}
+
+        {alertsPanelOpen && (
+          <JobAlertsPanel
+            onClose={() => {
+              setAlertsPanelOpen(false);
+              loadUnreadAlerts();
+              loadJobs();
+            }}
+            onOpenJob={(job) => {
+              setAlertsPanelOpen(false);
+              handleOpenMatch(job);
+            }}
+          />
         )}
       </div>
     </AppLayout>

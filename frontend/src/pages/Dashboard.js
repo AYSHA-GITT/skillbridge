@@ -267,16 +267,16 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-emerald-400 font-bold">✓</span>
-                  <span>Differential Privacy provides additional protection</span>
+                  <span>Your resume and results are private to your account</span>
                 </div>
               </div>
 
               {/* Click to expand details */}
               {privacyDetailsOpen && (
                 <div className="surface p-4 rounded-2xl border border-teal-500/30 space-y-2 animate-slide-up text-[11px] text-white/70">
-                  <p>🔒 <strong className="text-white">Local Data Sovereignty:</strong> Academic records and resumes never leave your university or browser.</p>
-                  <p>⚡ <strong className="text-white">Federated Averaging:</strong> Algorithms train only on numerical weights, never sharing raw documents.</p>
-                  <p>🛡️ <strong className="text-white">Differential Privacy:</strong> Calibrated Gaussian perturbation bounds mathematical privacy without compromising quality.</p>
+                  <p>🔒 <strong className="text-white">Your data:</strong> Your resume is stored on the SkillBridge server so it can be analysed; only your account (and platform administrators) can access it. You can export or delete it from your account settings.</p>
+                  <p>⚡ <strong className="text-white">Federated learning:</strong> The federated module is a simulation on synthetic data; your resume is not used to train it.</p>
+                  <p>🛡️ <strong className="text-white">Privacy mechanism:</strong> The simulation clips updates and adds Gaussian noise, but no formal differential-privacy guarantee is claimed.</p>
                 </div>
               )}
             </div>

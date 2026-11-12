@@ -1,159 +1,59 @@
-import json
+"""
+Job discovery facade used by the API routes.
+
+Search never triggers a provider sync (the old version synced inside a user's
+request when the table was empty). Synchronization happens only through the
+scheduler / CLI / admin trigger (see sync_service.run_job_sync).
+"""
 import logging
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import or_
+
 from extensions import db
-from models import JobListing, SavedJob
-from utils.job_discovery.base_adapter import JobSourceAdapter
-from utils.job_discovery.remote_api_adapter import RemoteJobApiAdapter
-from utils.job_discovery.curated_sample_adapter import CuratedSampleAdapter
+from models import JobListing, JobSyncRun, SavedJob
+
+logger = logging.getLogger(__name__)
+
+SORTS = ("relevance", "recent", "match", "salary")
+DATE_POSTED_DAYS = {"24h": 1, "3d": 3, "7d": 7, "14d": 14, "30d": 30}
+
+
+def _aware(dt):
+    if dt is None:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+def _yearly_salary(job: JobListing) -> Optional[float]:
+    val = job.salary_max or job.salary_min
+    if val is None:
+        return None
+    mult = {"year": 1, "month": 12, "week": 52, "day": 260, "hour": 2080}.get(job.salary_period or "year", 1)
+    return val * mult
 
 
 class JobDiscoveryService:
-    """
-    Core opportunity discovery orchestrator.
-    Coordinates source adapters, executes schema validation, deduplication,
-    persists listings, and computes real data-quality metrics.
-    """
 
-    def __init__(self):
-        self.adapters: List[JobSourceAdapter] = [
-            RemoteJobApiAdapter(),
-            CuratedSampleAdapter()
-        ]
-        self._quality_metrics: Dict[str, Any] = {
-            "total_ingested": 0,
-            "duplicates_filtered": 0,
-            "missing_fields_detected": 0,
-            "stale_records_handled": 0,
-            "validation_failures": 0,
-            "last_sync_timestamp": None,
-            "source_status": {}
-        }
-
-    def register_adapter(self, adapter: JobSourceAdapter) -> None:
-        self.adapters.append(adapter)
-
-    def validate_and_normalize(self, raw_job: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Validates mandatory fields and standardizes structures.
-        Rejects invalid or incomplete entries.
-        """
-        title = (raw_job.get("title") or "").strip()
-        company = (raw_job.get("company") or "").strip()
-        desc = (raw_job.get("description") or "").strip()
-        url = (raw_job.get("application_url") or "").strip()
-
-        if not title or not company or not desc:
-            self._quality_metrics["missing_fields_detected"] += 1
-            return None
-
-        # Basic URL format check
-        if not (url.startswith("http://") or url.startswith("https://")):
-            url = "https://careers.google.com"
-
-        required_skills = raw_job.get("required_skills") or []
-        if isinstance(required_skills, str):
-            required_skills = [s.strip().lower() for s in required_skills.split(",") if s.strip()]
-        else:
-            required_skills = [str(s).strip().lower() for s in required_skills if s]
-
-        preferred_skills = raw_job.get("preferred_skills") or []
-        if isinstance(preferred_skills, str):
-            preferred_skills = [s.strip().lower() for s in preferred_skills.split(",") if s.strip()]
-        else:
-            preferred_skills = [str(s).strip().lower() for s in preferred_skills if s]
-
-        posting_date = raw_job.get("posting_date")
-        if not isinstance(posting_date, datetime):
-            posting_date = datetime.now(timezone.utc)
-
-        deadline = raw_job.get("deadline")
-        if deadline and not isinstance(deadline, datetime):
-            deadline = None
-
+    # ── Sync (delegates to the real pipeline) ────────────────────────────
+    def sync_all_sources(self, trigger: str = "manual", actor_id: Optional[int] = None, **_ignored) -> Dict[str, Any]:
+        from utils.job_discovery.sync_service import run_job_sync
+        run = run_job_sync(trigger=trigger, actor_id=actor_id)
         return {
-            "external_id": raw_job.get("external_id") or f"{company}_{title}_{int(datetime.now(timezone.utc).timestamp())}",
-            "title": title[:200],
-            "company": company[:200],
-            "location": (raw_job.get("location") or "Remote")[:200],
-            "job_type": raw_job.get("job_type", "Full-time"),
-            "work_arrangement": raw_job.get("work_arrangement", "Remote"),
-            "domain": raw_job.get("domain", "Software Engineering"),
-            "experience_level": raw_job.get("experience_level", "Entry-Level"),
-            "description": desc,
-            "required_skills": json.dumps(required_skills),
-            "preferred_skills": json.dumps(preferred_skills),
-            "eligibility": (raw_job.get("eligibility") or "Open to qualifying candidates")[:300],
-            "application_url": url[:500],
-            "source": raw_job.get("source", "Direct Feed")[:100],
-            "is_sample": bool(raw_job.get("is_sample", False)),
-            "posting_date": posting_date,
-            "deadline": deadline,
-            "collected_at": datetime.now(timezone.utc)
+            "run": run,
+            "status": run["status"],
+            "total_pulled_this_sync": run["fetched_count"],
+            "newly_saved_listings": run["inserted_count"],
+            "total_listings_in_db": JobListing.query.count(),
+            "quality_metrics": self.get_quality_metrics(),
         }
 
-    def sync_all_sources(self, limit_per_source: int = 25) -> Dict[str, Any]:
-        """
-        Polls all registered adapters, validates records, deduplicates against DB,
-        and saves new records to the database.
-        """
-        total_pulled = 0
-        newly_inserted = 0
+    def discover_and_sync(self, **kwargs) -> Dict[str, Any]:
+        res = self.sync_all_sources(**kwargs)
+        return {"new_jobs_added": res["newly_saved_listings"], "total_jobs_in_db": res["total_listings_in_db"], **res}
 
-        for adapter in self.adapters:
-            adapter_health = adapter.health_check()
-            self._quality_metrics["source_status"][adapter.source_name] = adapter_health
-
-            try:
-                raw_jobs = adapter.fetch_jobs(limit=limit_per_source)
-                total_pulled += len(raw_jobs)
-
-                for item in raw_jobs:
-                    normalized = self.validate_and_normalize(item)
-                    if not normalized:
-                        self._quality_metrics["validation_failures"] += 1
-                        continue
-
-                    # Check for duplicate by external_id or title+company
-                    existing = JobListing.query.filter(
-                        (JobListing.external_id == normalized["external_id"]) |
-                        ((JobListing.title == normalized["title"]) & (JobListing.company == normalized["company"]))
-                    ).first()
-
-                    if existing:
-                        self._quality_metrics["duplicates_filtered"] += 1
-                        continue
-
-                    # Check if stale (deadline passed)
-                    if normalized["deadline"]:
-                        dl = normalized["deadline"]
-                        now_utc = datetime.now(timezone.utc)
-                        if dl.tzinfo is None:
-                            dl = dl.replace(tzinfo=timezone.utc)
-                        if dl < now_utc:
-                            self._quality_metrics["stale_records_handled"] += 1
-                            continue
-
-                    job_record = JobListing(**normalized)
-                    db.session.add(job_record)
-                    newly_inserted += 1
-
-                db.session.commit()
-            except Exception as e:
-                logging.error(f"Error syncing adapter {adapter.source_name}: {e}")
-                db.session.rollback()
-
-        self._quality_metrics["total_ingested"] = JobListing.query.count()
-        self._quality_metrics["last_sync_timestamp"] = datetime.now(timezone.utc).isoformat()
-
-        return {
-            "total_pulled_this_sync": total_pulled,
-            "newly_saved_listings": newly_inserted,
-            "total_listings_in_db": self._quality_metrics["total_ingested"],
-            "quality_metrics": self.get_quality_metrics()
-        }
-
+    # ── Search ────────────────────────────────────────────────────────────
     def search_jobs(
         self,
         query: Optional[str] = None,
@@ -163,89 +63,140 @@ class JobDiscoveryService:
         skill: Optional[str] = None,
         is_sample: Optional[bool] = None,
         region: Optional[str] = None,
-        limit: int = 50
-    ) -> List[Dict[str, Any]]:
-        """
-        Search and multi-filter listings from database.
-        Strictly prioritizes India and Asia openings first before other countries.
-        Automatically seeds baseline data if database is empty.
-        """
+        limit: int = 50,
+        *,
+        location: Optional[str] = None,
+        company: Optional[str] = None,
+        entry_level: bool = False,
+        internship: Optional[bool] = None,
+        experience_max: Optional[float] = None,
+        salary_min: Optional[float] = None,
+        date_posted: Optional[str] = None,
+        include_expired: bool = False,
+        include_stale: bool = True,
+        sort: str = "relevance",
+        page: int = 1,
+        student=None,
+        min_match: Optional[float] = None,
+        return_meta: bool = False,
+    ):
         from utils.job_discovery.location_prioritizer import get_location_rank
 
-        count = JobListing.query.count()
-        if count == 0:
-            self.sync_all_sources(limit_per_source=25)
+        q = JobListing.query.filter(JobListing.duplicate_of_id.is_(None))
 
-        q = JobListing.query
+        # Status: samples are opt-in only; expired hidden unless requested
+        if is_sample is True:
+            q = q.filter(JobListing.is_sample.is_(True))
+        else:
+            q = q.filter(or_(JobListing.is_sample.is_(False), JobListing.is_sample.is_(None)))
+            statuses = ["active"] + (["stale"] if include_stale else []) + (["expired"] if include_expired else [])
+            q = q.filter(or_(JobListing.status.in_(statuses), JobListing.status.is_(None)))
 
         if query and query.strip():
-            kw = f"%{query.strip().lower()}%"
-            q = q.filter(
-                (JobListing.title.ilike(kw)) |
-                (JobListing.company.ilike(kw)) |
-                (JobListing.description.ilike(kw)) |
-                (JobListing.domain.ilike(kw)) |
-                (JobListing.location.ilike(kw))
-            )
-
-        if job_type and job_type.strip() and job_type.lower() != 'all':
+            for term in query.strip().split()[:6]:
+                kw = f"%{term}%"
+                q = q.filter(or_(JobListing.title.ilike(kw), JobListing.company.ilike(kw),
+                                 JobListing.description.ilike(kw), JobListing.required_skills.ilike(kw),
+                                 JobListing.location.ilike(kw)))
+        if job_type and job_type.strip() and job_type.lower() not in ("all", "all types"):
             q = q.filter(JobListing.job_type.ilike(f"%{job_type.strip()}%"))
-
-        if domain and domain.strip() and domain.lower() != 'all':
-            q = q.filter(JobListing.domain.ilike(f"%{domain.strip()}%"))
-
-        if work_arrangement and work_arrangement.strip() and work_arrangement.lower() != 'all':
+        if internship is True:
+            q = q.filter(JobListing.job_type == "Internship")
+        elif internship is False:
+            q = q.filter(JobListing.job_type != "Internship")
+        if domain and domain.strip() and domain.lower() not in ("all", "all domains"):
+            q = q.filter(or_(JobListing.career_category.ilike(f"%{domain.strip()}%"),
+                             JobListing.domain.ilike(f"%{domain.strip()}%")))
+        if work_arrangement and work_arrangement.strip() and work_arrangement.lower() != "all":
             q = q.filter(JobListing.work_arrangement.ilike(f"%{work_arrangement.strip()}%"))
+        if location and location.strip():
+            kw = f"%{location.strip()}%"
+            q = q.filter(or_(JobListing.location.ilike(kw), JobListing.city.ilike(kw), JobListing.state.ilike(kw)))
+        if company and company.strip():
+            q = q.filter(JobListing.company.ilike(f"%{company.strip()}%"))
+        if entry_level:
+            q = q.filter(or_(JobListing.is_entry_level.is_(True), JobListing.job_type == "Internship"))
+        if experience_max is not None:
+            q = q.filter(or_(JobListing.experience_min_years.is_(None), JobListing.experience_min_years <= experience_max))
+        if date_posted in DATE_POSTED_DAYS:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=DATE_POSTED_DAYS[date_posted])).replace(tzinfo=None)
+            q = q.filter(JobListing.posting_date >= cutoff)
 
-        if is_sample is not None:
-            q = q.filter(JobListing.is_sample == is_sample)
+        listings: List[JobListing] = q.all()
 
-        listings = q.all()
-
-        # Filter by skill in required or preferred skills
         if skill and skill.strip():
-            target_skill = skill.strip().lower()
-            filtered = []
-            for j in listings:
-                req = [s.lower() for s in j.get_required_skills()]
-                pref = [s.lower() for s in j.get_preferred_skills()]
-                if target_skill in req or target_skill in pref:
-                    filtered.append(j)
-            listings = filtered
-
-        # Filter by region if specified
-        if region and region.strip() and region.lower() != 'all':
+            from utils.skill_taxonomy import normalize_skill_name
+            target = normalize_skill_name(skill)
+            listings = [j for j in listings
+                        if target in [normalize_skill_name(s) for s in j.get_required_skills() + j.get_preferred_skills()]]
+        if salary_min is not None:
+            listings = [j for j in listings if (_yearly_salary(j) or 0) >= salary_min]
+        if region and region.strip() and region.lower() not in ("all", "all regions"):
             reg = region.strip().lower()
-            if reg == 'india':
+            if reg == "india":
                 listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) == 0]
-            elif reg == 'asia':
+            elif reg == "asia":
                 listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) in (0, 1)]
-            elif reg == 'remote':
-                listings = [j for j in listings if (j.work_arrangement and 'remote' in j.work_arrangement.lower()) or get_location_rank(j.location, j.title, j.company) == 2]
-            elif reg == 'international' or reg == 'other':
+            elif reg == "remote":
+                listings = [j for j in listings if (j.work_arrangement or "").lower() == "remote"
+                            or get_location_rank(j.location, j.title, j.company) == 2]
+            elif reg in ("international", "other"):
                 listings = [j for j in listings if get_location_rank(j.location, j.title, j.company) == 3]
 
-        # Prioritize location rank: 0 (India) -> 1 (Asia) -> 2 (Remote) -> 3 (Other countries)
-        # Secondary sort: posting_date desc
-        listings.sort(key=lambda j: (
-            get_location_rank(j.location, j.title, j.company),
-            -(j.posting_date.timestamp() if j.posting_date else 0)
-        ))
+        # Optional personalized scoring
+        scores: Dict[int, Optional[float]] = {}
+        profile = None
+        if student is not None:
+            from utils.job_matcher import build_student_profile, evaluate_job_match
+            profile = build_student_profile(student=student)
+            if sort == "match" or min_match is not None:  # needs every score; otherwise score the page only
+                for j in listings:
+                    scores[j.id] = evaluate_job_match(job=j, profile=profile, include_resources=False)["match_score"]
+            if min_match is not None:
+                listings = [j for j in listings if (scores.get(j.id) or 0) >= min_match]
 
-        if limit and limit > 0:
-            listings = listings[:limit]
+        def posted_ts(j):
+            p = _aware(j.posting_date)
+            return p.timestamp() if p else 0
 
-        return [j.to_dict() for j in listings]
+        if sort == "recent":
+            listings.sort(key=lambda j: (j.posting_date is None, -posted_ts(j)))
+        elif sort == "match" and scores:
+            listings.sort(key=lambda j: (scores.get(j.id) is None, -(scores.get(j.id) or 0), -posted_ts(j)))
+        elif sort == "salary":
+            listings.sort(key=lambda j: (_yearly_salary(j) is None, -(_yearly_salary(j) or 0)))
+        else:  # relevance: India first (location rank), then freshness
+            listings.sort(key=lambda j: (get_location_rank(j.location, j.title, j.company),
+                                         j.status == "stale", j.posting_date is None, -posted_ts(j)))
+
+        total = len(listings)
+        limit = max(1, min(int(limit or 50), 100))
+        page = max(1, int(page or 1))
+        page_items = listings[(page - 1) * limit: page * limit]
+        out = []
+        for j in page_items:
+            d = j.to_dict()
+            if profile is not None:
+                if j.id not in scores:
+                    scores[j.id] = evaluate_job_match(job=j, profile=profile, include_resources=False)["match_score"]
+                d["match_score"] = scores[j.id]
+            out.append(d)
+        if return_meta:
+            return {"jobs": out, "total": total, "page": page, "per_page": limit,
+                    "pages": (total + limit - 1) // limit}
+        return out
 
     def get_job_by_id(self, job_id: int) -> Optional[Dict[str, Any]]:
-        job = JobListing.query.get(job_id)
+        job = db.session.get(JobListing, job_id)
         return job.to_dict() if job else None
 
+    # ── Saved jobs ────────────────────────────────────────────────────────
     def save_job_for_student(self, student_id: int, job_id: int, notes: Optional[str] = None) -> Dict[str, Any]:
+        if db.session.get(JobListing, job_id) is None:
+            return {"status": "not_found"}
         existing = SavedJob.query.filter_by(student_id=student_id, job_id=job_id).first()
         if existing:
             return {"status": "already_saved", "saved_job": existing.to_dict()}
-
         record = SavedJob(student_id=student_id, job_id=job_id, notes=notes)
         db.session.add(record)
         db.session.commit()
@@ -263,54 +214,44 @@ class JobDiscoveryService:
         records = SavedJob.query.filter_by(student_id=student_id).order_by(SavedJob.saved_at.desc()).all()
         return [r.to_dict() for r in records]
 
+    # ── Metrics (computed from stored data, never hard-coded) ────────────
     def get_quality_metrics(self) -> Dict[str, Any]:
-        """
-        Returns real measured data quality metrics for ingestion transparency.
-        Never hardcodes fake percentages.
-        """
+        from utils.job_discovery.sync_service import last_success, next_due_at, provider_health
         total = JobListing.query.count()
-        sample_count = JobListing.query.filter_by(is_sample=True).count()
-        live_count = JobListing.query.filter_by(is_sample=False).count()
-
+        by_status = {s: JobListing.query.filter_by(status=s).count() for s in ("active", "stale", "expired", "sample")}
+        dup = JobListing.query.filter(JobListing.duplicate_of_id.isnot(None)).count()
+        no_skills = JobListing.query.filter(or_(JobListing.required_skills == "[]",
+                                                JobListing.required_skills.is_(None))).count()
+        no_date = JobListing.query.filter(JobListing.posting_date.is_(None)).count()
+        last_run = JobSyncRun.query.filter(JobSyncRun.status != "skipped").order_by(JobSyncRun.started_at.desc()).first()
+        ok = last_success()
         return {
             "total_listings_in_db": total,
-            "live_listings_count": live_count,
-            "sample_benchmark_count": sample_count,
-            "duplicates_filtered": self._quality_metrics["duplicates_filtered"],
-            "missing_fields_detected": self._quality_metrics["missing_fields_detected"],
-            "stale_records_handled": self._quality_metrics["stale_records_handled"],
-            "validation_failures": self._quality_metrics["validation_failures"],
-            "last_sync_timestamp": self._quality_metrics["last_sync_timestamp"],
-            "adapters": [
-                {
-                    "name": a.source_name,
-                    "is_sample_source": a.is_sample_source,
-                    "health": self._quality_metrics["source_status"].get(a.source_name, a.health_check())
-                }
-                for a in self.adapters
-            ]
-        }
-
-    def discover_and_sync(self, limit_per_source: int = 25) -> Dict[str, Any]:
-        res = self.sync_all_sources(limit_per_source=limit_per_source)
-        return {
-            "new_jobs_added": res.get("newly_saved_listings", 0),
-            "total_jobs_in_db": res.get("total_listings_in_db", 0),
-            **res
+            "live_listings_count": total - by_status["sample"],
+            "sample_benchmark_count": by_status["sample"],
+            "listings_by_status": by_status,
+            "duplicates_flagged": dup,
+            "duplicates_filtered": dup,
+            "listings_without_skills": no_skills,
+            "listings_without_posting_date": no_date,
+            "missing_fields_detected": last_run.invalid_count if last_run else 0,
+            "validation_failures": last_run.invalid_count if last_run else 0,
+            "stale_records_handled": by_status["stale"] + by_status["expired"],
+            "last_sync_timestamp": _aware(last_run.started_at).isoformat() if last_run else None,
+            "last_sync_status": last_run.status if last_run else None,
+            "last_successful_sync": _aware(ok.finished_at or ok.started_at).isoformat() if ok else None,
+            "next_scheduled_sync": next_due_at().isoformat(),
+            "adapters": [{"name": p["source"], "is_sample_source": p["is_sample_source"], "health": p}
+                         for p in provider_health()],
         }
 
     def get_data_quality_metrics(self) -> Dict[str, Any]:
         base = self.get_quality_metrics()
-        total = base.get("total_listings_in_db", 0)
-        failures = self._quality_metrics.get("validation_failures", 0)
-        rate = 100.0 if (total + failures) == 0 else round(100.0 * total / (total + failures), 1)
-        return {
-            "total_ingested": total,
-            "valid_schema_rate": 100.0 if failures == 0 else rate,
-            **base
-        }
+        last_run = JobSyncRun.query.filter(JobSyncRun.status != "skipped").order_by(JobSyncRun.started_at.desc()).first()
+        fetched = last_run.fetched_count if last_run else 0
+        invalid = last_run.invalid_count if last_run else 0
+        rate = round(100.0 * (fetched - invalid) / fetched, 1) if fetched else None
+        return {"total_ingested": base["total_listings_in_db"], "valid_schema_rate": rate, **base}
 
 
 job_discovery_service = JobDiscoveryService()
-
-

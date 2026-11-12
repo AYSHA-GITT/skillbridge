@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta, timezone
 from utils.job_discovery.base_adapter import JobSourceAdapter
@@ -5,14 +6,17 @@ from utils.job_discovery.base_adapter import JobSourceAdapter
 
 class CuratedSampleAdapter(JobSourceAdapter):
     """
-    Curated baseline opportunity adapter providing high-fidelity, clearly-labeled
-    benchmark internships and junior positions aligned with Indian campus & remote tech tracks.
-    Labels every listing explicitly as `is_sample=True` with honest source attribution.
+    DEMO DATA ONLY. Hand-written example listings (they are NOT real vacancies,
+    even though they name real companies). Disabled unless
+    JOB_INCLUDE_SAMPLE_LISTINGS=1, always stored with is_sample=True /
+    status='sample', and excluded from default search results.
     """
+    provider_key = "curated_sample"
+    default_request_budget = 0
 
     @property
     def source_name(self) -> str:
-        return "SkillBridge Curated Benchmark Index"
+        return "SkillBridge Sample Listings (demo data, not real vacancies)"
 
     @property
     def is_sample_source(self) -> bool:
@@ -466,18 +470,29 @@ class CuratedSampleAdapter(JobSourceAdapter):
             }
         ]
 
-    def fetch_jobs(self, query: Optional[str] = None, limit: int = 25) -> List[Dict[str, Any]]:
-        jobs = self._get_benchmark_catalog()
-        if not query:
-            return jobs[:limit]
+    def is_configured(self) -> bool:
+        # Sample listings are hand-written demo data, not real vacancies.
+        # They are only ingested when explicitly enabled (local demos / tests).
+        return os.getenv("JOB_INCLUDE_SAMPLE_LISTINGS", "0").lower() in ("1", "true", "yes")
 
-        q = query.lower().strip()
-        filtered = [
-            j for j in jobs
-            if q in j["title"].lower()
-            or q in j["company"].lower()
-            or q in j["domain"].lower()
-            or any(q in s.lower() for s in j["required_skills"])
-            or q in j["description"].lower()
-        ]
-        return filtered[:limit]
+    def fetch_jobs(self, searches=None) -> List[Dict[str, Any]]:
+        out = []
+        for j in self._get_benchmark_catalog():
+            out.append({
+                "source_provider": self.provider_key,
+                "source_name": self.source_name,
+                "source_job_id": j["external_id"],
+                "title": j["title"],
+                "company": j["company"],
+                "description": j["description"],
+                "location": j["location"],
+                "url": j["application_url"],
+                "posted_at": None,          # demo data has no real posting date
+                "deadline": None,
+                "contract_type": j.get("job_type"),
+                "eligibility": j.get("eligibility"),
+                "required_skills": j.get("required_skills"),
+                "preferred_skills": j.get("preferred_skills"),
+                "is_sample": True,
+            })
+        return out

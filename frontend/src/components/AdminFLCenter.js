@@ -55,7 +55,7 @@ export default function AdminFLCenter() {
       const res = await skillService.triggerFLRound();
       setAlert({
         type: 'success',
-        message: `Federated Round ${res.data.round_number} converged! Global Accuracy: ${Math.round(res.data.global_accuracy * 100)}% with Differential Privacy.`,
+        message: `Federated Round ${res.data.round_number} converged! Global Accuracy: ${Math.round(res.data.global_accuracy * 100)}% (measured on held-out synthetic data).`,
       });
       fetchData();
       handleSelectRound(res.data.round_number);
@@ -81,8 +81,8 @@ export default function AdminFLCenter() {
 
   const latestRound = rounds[rounds.length - 1];
   const currentAccuracy = latestRound ? Math.round(latestRound.global_accuracy * 100) : 78;
-  const currentLoss = latestRound?.global_loss ?? 0.22;
-  const currentEpsilon = latestRound?.privacy_epsilon ?? 0.85;
+  const currentLoss = latestRound?.global_loss ?? 'not measured';
+  const currentEpsilon = latestRound?.privacy_epsilon ?? 'not computed';
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -150,7 +150,7 @@ export default function AdminFLCenter() {
         </div>
 
         <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
-          <span className="text-slate-400 text-xs font-mono">Differential Privacy</span>
+          <span className="text-slate-400 text-xs font-mono">Privacy budget (ε)</span>
           <p className="font-heading text-3xl font-bold text-emerald-400 mt-1">
             ε = {currentEpsilon}
           </p>
@@ -244,10 +244,10 @@ export default function AdminFLCenter() {
                 <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800 space-y-2">
                   <div className="flex items-center space-x-2 text-purple-300">
                     <TbLock className="w-4 h-4" />
-                    <span className="font-semibold text-xs">Differential Privacy</span>
+                    <span className="font-semibold text-xs">Clipping & Noise</span>
                   </div>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    L2 norm clipping bounds gradient sensitivity (C = 1.0). Gaussian perturbation noise added.
+                    Each client update is L2-clipped (C = 1.0) and Gaussian noise is added to the aggregate. No formal ε is computed.
                   </p>
                   <div className="text-[10px] text-purple-300 font-mono">
                     Noise Mechanism: Gaussian
@@ -283,12 +283,12 @@ export default function AdminFLCenter() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-white">
                   <TbLock className="w-4 h-4 text-cyan-400" />
-                  <h4 className="font-semibold text-xs">Configured Differential Privacy Bounds</h4>
+                  <h4 className="font-semibold text-xs">Privacy Mechanism (clipping + Gaussian noise)</h4>
                 </div>
-                <span className="text-[10px] font-mono text-cyan-400">ε = {currentEpsilon} | δ = 1e-5</span>
+                <span className="text-[10px] font-mono text-cyan-400">ε = {currentEpsilon} · no privacy accountant</span>
               </div>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Federated Learning reduces the need to transfer raw training data. Differential Privacy provides an additional privacy protection layer by bounding the influence of any single student vector on the aggregated weights.
+                This is a simulation on synthetic partitions. Each client update is L2-clipped and Gaussian noise is added to the aggregate, which limits the influence of any single update. Because no privacy accountant is implemented, no formal differential-privacy (ε, δ) guarantee is claimed.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
                 <div className="p-3 rounded-xl bg-[#070b14] border border-slate-800">
@@ -435,10 +435,10 @@ export default function AdminFLCenter() {
                         {Math.round(r.global_accuracy * 100)}%
                       </td>
                       <td className="py-2.5 px-3 text-slate-300">
-                        {r.global_loss}
+                        {r.global_loss ?? '—'}
                       </td>
                       <td className="py-2.5 px-3 text-emerald-400">
-                        ε = {r.privacy_epsilon}
+                        ε = {r.privacy_epsilon ?? 'n/a'}
                       </td>
                       <td className="py-2.5 px-3 text-slate-300">
                         Converged (FedAvg + DP)
@@ -537,13 +537,13 @@ export default function AdminFLCenter() {
                   <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 font-mono text-[11px] text-emerald-300 space-y-1">
                     <p>Colleges A, B, C, D (Local Training)</p>
                     <p className="text-cyan-400">  ↓ Uploads Model Weights (W, b)</p>
-                    <p>Flower FedAvg Aggregator (+ Differential Privacy)</p>
+                    <p>FedAvg aggregator (+ update clipping & Gaussian noise)</p>
                     <p className="text-emerald-400">  ↓ Broadcasts Global Model</p>
                     <p>Collaborative Career Intelligence</p>
                   </div>
                   <p className="text-emerald-300 font-medium">Benefits:</p>
                   <p>• Raw student records remain 100% on-campus.</p>
-                  <p>• Mathematical Differential Privacy bounds data leakage.</p>
+                  <p>• Clipping + noise limit per-update influence (no formal DP guarantee).</p>
                   <p>• Colleges collaboratively gain macro job-market intelligence.</p>
                 </div>
               </div>

@@ -33,7 +33,10 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
   };
 
   const handleSubmit = async () => {
-    if (!quizData || Object.keys(answers).length === 0) return;
+    if (!quizData || (quizData.questions || []).some((q) => !answers[q.id])) {
+      setError('Please answer every question before submitting.');
+      return;
+    }
     setSubmitting(true);
     setError('');
 
@@ -114,7 +117,26 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
                 <div className="mt-3 inline-block px-4 py-1.5 rounded-full bg-accent-500/15 border border-accent-400/30 text-accent-300 text-xs font-mono">
                   Verification Score: {Math.round(result.verification_score * 100)}%
                 </div>
+                {result.proficiency && (
+                  <p className="text-xs text-white/60 mt-2">Demonstrated level: {result.proficiency}</p>
+                )}
               </div>
+
+              {Array.isArray(result.review) && result.review.some((r) => !r.is_correct) && (
+                <div className="text-left space-y-2 max-w-xl mx-auto">
+                  <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Review your mistakes</h4>
+                  {result.review.filter((r) => !r.is_correct).map((r) => (
+                    <div key={r.question_id} className="bg-base-950/60 border border-base-800 rounded-xl p-3 text-xs space-y-1">
+                      <p className="text-white/80">{r.question}</p>
+                      <p className="text-rose-300">Your answer: {r.your_answer || '—'}</p>
+                      <p className="text-emerald-300">
+                        Correct answer: {r.correct_answer}{r.correct_option_text ? ` — ${r.correct_option_text}` : ''}
+                      </p>
+                      {r.difficulty && <p className="text-white/40">Difficulty: {r.difficulty}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="pt-4">
                 <button onClick={onClose} className="btn-primary max-w-xs mx-auto text-sm py-2.5">
@@ -191,7 +213,7 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={submitting || Object.keys(answers).length === 0}
+                disabled={submitting || !quizData || (quizData.questions || []).some((q) => !answers[q.id])}
                 className="btn-primary text-xs py-2 px-5 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Scoring...' : 'Submit Answers'}

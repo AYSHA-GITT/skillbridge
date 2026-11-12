@@ -1,119 +1,83 @@
+"""
+Arbeitnow public job board API adapter (https://www.arbeitnow.com/api/job-board-api).
+
+No credentials required. Note: Arbeitnow lists mostly Europe-based roles
+(many in Germany) plus remote roles; it is NOT a source of Indian listings.
+It is kept as an optional source of remote opportunities and can be disabled
+with JOB_PROVIDERS. Results are not keyword-searchable server-side, so
+filtering by the search plan happens locally.
+"""
 import re
-import requests
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone
-from utils.job_discovery.base_adapter import JobSourceAdapter
+from typing import Any, Dict, Iterable, List
+
+from utils.job_discovery.base_adapter import JobSourceAdapter, ProviderBadResponse, RequestBudgetExceeded
 
 
 class RemoteJobApiAdapter(JobSourceAdapter):
-    """
-    Adapter fetching live opportunities from public official job feeds (Arbeitnow).
-    Respects rate limits, timeouts, robots guidelines, and captures rich job fields.
-    """
-
+    provider_key = "arbeitnow"
+    default_request_budget = 3
     API_URL = "https://www.arbeitnow.com/api/job-board-api"
+
+    def __init__(self, remote_only=None, **kwargs):
+        super().__init__(**kwargs)
+        import os
+        self.remote_only = (remote_only if remote_only is not None
+                            else os.getenv("ARBEITNOW_REMOTE_ONLY", "1").lower() in ("1", "true", "yes"))
 
     @property
     def source_name(self) -> str:
-        return "Arbeitnow Live API"
+        return "Arbeitnow"
 
-    @property
-    def is_sample_source(self) -> bool:
-        return False
+    def is_configured(self) -> bool:
+        return True
 
-    def _clean_html(self, raw_html: str) -> str:
-        if not raw_html:
-            return ""
-        import html
-        unescaped = html.unescape(raw_html)
-        clean = re.sub(r'<[^>]+>', ' ', unescaped)
-        clean = html.unescape(clean)
-        clean = re.sub(r'\s+', ' ', clean).strip()
-        return clean[:3000]
-
-    def _extract_skills_from_tags(self, tags: List[str], desc: str) -> List[str]:
-        skill_candidates = set()
-        for t in tags or []:
-            norm = t.lower().strip()
-            if len(norm) >= 2:
-                skill_candidates.add(norm)
-
-        # Basic tech keywords scan in description
-        common_tech = [
-            "python", "javascript", "typescript", "react", "node.js", "docker",
-            "aws", "kubernetes", "sql", "postgresql", "mongodb", "git",
-            "machine learning", "data analysis", "rest api", "linux", "c++", "java"
-        ]
-        desc_lower = desc.lower()
-        for tech in common_tech:
-            if tech in desc_lower:
-                skill_candidates.add(tech)
-
-        return sorted(list(skill_candidates))
-
-    def fetch_jobs(self, query: Optional[str] = None, limit: int = 25) -> List[Dict[str, Any]]:
-        results = []
-        try:
-            params = {}
-            # Requests with standard timeout and user agent
-            headers = {
-                "User-Agent": "SkillBridge-CareerBot/1.0 (Student Career Intelligence Platform; Contact: support@skillbridge.edu)"
-            }
-            resp = requests.get(self.API_URL, params=params, headers=headers, timeout=5)
-            if resp.status_code != 200:
-                return []
-
-            data = resp.json().get("data", [])
-            for item in data[:limit]:
-                title = item.get("title", "").strip()
-                company = item.get("company_name", "Technology Partner").strip()
-                desc = self._clean_html(item.get("description", ""))
-                tags = item.get("tags", [])
-                extracted_skills = self._extract_skills_from_tags(tags, desc)
-
-                # Filter by query if supplied
-                if query and query.lower() not in title.lower() and query.lower() not in desc.lower():
+    def fetch_jobs(self, searches: Iterable[Dict[str, str]]) -> List[Dict[str, Any]]:
+        terms = [s.get("what", "").lower() for s in searches if s.get("what")]
+        jobs: List[Dict[str, Any]] = []
+        for page in range(1, self.max_requests_per_run + 1):
+            try:
+                data = self._request("GET", self.API_URL, params={"page": page})
+            except RequestBudgetExceeded:
+                break
+            if not isinstance(data, dict) or not isinstance(data.get("data"), list):
+                raise ProviderBadResponse("Arbeitnow: unexpected response shape")
+            items = data["data"]
+            for item in items:
+                if not isinstance(item, dict):
                     continue
-
-                location = item.get("location", "Remote")
-                is_remote = item.get("remote", True)
-                work_arrangement = "Remote" if is_remote else ("Hybrid" if "hybrid" in location.lower() else "Onsite")
-
-                job_type = "Internship" if any(w in title.lower() for w in ["intern", "trainee", "working student", "co-op"]) else "Full-time"
-
-                # Domain inference
-                domain = "Software Engineering"
-                lower_title = title.lower()
-                if any(w in lower_title for w in ["data", "analyst", "analytics"]):
-                    domain = "Data Analytics"
-                elif any(w in lower_title for w in ["machine learning", "ai", "deep learning"]):
-                    domain = "Machine Learning & AI"
-                elif any(w in lower_title for w in ["cloud", "devops", "sre", "infrastructure"]):
-                    domain = "Cloud & DevOps"
-                elif any(w in lower_title for w in ["frontend", "web", "react"]):
-                    domain = "Web Development"
-
-                results.append({
-                    "external_id": f"arbeitnow_{item.get('slug', '')}",
+                title = item.get("title") or ""
+                if self.remote_only and not item.get("remote"):
+                    continue  # onsite roles in Europe are not reachable for most SkillBridge users
+                if terms and not any(_term_matches(t, title) for t in terms):
+                    continue
+                jobs.append({
+                    "source_provider": self.provider_key,
+                    "source_name": self.source_name,
+                    "source_job_id": item.get("slug"),
                     "title": title,
-                    "company": company,
-                    "location": location,
-                    "job_type": job_type,
-                    "work_arrangement": work_arrangement,
-                    "domain": domain,
-                    "experience_level": "Entry-Level" if "junior" in lower_title or "intern" in lower_title else "Mid-Level",
-                    "description": desc,
-                    "required_skills": extracted_skills[:6] if extracted_skills else ["python", "git"],
-                    "preferred_skills": extracted_skills[6:10] if len(extracted_skills) > 6 else ["docker", "cloud"],
-                    "eligibility": "B.Tech/BE/BCA/MCA in Computer Science, IT, Data, or equivalent practical competency",
-                    "application_url": item.get("url") or "https://www.arbeitnow.com",
-                    "source": self.source_name,
-                    "is_sample": False,
-                    "posting_date": datetime.fromtimestamp(item.get("created_at", datetime.now(timezone.utc).timestamp()), tz=timezone.utc),
-                    "deadline": None
+                    "company": item.get("company_name"),
+                    "description": item.get("description"),
+                    "location": item.get("location"),
+                    "remote": item.get("remote"),
+                    "url": item.get("url"),
+                    "posted_at": item.get("created_at"),
+                    "tags": item.get("tags") or [],
+                    "contract_type": " ".join(item.get("job_types") or []),
                 })
-        except Exception:
-            # Source failure handled gracefully without crashing caller
-            return []
+            if not items or not (data.get("links") or {}).get("next"):
+                break
+        return jobs
 
-        return results
+
+_GENERIC_WORDS = {"remote", "developer", "engineer", "software", "intern", "trainee", "fresher", "junior", ""}
+
+
+def _term_matches(term: str, title: str) -> bool:
+    """True when every role-specific word of the search term appears as a whole
+    word in the title. Generic words (remote, developer, ...) are ignored, and a
+    term made only of generic words matches titles containing 'software'/'developer'."""
+    words = [w for w in re.split(r"[^a-z0-9+#]+", term.lower()) if w not in _GENERIC_WORDS]
+    t = title.lower()
+    if not words:
+        return bool(re.search(r"\b(software|developer|programmer)\b", t))
+    return all(re.search(rf"(?<![a-z0-9]){re.escape(w)}(?![a-z0-9])", t) for w in words)

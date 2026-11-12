@@ -12,7 +12,8 @@ import {
   TbFileSpreadsheet,
   TbAdjustments,
   TbLogout,
-  TbServer2
+  TbServer2,
+  TbBriefcase
 } from 'react-icons/tb';
 import authService from '../services/authService';
 
@@ -34,6 +35,7 @@ export default function AdminLayout({ activeTab, onTabChange, adminUser, childre
     { id: 'skills', label: 'Skill Analytics', icon: TbChartBar },
     { id: 'careers', label: 'Career Trends', icon: TbTrendingUp },
     { id: 'gaps', label: 'Common Skill Gaps', icon: TbTargetArrow },
+    { id: 'jobs', label: 'Job Sync & Health', icon: TbBriefcase },
     { id: 'federated', label: 'Federated Learning', icon: TbNetwork, badge: 'Core FL' },
     { id: 'rounds', label: 'FL Rounds', icon: TbRotateClockwise },
     { id: 'reports', label: 'Reports', icon: TbFileSpreadsheet },
@@ -142,7 +144,7 @@ export default function AdminLayout({ activeTab, onTabChange, adminUser, childre
               <span className="text-xs font-semibold">Federated Privacy Layer</span>
             </div>
             <p className="text-[11px] text-slate-400 leading-snug">
-              Decentralized SGD model training across college partitions with mathematical Differential Privacy.
+              Federated SGD simulation on synthetic partitions, with update clipping and Gaussian noise (no formal privacy guarantee claimed).
             </p>
             <div className="pt-1.5 border-t border-slate-800 text-[10px] font-mono text-slate-400 flex justify-between">
               <span>Aggregation: FedAvg</span>

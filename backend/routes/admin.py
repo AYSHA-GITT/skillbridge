@@ -105,7 +105,7 @@ def get_admin_stats():
 
     # FL training summary from database
     latest_round = FLTrainingRound.query.order_by(FLTrainingRound.round_number.desc()).first()
-    fl_accuracy = latest_round.global_accuracy_after_round if latest_round else 0.78
+    fl_accuracy = latest_round.global_accuracy_after_round if latest_round else None
     fl_rounds_count = latest_round.round_number if latest_round else 0
 
     return jsonify({
@@ -179,3 +179,105 @@ def get_fl_round_details(round_id):
 def get_fl_status():
     status = get_federated_status()
     return jsonify(status), 200
+
+
+# ─────────────────────────────────────────
+# JOB SYNCHRONIZATION MONITORING
+# ─────────────────────────────────────────
+@admin_bp.route('/jobs/overview', methods=['GET'])
+@admin_required
+def get_jobs_overview():
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import func
+    from models import JobListing, JobSyncRun, JobApplication, JobAlertMatch, SavedJob
+    from utils.job_discovery.sync_service import (
+        last_success, lease_status, next_due_at, provider_health, SYNC_INTERVAL)
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    day_ago = now - timedelta(hours=24)
+    by_status = dict(db.session.query(JobListing.status, func.count(JobListing.id))
+                     .group_by(JobListing.status).all())
+    by_provider = [
+        {'provider': p or 'unknown', 'status': s or 'unknown', 'count': c}
+        for p, s, c in db.session.query(JobListing.source_provider, JobListing.status, func.count(JobListing.id))
+        .group_by(JobListing.source_provider, JobListing.status).all()
+    ]
+    runs = JobSyncRun.query.order_by(JobSyncRun.started_at.desc()).limit(20).all()
+    failed_24h = JobSyncRun.query.filter(JobSyncRun.started_at >= day_ago,
+                                         JobSyncRun.status == 'failed').count()
+    ok = last_success()
+    return jsonify({
+        'totals': {
+            'jobs_total': JobListing.query.count(),
+            'jobs_by_status': by_status,
+            'new_jobs_last_24h': JobListing.query.filter(JobListing.first_seen_at >= day_ago,
+                                                         JobListing.is_sample.is_(False)).count(),
+            'duplicates_flagged': JobListing.query.filter(JobListing.duplicate_of_id.isnot(None)).count(),
+            'jobs_without_skills': JobListing.query.filter(JobListing.required_skills == '[]').count(),
+        },
+        'by_provider': by_provider,
+        'schedule': {
+            'interval_hours': SYNC_INTERVAL.total_seconds() / 3600,
+            'last_successful_sync': ok.finished_at.isoformat() if ok and ok.finished_at else None,
+            'next_scheduled_sync': next_due_at().isoformat(),
+            'currently_running': lease_status(),
+            'failed_runs_last_24h': failed_24h,
+        },
+        'providers': provider_health(),
+        'activity': {
+            'applications_total': JobApplication.query.count(),
+            'saved_jobs_total': SavedJob.query.count(),
+            'alert_matches_last_24h': JobAlertMatch.query.filter(JobAlertMatch.created_at >= day_ago).count(),
+        },
+        'recent_runs': [r.to_dict() for r in runs],
+    }), 200
+
+
+@admin_bp.route('/jobs/sync', methods=['POST'])
+@admin_required
+def admin_trigger_job_sync():
+    """Manual sync. Uses the same lease as the scheduler, so it can never overlap
+    a scheduled run (it is recorded as 'skipped' instead) or create duplicates."""
+    from utils.job_discovery.sync_service import run_job_sync
+    from utils.audit import audit
+    run = run_job_sync(trigger='manual', actor_id=current_user.id)
+    audit('jobs.manual_sync', actor_id=current_user.id, target=f"job_sync_run:{run['id']}",
+          details={'status': run['status']})
+    code = 409 if run['status'] == 'skipped' else 200
+    return jsonify({'run': run}), code
+
+
+@admin_bp.route('/jobs/runs', methods=['GET'])
+@admin_required
+def admin_list_job_runs():
+    from models import JobSyncRun
+    limit = min(int(request.args.get('limit', 50) or 50), 200)
+    runs = JobSyncRun.query.order_by(JobSyncRun.started_at.desc()).limit(limit).all()
+    return jsonify({'runs': [r.to_dict() for r in runs]}), 200
+
+
+@admin_bp.route('/audit_logs', methods=['GET'])
+@admin_required
+def admin_audit_logs():
+    from models import AuditLog
+    limit = min(int(request.args.get('limit', 100) or 100), 500)
+    logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+    return jsonify({'logs': [l.to_dict() for l in logs]}), 200
+
+
+@admin_bp.route('/system/health', methods=['GET'])
+@admin_required
+def admin_system_health():
+    """AI provider availability and model evaluation metrics (measured, not hard-coded)."""
+    from utils.ai_providers import ai_provider_manager
+    try:
+        ai = ai_provider_manager.get_providers_status()
+    except Exception as e:
+        ai = {'error': str(e)}
+    try:
+        from ml.salary_model import salary_predictor
+        salary_eval = salary_predictor.evaluation()
+    except Exception as e:
+        salary_eval = {'error': str(e)}
+    return jsonify({'ai_services': ai, 'models': {'salary': salary_eval},
+                    'federated': get_federated_status()}), 200

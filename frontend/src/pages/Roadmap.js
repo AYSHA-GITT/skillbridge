@@ -156,7 +156,10 @@ export default function Roadmap() {
                         <Icon className={isActive ? 'text-accent-400' : 'text-white/40'} size={16} />
                       </div>
                       <p className="text-sm font-medium mt-2.5 capitalize">{group.skill}</p>
-                      <p className="text-xs text-white/40 mt-0.5 mb-1.5">{done} of {total} days</p>
+                      <p className="text-xs text-white/40 mt-0.5 mb-1.5">
+                        {done} of {total} days
+                        {group.category ? ` · ${group.category === 'Required' ? 'Required' : 'Nice to have'}` : ''}
+                      </p>
                       <div className="h-0.5 rounded-full bg-base-700 overflow-hidden">
                         <div className="h-full bg-accent-400 rounded-full" style={{ width: `${pct}%` }} />
                       </div>
@@ -170,6 +173,11 @@ export default function Roadmap() {
                   <p className="text-xs font-medium text-white/40 mb-4 capitalize">
                     {activeGroup.skill} — day by day
                   </p>
+                  {activeGroup.recommendation && (
+                    <p className="text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4">
+                      {activeGroup.recommendation}
+                    </p>
+                  )}
 
                   <div className="relative pl-1.5">
                     <div className="absolute left-[19px] top-1.5 bottom-1.5 w-0.5 bg-base-700" />

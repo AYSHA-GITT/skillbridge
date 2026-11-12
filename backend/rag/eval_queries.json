@@ -1,0 +1,40 @@
+{
+  "description": "Hand-written retrieval test set (authored for this evaluation, not real user queries). Each query names the career document a correct retriever should rank first. 'keyword' queries share vocabulary with the document; 'paraphrase' queries describe the same need in different words.",
+  "queries": [
+    {"q": "Which career uses SQL, Excel and Power BI dashboards?", "expected": "data_analyst", "type": "keyword"},
+    {"q": "I like turning business numbers into charts that managers can understand", "expected": "data_analyst", "type": "paraphrase"},
+    {"q": "job where I report on sales trends from company spreadsheets", "expected": "data_analyst", "type": "paraphrase"},
+
+    {"q": "career building machine learning models with pandas, numpy and statistics", "expected": "data_scientist", "type": "keyword"},
+    {"q": "I want to run experiments and predict customer churn from historical data", "expected": "data_scientist", "type": "paraphrase"},
+    {"q": "role that combines statistical hypothesis testing with forecasting", "expected": "data_scientist", "type": "paraphrase"},
+
+    {"q": "career deploying deep learning models with PyTorch into production", "expected": "machine_learning_engineer", "type": "keyword"},
+    {"q": "I want to serve neural network inference at scale and monitor model drift", "expected": "machine_learning_engineer", "type": "paraphrase"},
+    {"q": "productionizing trained AI models behind low-latency APIs", "expected": "machine_learning_engineer", "type": "paraphrase"},
+
+    {"q": "role writing Python and Java with data structures and algorithms", "expected": "software_engineer", "type": "keyword"},
+    {"q": "I enjoy solving coding interview problems and designing clean backend services", "expected": "software_engineer", "type": "paraphrase"},
+    {"q": "general programming job maintaining large codebases with code reviews", "expected": "software_engineer", "type": "paraphrase"},
+
+    {"q": "career using HTML, CSS, JavaScript and React", "expected": "web_developer", "type": "keyword"},
+    {"q": "I like making websites look good on phones and laptops", "expected": "web_developer", "type": "paraphrase"},
+    {"q": "building responsive pages and browser user interfaces", "expected": "web_developer", "type": "paraphrase"},
+
+    {"q": "career covering React frontend plus Node.js backend and databases", "expected": "full_stack_developer", "type": "keyword"},
+    {"q": "I want to own a feature end to end from the UI to the server and the database", "expected": "full_stack_developer", "type": "paraphrase"},
+    {"q": "one person building both the client app and its API", "expected": "full_stack_developer", "type": "paraphrase"},
+
+    {"q": "career with Docker, Kubernetes, CI/CD pipelines and Linux", "expected": "devops_engineer", "type": "keyword"},
+    {"q": "I want to automate how code gets tested and shipped to servers", "expected": "devops_engineer", "type": "paraphrase"},
+    {"q": "keeping deployments reliable and automating release workflows", "expected": "devops_engineer", "type": "paraphrase"},
+
+    {"q": "career designing AWS cloud infrastructure and architecture", "expected": "cloud_architect", "type": "keyword"},
+    {"q": "planning how a company's systems should run on hosted data centers for scale and cost", "expected": "cloud_architect", "type": "paraphrase"},
+    {"q": "choosing managed services and designing highly available systems on a public cloud", "expected": "cloud_architect", "type": "paraphrase"},
+
+    {"q": "career in cybersecurity, network security and SIEM monitoring", "expected": "cybersecurity_analyst", "type": "keyword"},
+    {"q": "I want to protect a company from hackers and investigate breaches", "expected": "cybersecurity_analyst", "type": "paraphrase"},
+    {"q": "responding to security incidents and finding vulnerabilities", "expected": "cybersecurity_analyst", "type": "paraphrase"}
+  ]
+}

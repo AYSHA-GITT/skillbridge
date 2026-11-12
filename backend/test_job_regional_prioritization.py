@@ -54,9 +54,12 @@ class TestJobRegionalPrioritization(unittest.TestCase):
         # Must be strictly ordered: rank 0 first, then rank 1, then rank 2, then rank 3
         self.assertEqual(ranks, sorted(ranks), "Jobs must be ordered by location rank (India -> Asia -> Remote -> Other)")
 
-        # Verify first job is from India
-        self.assertEqual(jobs[0]['location_rank'], 0)
-        self.assertEqual(jobs[0]['region_badge'], "India")
+        # If any Indian listing exists it must come first. (Sample/demo listings are
+        # excluded from default search, so this is only checked against real data.)
+        if 0 in ranks:
+            self.assertEqual(jobs[0]['location_rank'], 0)
+            self.assertEqual(jobs[0]['region_badge'], "India")
+        self.assertFalse(any(j['is_sample'] for j in jobs), "Demo listings must not appear in default search")
 
     def test_job_search_region_filters(self):
         # Filter by India

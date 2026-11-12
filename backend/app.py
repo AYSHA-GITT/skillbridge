@@ -12,7 +12,9 @@ load_dotenv()
 # Initialize Flask app
 app = Flask(__name__)
 CORS(
-    app, origins=["http://localhost:3000"], supports_credentials=True)
+    app,
+    origins=[o.strip() for o in os.getenv('FRONTEND_ORIGINS', 'http://localhost:3000').split(',') if o.strip()],
+    supports_credentials=True)
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -47,6 +49,16 @@ from routes.admin import admin_bp
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+
+from cli import jobs_cli, skills_cli, users_cli
+app.cli.add_command(jobs_cli)
+app.cli.add_command(skills_cli)
+app.cli.add_command(users_cli)
+
+# Optional in-process scheduler (single-instance/dev). Production: use job_worker.py or cron.
+if os.getenv('RUN_JOB_SCHEDULER_IN_PROCESS', '0').lower() in ('1', 'true', 'yes'):
+    from utils.job_discovery.scheduler import start_in_process_scheduler
+    start_in_process_scheduler(app)
 
 @app.route('/')
 @app.route('/api/health')

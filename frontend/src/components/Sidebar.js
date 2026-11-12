@@ -89,7 +89,7 @@ export default function Sidebar({ onOpenPrivacyModal }) {
           </div>
           <div className="flex items-center space-x-1.5">
             <TbCheck className="w-3 h-3 text-emerald-400 flex-shrink-0" />
-            <span>Differential Privacy protection</span>
+            <span>Private to your account</span>
           </div>
         </div>
 

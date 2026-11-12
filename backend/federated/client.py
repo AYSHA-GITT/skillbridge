@@ -10,8 +10,8 @@ warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 class InstitutionClient(fl.client.NumPyClient):
     """
-    Flower NumPyClient simulating a college or university node (e.g., IIT Delhi, NIT Trichy).
-    Trains locally on student partition features without transmitting raw resumes or skill matrices.
+    Flower NumPyClient representing a SIMULATED partition. Its training data is
+    synthetic (uniform random features with a heuristic label), not real student data.
     """
 
     def __init__(self, partition_id: str, num_samples: int = 120):
