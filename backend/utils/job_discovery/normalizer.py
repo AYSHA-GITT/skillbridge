@@ -111,7 +111,7 @@ def make_fingerprint(title: str, company: str, city: Optional[str]) -> str:
 
 
 # Bump when normalization rules change, so the next sync re-applies them to stored listings.
-NORMALIZER_VERSION = 2
+NORMALIZER_VERSION = 3
 
 
 def content_hash(job: Dict[str, Any]) -> str:
@@ -271,6 +271,20 @@ def infer_career_category(title: str, description: str) -> str:
     return "Other"
 
 
+_ABOUT_COMPANY_RE = re.compile(r"^\W*(we|we're|we are|our|ours|at [A-Z][\w&.\- ]{1,40}?,|about (us|the company)|"
+                               r"join (us|our)|who we are|[A-Z][\w&.\-]+ is (a|an|the)\b)", re.I)
+_ABOUT_CANDIDATE_RE = re.compile(r"\b(you|your|candidate|experience (with|in)|proficien\w*|knowledge of|"
+                                 r"familiar\w*|hands-on|required|must|should|ability to|skills? in|"
+                                 r"expertise|strong understanding|working knowledge)\b", re.I)
+
+
+def is_company_boilerplate(sentence: str) -> bool:
+    """Sentences describing the COMPANY ("We are a leader in AI/ML...") are not
+    requirements; sentences describing the candidate or the role are."""
+    s = sentence.strip()
+    return bool(_ABOUT_COMPANY_RE.search(s)) and not _ABOUT_CANDIDATE_RE.search(s)
+
+
 def split_required_preferred(description: str, tags: Optional[List[str]] = None) -> Tuple[List[str], List[str], str]:
     """Return (required, preferred, skills_source).
 
@@ -296,6 +310,8 @@ def split_required_preferred(description: str, tags: Optional[List[str]] = None)
                 mode = "required"
                 continue
             for sentence in re.split(r"(?<=[.;!?])\s+", line):
+                if is_company_boilerplate(sentence):
+                    continue
                 mentions = find_skill_mentions(sentence)
                 if not mentions:
                     continue

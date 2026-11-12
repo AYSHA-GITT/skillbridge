@@ -29,6 +29,7 @@ class SkillExtractionTests(unittest.TestCase):
         self.assertEqual(extract_skill_names("John C. Smith, rest of the team"), [])
         self.assertEqual(extract_skill_names("Spring 2024 semester"), [])
         self.assertEqual(extract_skill_names("You excel at distributed systems"), [])
+        self.assertEqual(extract_skill_names("• Excel at working with remote teams"), [])
         self.assertEqual(extract_skill_names("Reports in Excel and MS Excel pivot tables"), ["excel"])
 
     def test_ambiguous_names_from_list_context(self):
@@ -75,9 +76,9 @@ class QuizIntegrityTests(unittest.TestCase):
             self.skill_id = self._skill("python", "applied")
             self.other_skill_id = self._skill("sql", "applied")
             for i in range(6):
-                db.session.add(QuestionBank(skill_name="python", question=f"Py Q{i}", option_a="a", option_b="b",
-                                            option_c="c", option_d="d", correct_answer="A",
-                                            difficulty=["Easy", "Medium", "Hard"][i % 3]))
+                db.session.add(QuestionBank(skill_name="python", question=f"Py Q{i}", option_a="right",
+                                            option_b="wrong-b", option_c="wrong-c", option_d="wrong-d",
+                                            correct_answer="A", difficulty=["Easy", "Medium", "Hard"][i % 3]))
             db.session.add(QuestionBank(skill_name="sql", question="SQL Q", option_a="a", option_b="b",
                                         option_c="c", option_d="d", correct_answer="B", difficulty="Easy"))
             db.session.commit()
@@ -103,23 +104,80 @@ class QuizIntegrityTests(unittest.TestCase):
         self.assertEqual(res.status_code, 400)
         self.assertIn("answer all", res.get_json()["error"])
 
+    def _get_quiz(self, client=None):
+        from unittest import mock
+        with mock.patch("routes.student.ensure_minimum_questions", lambda *_: None):
+            return (client or self.client).get(f"/api/student/get_quiz/{self.skill_id}").get_json()
+
+    @staticmethod
+    def _letter_of(q, text):
+        return next(L for L in "ABCD" if q[f"option_{L.lower()}"] == text)
+
     def test_full_quiz_scored_with_review(self):
-        answers = {str(i): ("A" if n < 4 else "C") for n, i in enumerate(self.py_ids[:5])}
+        qs = self._get_quiz()["questions"]
+        # answer 4 correctly (by option TEXT, since order is shuffled) and 1 wrongly
+        answers = {str(q["id"]): self._letter_of(q, "right" if n < 4 else "wrong-c") for n, q in enumerate(qs)}
         res = self.client.post(f"/api/student/submit_quiz/{self.skill_id}", json={"answers": answers})
         self.assertEqual(res.status_code, 201, res.get_json())
         body = res.get_json()
         self.assertEqual((body["correct_count"], body["total_questions"]), (4, 5))
-        self.assertEqual(len([r for r in body["review"] if not r["is_correct"]]), 1)
+        wrong = [r for r in body["review"] if not r["is_correct"]]
+        self.assertEqual(len(wrong), 1)
+        # review reports the correct answer as the letter THIS student saw
+        q_wrong = next(q for q in qs if q["id"] == wrong[0]["question_id"])
+        self.assertEqual(wrong[0]["correct_answer"], self._letter_of(q_wrong, "right"))
         self.assertEqual(body["proficiency"], "Intermediate")
         # quiz (75%) dominates; evidence 'applied' contributes 25%
         self.assertAlmostEqual(body["verification_score"], round(0.25 * 1.0 + 0.75 * 0.8, 2))
 
-    def test_quiz_mixes_difficulty(self):
-        with app.app_context():
-            QuestionBank.query.filter_by(skill_name="python").count()
+    def test_options_shuffled_per_student_and_stable(self):
+        first = {q["id"]: q for q in self._get_quiz()["questions"]}
+        again = {q["id"]: q for q in self._get_quiz()["questions"]}
+        for qid in set(first) & set(again):
+            self.assertEqual(first[qid]["option_a"], again[qid]["option_a"])   # stable for one student
+        positions = {self._letter_of(q, "right") for q in first.values()}
+        self.assertGreater(len(positions), 1)        # correct answer is not always in the same slot
+
+    def test_always_same_letter_strategy_does_not_pass(self):
+        qs = self._get_quiz()["questions"]
+        res = self.client.post(f"/api/student/submit_quiz/{self.skill_id}",
+                               json={"answers": {str(q["id"]): "A" for q in qs}})
+        self.assertLess(res.get_json()["quiz_score_percent"], 100)
+
+    def test_skill_with_too_few_questions_cannot_be_verified(self):
         from unittest import mock
+        with app.app_context():
+            git_id = self._skill("git", "applied")
+            db.session.add(QuestionBank(skill_name="git", question="What does git init do?", option_a="x",
+                                        option_b="y", option_c="z", option_d="w", correct_answer="A",
+                                        difficulty="Easy"))
+            db.session.commit()
+            qid = QuestionBank.query.filter_by(skill_name="git").first().id
         with mock.patch("routes.student.ensure_minimum_questions", lambda *_: None):
-            data = self.client.get(f"/api/student/get_quiz/{self.skill_id}").get_json()
+            self.assertEqual(self.client.get(f"/api/student/get_quiz/{git_id}").status_code, 503)
+        res = self.client.post(f"/api/student/submit_quiz/{git_id}", json={"answers": {str(qid): "A"}})
+        self.assertEqual(res.status_code, 400)
+
+    def test_generated_questions_validated_and_fallback_never_stored(self):
+        from unittest import mock
+        from utils import question_bank_manager as qbm
+        good = {"question": "Which command lists running Docker containers?", "option_a": "docker ps",
+                "option_b": "docker run", "option_c": "docker build", "option_d": "docker pull",
+                "correct_answer": "A", "difficulty": "Easy"}
+        bad = [dict(good, option_d="docker ps"), dict(good, correct_answer="E"),
+               dict(good, option_d="None of the above"), dict(good, question="short")]
+        with app.app_context():
+            with mock.patch.object(qbm, "generate_questions", lambda *a, **k: [good] + bad):
+                qbm.ensure_minimum_questions("docker")
+            self.assertEqual(QuestionBank.query.filter_by(skill_name="docker").count(), 1)
+            with mock.patch("utils.ai_question_generator.get_genai_client", lambda: None):
+                from utils.ai_question_generator import generate_questions
+                self.assertIsNone(generate_questions("kubernetes"))   # no template fallback
+                qbm.ensure_minimum_questions("kubernetes")
+            self.assertEqual(QuestionBank.query.filter_by(skill_name="kubernetes").count(), 0)
+
+    def test_quiz_mixes_difficulty(self):
+        data = self._get_quiz()
         levels = {q["difficulty"] for q in data["questions"]}
         self.assertEqual(levels, {"Easy", "Medium", "Hard"})
         self.assertNotIn("correct_answer", data["questions"][0])

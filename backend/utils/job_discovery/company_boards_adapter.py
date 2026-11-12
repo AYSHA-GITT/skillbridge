@@ -42,7 +42,10 @@ RELEVANT_TITLE_RE = re.compile(
     r"intern|internship|trainee|graduate|fresher|technical|tech)\b", re.I)
 EXCLUDED_TITLE_RE = re.compile(r"\b(sales|account executive|recruit\w*|talent acquisition|legal|counsel|payable|"
                                r"receivable|accountant|audit|payroll|finance|financial|tax|treasury|"
-                               r"expenses?|procurement|"
+                               r"expenses?|procurement|benefits|accounting|credit|risk|fraud|deal desk|"
+                               r"real estate|talent|sourc(er|ing)|collections?|fp&a|renewals|processing cost|"
+                               r"monetization|alliances|rmg|people|provisioning|"
+                               r"(ar|ap)\s+analyst|account manager|success manager|"
                                r"marketing manager|customer success manager)\b", re.I)
 
 DEFAULT_GREENHOUSE = ["databricks", "okta", "zscaler", "mongodb", "highradius", "stripe", "gitlab", "rubrik",
@@ -60,8 +63,19 @@ def _env_boards(name: str, default: List[str]) -> List[str]:
     return [b.strip().lower() for b in raw.split(",") if b.strip()]
 
 
+STRONG_TECH_TITLE_RE = re.compile(r"\b(engineer|engineering|developer|programmer|scientist|sde|sdet|devops|sre|"
+                                  r"site reliability|architect|data analyst|machine learning|ml engineer)\b", re.I)
+NON_TECH_ENGINEER_RE = re.compile(r"\b(sales engineer|account engineer)\b", re.I)
+
+
 def is_relevant_title(title: str) -> bool:
-    return bool(title) and bool(RELEVANT_TITLE_RE.search(title)) and not EXCLUDED_TITLE_RE.search(title)
+    """Clearly technical titles always qualify ("Software Engineer - Credit Platform");
+    ambiguous ones ("Analyst", "Technical ...") must not hit the non-tech exclusions."""
+    if not title:
+        return False
+    if STRONG_TECH_TITLE_RE.search(title) and not NON_TECH_ENGINEER_RE.search(title):
+        return True
+    return bool(RELEVANT_TITLE_RE.search(title)) and not EXCLUDED_TITLE_RE.search(title)
 
 
 def is_india_or_open_remote(location_text: str, country: Optional[str] = None) -> bool:

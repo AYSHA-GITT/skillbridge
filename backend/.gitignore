@@ -8,3 +8,4 @@ venv/
 
 # runtime artifacts
 ml/models/fl_global.npz
+data/market_demand.json

@@ -49,8 +49,15 @@ def analyze_skill_gap(student_verified_skills, career_name):
         (required_coverage * 0.75) + (nice_coverage * 0.25), 2
     )
 
+    from utils.market_demand import skill_demand_notes, career_demand
+    demand = career_demand(career_name)
+
     return {
         "career": career_name,
+        # why each skill is listed: measured share of current postings for this career
+        "skill_evidence": skill_demand_notes(career_name, required + nice_to_have),
+        "market_sample_size": demand["postings"] if demand else 0,
+        "market_caveat": demand["caveat"] if demand else None,
         "matched_required": matched_required,
         "missing_required": missing_required,
         "matched_nice_to_have": matched_nice,

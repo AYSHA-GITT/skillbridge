@@ -69,6 +69,16 @@ def jobs_status():
     }, indent=2, default=str))
 
 
+@jobs_cli.command("market-demand")
+def jobs_market_demand():
+    """Recompute skill demand per career from current postings (also runs after every sync)."""
+    from utils.market_demand import compute_market_demand
+    res = compute_market_demand(save=True)
+    for career, d in res["careers"].items():
+        top = ", ".join(f"{s} {round(p * 100)}%" for s, p in list(d["skill_share"].items())[:8])
+        click.echo(f"{career:22} postings={d['postings']:4} weighting={'yes' if d['usable_for_weighting'] else 'no '} {top}")
+
+
 @jobs_cli.command("run-scheduler")
 def jobs_run_scheduler():
     from flask import current_app

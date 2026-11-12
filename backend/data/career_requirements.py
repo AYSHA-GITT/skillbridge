@@ -1,3 +1,17 @@
+# Career skill requirements - single source of truth for gap analysis, readiness,
+# roadmaps, career recommendations and the resume optimizer.
+#
+# Reviewed 2026-11-13 against skills demanded in ~480 current India-based tech postings
+# collected by SkillBridge (see utils/market_demand.py; `flask jobs market-demand`).
+# Changes were made only where demand was strong (roughly >= 25% of postings):
+#   ai engineer        + generative ai (required, 56%), + aws (nice, 39%)
+#   data scientist     + spark (nice, 27%), + scikit-learn (nice)
+#   software engineer  + ci/cd (nice, 34%)
+#   full stack dev     + rest api (required, 52%)
+#   devops engineer    aws nice -> required (70%), + gcp (nice, 57%)
+#   cloud engineer     + azure (nice, 55%), + gcp (nice, 60%)
+# Basics employers rarely write down (git, data structures, html/css) were kept.
+# web developer was not changed: too few current postings to judge.
 
 CAREER_REQUIREMENTS = {
 
@@ -32,7 +46,9 @@ CAREER_REQUIREMENTS = {
             "tensorflow",
             "pytorch",
             "tableau",
-            "power bi"
+            "power bi",
+            "spark",
+            "scikit-learn"
         ]
     },
 
@@ -49,7 +65,8 @@ CAREER_REQUIREMENTS = {
             "flask",
             "react",
             "docker",
-            "aws"
+            "aws",
+            "ci/cd"
         ]
     },
 
@@ -76,7 +93,8 @@ CAREER_REQUIREMENTS = {
             "react",
             "node.js",
             "sql",
-            "git"
+            "git",
+            "rest api"
         ],
         "nice_to_have": [
             "docker",
@@ -93,13 +111,14 @@ CAREER_REQUIREMENTS = {
             "docker",
             "kubernetes",
             "ci/cd",
-            "bash"
+            "bash",
+            "aws"
         ],
         "nice_to_have": [
-            "aws",
             "terraform",
             "python",
-            "monitoring"
+            "monitoring",
+            "gcp"
         ]
     },
 
@@ -115,7 +134,9 @@ CAREER_REQUIREMENTS = {
             "kubernetes",
             "terraform",
             "ci/cd",
-            "sql"
+            "sql",
+            "azure",
+            "gcp"
         ]
     },
 
@@ -125,13 +146,15 @@ CAREER_REQUIREMENTS = {
             "machine learning",
             "deep learning",
             "pytorch",
-            "data structures"
+            "data structures",
+            "generative ai"
         ],
         "nice_to_have": [
             "tensorflow",
             "nlp",
             "docker",
-            "sql"
+            "sql",
+            "aws"
         ]
     }
 

@@ -17,6 +17,7 @@ os.environ["JOB_INCLUDE_SAMPLE_LISTINGS"] = "0"
 os.environ["RUN_JOB_SCHEDULER_IN_PROCESS"] = "0"
 os.environ["YOUTUBE_API_KEY"] = ""               # resources fall back to search links (no network)
 os.environ["FL_GLOBAL_MODEL_PATH"] = os.path.join(_TMP_DIR, "fl_global.npz")
+os.environ["MARKET_DEMAND_PATH"] = os.path.join(_TMP_DIR, "market_demand.json")
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:

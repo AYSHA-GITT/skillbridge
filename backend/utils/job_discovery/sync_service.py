@@ -507,6 +507,12 @@ def run_job_sync(trigger: str = "scheduled", actor_id: Optional[int] = None,
             logger.exception("Alert evaluation failed: %s", e)
             provider_results.setdefault("_alerts", {})["error"] = str(e)
 
+        try:
+            from utils.market_demand import compute_market_demand
+            compute_market_demand(save=True)
+        except Exception as e:
+            logger.exception("Market demand computation failed: %s", e)
+
         configured = [r for k, r in provider_results.items() if r.get("status") != "not_configured" and not k.startswith("_")]
         failed = [r for r in configured if r["status"] in ("error", "auth_failed", "rate_limited")]
         if not configured:

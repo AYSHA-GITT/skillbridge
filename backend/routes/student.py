@@ -225,6 +225,27 @@ from models import QuestionBank, SkillVerification
 EVIDENCE_WEIGHT = {'applied': 1.0, 'supporting': 0.7, 'listed_only': 0.4, 'unclassified': 0.4}
 
 
+def _option_order(student_id, question_id):
+    """Per-student, per-question option order. The stored bank is skewed
+    toward answers B/C (and AI generators repeat that bias); showing options
+    in a keyed, stable shuffled order removes the 'always pick B' shortcut.
+    Returns perm where perm[i] is the ORIGINAL letter shown at position i."""
+    import hashlib
+    secret = current_app.config.get('SECRET_KEY') or 'skillbridge'
+    seed = hashlib.sha256(f"{secret}:{student_id}:{question_id}".encode()).hexdigest()
+    perm = ['A', 'B', 'C', 'D']
+    random.Random(seed).shuffle(perm)
+    return perm
+
+
+def _shuffled_question(q, student_id):
+    d = q.to_dict()
+    perm = _option_order(student_id, q.id)
+    for pos, orig in zip('abcd', perm):
+        d[f'option_{pos}'] = getattr(q, f'option_{orig.lower()}')
+    return d
+
+
 def get_quiz_question_count(confidence, evidence_strength=None):
     """Weaker resume evidence -> more questions are needed to verify the skill."""
     if evidence_strength in EVIDENCE_WEIGHT:
@@ -250,28 +271,22 @@ def get_quiz(skill_id):
 
     question_count = get_quiz_question_count(skill.extraction_confidence, skill.evidence_strength)
 
-#from here
-    
- # Ensure at least MINIMUM_QUESTIONS_PER_SKILL exist, generating
-    # only the missing amount via Gemini if needed
+    # Ensure at least MINIMUM_QUESTIONS_PER_SKILL exist, generating
+    # only the missing (validated) amount via the AI provider if needed
     ensure_minimum_questions(skill.skill_name)
 
     available_questions = QuestionBank.query.filter_by(
         skill_name=skill.skill_name
     ).all()
 
-    if not available_questions:
+    from utils.question_bank_manager import MIN_QUESTIONS_TO_VERIFY
+    if len(available_questions) < MIN_QUESTIONS_TO_VERIFY:
         return jsonify({
-            'error': f'No quiz questions available for "{skill.skill_name}" '
-                      'and AI generation failed. Please try again shortly.'
-        }), 503   
-
-#till here
-
-
-
-
-    
+            'error': f'Not enough validated quiz questions for "{skill.skill_name}" yet '
+                     f'({len(available_questions)} of {MIN_QUESTIONS_TO_VERIFY} needed). '
+                     'Question generation is currently unavailable - please try again later.',
+            'available_questions': len(available_questions),
+        }), 503
 
     # Balanced difficulty mix (Easy/Medium/Hard round-robin), random within each level
     by_level = {}
@@ -293,7 +308,7 @@ def get_quiz(skill_id):
         'skill_name': skill.skill_name,
         'extraction_confidence': skill.extraction_confidence,
         'question_count': len(selected),
-        'questions': [q.to_dict() for q in selected]
+        'questions': [_shuffled_question(q, current_user.id) for q in selected]
     }), 200
 
 @student_bp.route('/submit_quiz/<int:skill_id>', methods=['POST'])
@@ -330,7 +345,11 @@ def submit_quiz(skill_id):
         return jsonify({'error': 'Some answers do not belong to this skill\'s quiz'}), 400
 
     # A verification needs the full quiz, not a hand-picked subset of answers
+    from utils.question_bank_manager import MIN_QUESTIONS_TO_VERIFY
     available = QuestionBank.query.filter_by(skill_name=skill.skill_name).count()
+    if available < MIN_QUESTIONS_TO_VERIFY:
+        return jsonify({'error': f'This skill cannot be verified yet: only {available} validated questions exist '
+                                 f'(minimum {MIN_QUESTIONS_TO_VERIFY}).'}), 400
     required_count = min(get_quiz_question_count(skill.extraction_confidence, skill.evidence_strength), available)
     if len(questions) < required_count:
         return jsonify({'error': f'Please answer all {required_count} questions of the quiz '
@@ -340,8 +359,14 @@ def submit_quiz(skill_id):
     review = []
     weak_by_level = {}
     for question in questions:
+        # Options were shown in a per-student shuffled order; translate the
+        # displayed letter back to the stored one before scoring.
+        perm = _option_order(current_user.id, question.id)
         submitted = submitted_answers.get(str(question.id))
-        is_correct = bool(submitted) and str(submitted).upper() == (question.correct_answer or '').upper()
+        shown = str(submitted).upper() if submitted else None
+        original = perm['ABCD'.index(shown)] if shown in ('A', 'B', 'C', 'D') else None
+        correct_shown = 'ABCD'[perm.index((question.correct_answer or 'A').upper())]
+        is_correct = original is not None and original == (question.correct_answer or '').upper()
         if is_correct:
             correct_count += 1
         else:
@@ -351,8 +376,8 @@ def submit_quiz(skill_id):
             'question_id': question.id,
             'question': question.question,
             'difficulty': question.difficulty,
-            'your_answer': (str(submitted).upper() if submitted else None),
-            'correct_answer': question.correct_answer,
+            'your_answer': shown,
+            'correct_answer': correct_shown,   # letter as displayed to this student
             'correct_option_text': getattr(question, f'option_{(question.correct_answer or "a").lower()}', None),
             'is_correct': is_correct,
         })

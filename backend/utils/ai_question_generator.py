@@ -77,8 +77,10 @@ Example:
             except Exception as e:
                 logging.warning(f"Gemini Question Error with {model_name}: {e}")
 
-    # Fallback to curated templates if AI is rate-limited or unavailable
-    return get_fallback_questions(skill_name, num_questions)
+    # Do NOT fall back to the generic templates: they are trivially answerable
+    # (the sensible option is always correct), so storing them would let anyone
+    # "verify" a skill. Callers must treat None as "questions unavailable".
+    return None
 
 
 def get_fallback_questions(skill_name, num_questions=5):

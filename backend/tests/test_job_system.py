@@ -8,6 +8,7 @@ Run:  cd backend && python -m unittest discover -s tests -v
 from tests.base import app, db, reset_db, make_student, login  # must be first
 
 import json
+import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from unittest import mock
@@ -293,6 +294,22 @@ class CompanyBoardTests(unittest.TestCase):
         self.assertFalse(is_relevant_title("Senior Accountant"))
         self.assertTrue(is_relevant_title("AR/VR Engineer"))
         self.assertTrue(is_relevant_title("Data Analyst Intern"))
+        for t in ("Benefits Analyst", "Credit Risk Analyst", "Senior Talent Partner ( Non-Tech Hiring)",
+                  "Technical Account Manager", "Area Collection Manager - Lending Collections (Frontend)",
+                  "Corporate Accounting Analyst (Bangalore)", "Tech Sourcer (Contract)"):
+            self.assertFalse(is_relevant_title(t), t)
+        for t in ("Software Engineer - Credit Platform", "Senior InfoSec Analyst", "Analyst II - SIEM/SecOps",
+                  "Senior Database Administrator", "Technical Program Manager", "Backend - TL/STL"):
+            self.assertTrue(is_relevant_title(t), t)
+
+    def test_company_boilerplate_not_counted(self):
+        desc = ("We are a leader in AI/ML and Kubernetes-based platforms.\n"
+                "Requirements:\n• 3+ years of experience with Java and SQL\n"
+                "• Our team uses Docker; you should be comfortable with Docker.")
+        req, pref, _ = N.split_required_preferred(desc)
+        self.assertEqual(set(req), {"java", "sql", "docker"})
+        self.assertNotIn("machine learning", req)
+        self.assertNotIn("kubernetes", req)
 
     def test_city_aliases(self):
         self.assertEqual(N.split_location("Bangalore, IND")["city"], "Bengaluru")
@@ -651,6 +668,60 @@ class SearchAndMatchingTests(unittest.TestCase):
         self.assertFalse(ev["location_compatibility"]["compatible"])
         self.assertIn("Missing required skills", " ".join(ev["match_reasons"]))
         self.assertLess(ev["scoring_breakdown"]["experience_eligibility_score"], 100)
+
+
+# ════════════════════════════════════════════════════════════════════════
+class MarketDemandTests(unittest.TestCase):
+    def setUp(self):
+        reset_db()
+        self.ctx = app.app_context()
+        self.ctx.push()
+        from utils import market_demand
+        if os.path.exists(market_demand.DEMAND_PATH):
+            os.remove(market_demand.DEMAND_PATH)
+
+    def tearDown(self):
+        db.session.remove()
+        self.ctx.pop()
+
+    def _analyst_jobs(self, n):
+        jobs = []
+        for i in range(n):
+            skills = "SQL and Tableau" if i % 2 == 0 else "SQL and Excel"
+            jobs.append(raw_job(i, title=f"Data Analyst {i}",
+                                description=f"Requirements: {skills} for reporting dashboards across teams."))
+        return jobs
+
+    def test_equal_weights_with_small_sample(self):
+        from ml.skill_gap_model import skill_gap_model
+        sync([FakeAdapter(jobs=self._analyst_jobs(5))], now=datetime.now(UTC))
+        res = skill_gap_model.evaluate_gaps(["sql"], "data analyst")
+        self.assertIn("Equal weights", res["weighting"])
+        self.assertIn("small sample", res["skill_evidence"]["sql"])
+
+    def test_measured_weights_and_evidence(self):
+        from ml.skill_gap_model import skill_gap_model
+        from utils.skill_gap_analyzer import analyze_skill_gap
+        run = sync([FakeAdapter(jobs=self._analyst_jobs(24))], now=datetime.now(UTC))
+        self.assertEqual(run["status"], "success")
+        res = skill_gap_model.evaluate_gaps(["sql"], "data analyst")
+        self.assertIn("measured demand in 24", res["weighting"])
+        # sql is in 100% of postings, so having it covers more weight than having statistics (0%)
+        res_stats = skill_gap_model.evaluate_gaps(["statistics"], "data analyst")
+        self.assertGreater(res["required_coverage"], res_stats["required_coverage"])
+        self.assertEqual(res["skill_evidence"]["sql"], "Mentioned in 100% of 24 current data analyst postings")
+        # most in-demand gaps first: excel and tableau (50% each) before python/power bi/statistics (0%)
+        self.assertEqual(set(res["missing_required"][:2]), {"excel", "tableau"})
+        gap = analyze_skill_gap(["sql"], "data analyst")
+        self.assertEqual(gap["market_sample_size"], 24)
+
+    def test_single_source_of_truth(self):
+        from ml.skill_gap_model import skill_gap_model
+        from utils.skill_gap_analyzer import analyze_skill_gap
+        a = skill_gap_model.evaluate_gaps(["python"], "ai engineer")
+        b = analyze_skill_gap(["python"], "ai engineer")
+        self.assertEqual(set(a["missing_required"]), set(b["missing_required"]))
+        self.assertIn("generative ai", a["missing_required"])
 
 
 # ════════════════════════════════════════════════════════════════════════

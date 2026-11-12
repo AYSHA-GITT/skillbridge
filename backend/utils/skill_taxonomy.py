@@ -190,11 +190,16 @@ AMBIGUOUS_PATTERNS: Dict[str, List[re.Pattern]] = {
 }
 
 
+# Words that turn a skill name into ordinary English ("Excel at teamwork").
+NEGATIVE_FOLLOWERS = {"Excel": r"(?!\s+(?:at|in|as|with)\b)"}
+
+
 def _boundary_pattern(alias: str, case_sensitive: bool = False) -> re.Pattern:
     # Token boundaries that also respect symbols used in skill names (c++, c#, .net, node.js)
     escaped = re.escape(alias)
     flags = 0 if case_sensitive else re.I
-    return re.compile(rf"(?<![A-Za-z0-9+#.]){escaped}(?![A-Za-z0-9+#]|\.[A-Za-z0-9])", flags)
+    neg = NEGATIVE_FOLLOWERS.get(alias, "")
+    return re.compile(rf"(?<![A-Za-z0-9+#.]){escaped}(?![A-Za-z0-9+#]|\.[A-Za-z0-9]){neg}", flags)
 
 
 def _build_patterns() -> Dict[str, List[re.Pattern]]:
