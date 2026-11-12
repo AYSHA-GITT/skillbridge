@@ -182,8 +182,10 @@ def _experience_fit(job: Dict[str, Any], profile: Dict[str, Any]) -> Dict[str, A
 
 
 def _location_fit(job: Dict[str, Any], profile: Dict[str, Any]) -> Dict[str, Any]:
+    from utils.job_discovery.normalizer import location_search_terms
     pref = profile.get("preference") or {}
-    locations = [l.lower().strip() for l in pref.get("preferred_locations", []) if l and l.strip()]
+    locations = [t.lower() for l in pref.get("preferred_locations", []) if l and l.strip()
+                 for t in location_search_terms(l)]
     modes = [m.lower() for m in pref.get("work_modes", []) if m]
     arrangement = (job.get("work_arrangement") or "").lower()
     job_loc = f"{job.get('location') or ''} {job.get('city') or ''} {job.get('state') or ''}".lower()

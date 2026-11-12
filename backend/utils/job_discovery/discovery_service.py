@@ -110,8 +110,12 @@ class JobDiscoveryService:
         if work_arrangement and work_arrangement.strip() and work_arrangement.lower() != "all":
             q = q.filter(JobListing.work_arrangement.ilike(f"%{work_arrangement.strip()}%"))
         if location and location.strip():
-            kw = f"%{location.strip()}%"
-            q = q.filter(or_(JobListing.location.ilike(kw), JobListing.city.ilike(kw), JobListing.state.ilike(kw)))
+            from utils.job_discovery.normalizer import location_search_terms
+            conds = []
+            for term in location_search_terms(location):   # 'Bengaluru' also finds 'Bangalore'
+                kw = f"%{term}%"
+                conds += [JobListing.location.ilike(kw), JobListing.city.ilike(kw), JobListing.state.ilike(kw)]
+            q = q.filter(or_(*conds))
         if company and company.strip():
             q = q.filter(JobListing.company.ilike(f"%{company.strip()}%"))
         if entry_level:

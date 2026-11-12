@@ -85,13 +85,19 @@ def build_providers() -> List[JobSourceAdapter]:
     from utils.job_discovery.jooble_adapter import JoobleAdapter
     from utils.job_discovery.remote_api_adapter import RemoteJobApiAdapter
     from utils.job_discovery.curated_sample_adapter import CuratedSampleAdapter
+    from utils.job_discovery.company_boards_adapter import GreenhouseBoardsAdapter, LeverBoardsAdapter
 
-    enabled = {p.strip().lower() for p in os.getenv("JOB_PROVIDERS", "adzuna,jooble,arbeitnow").split(",") if p.strip()}
+    enabled = {p.strip().lower() for p in
+               os.getenv("JOB_PROVIDERS", "adzuna,jooble,greenhouse,lever,arbeitnow").split(",") if p.strip()}
     providers: List[JobSourceAdapter] = []
     if "adzuna" in enabled:
         providers.append(AdzunaAdapter())
     if "jooble" in enabled:
         providers.append(JoobleAdapter())
+    if "greenhouse" in enabled:
+        providers.append(GreenhouseBoardsAdapter())
+    if "lever" in enabled:
+        providers.append(LeverBoardsAdapter())
     if "arbeitnow" in enabled:
         providers.append(RemoteJobApiAdapter())
     providers.append(CuratedSampleAdapter())  # only active when JOB_INCLUDE_SAMPLE_LISTINGS=1
@@ -316,6 +322,33 @@ def repair_legacy_rows() -> int:
     return len(rows)
 
 
+def expire_removed_from_complete_listings(scopes: Dict[str, set], now: datetime,
+                                          kept_ids: Optional[set] = None) -> int:
+    """For sources that return a COMPLETE list of open postings (company job
+    boards), a posting missing from a successful fetch has been removed by the
+    employer - direct evidence, so it is expired immediately. Postings still
+    listed but now outside the relevance filters are hidden with that reason."""
+    naive_now = now.replace(tzinfo=None)
+    removed = 0
+    for prefix, live_ids in scopes.items():
+        rows = (JobListing.query
+                .filter(JobListing.external_id.like(f"{prefix}%"),
+                        JobListing.status.in_(["active", "stale"]))
+                .all())
+        for job in rows:
+            if job.external_id not in live_ids:
+                reason = "No longer listed on the company's job board (confirmed by the source)"
+            elif kept_ids is not None and job.external_id not in kept_ids:
+                reason = "Hidden: outside SkillBridge's role/location filters (still listed by the employer)"
+            else:
+                continue
+            job.status = "expired"
+            job.expired_at = naive_now
+            job.expiry_reason = reason
+            removed += 1
+    return removed
+
+
 def apply_expiry(now: datetime, healthy_providers: List[str]) -> Dict[str, int]:
     """Mark listings stale/expired from evidence. Returns counts."""
     naive_now = now.replace(tzinfo=None)
@@ -337,8 +370,12 @@ def apply_expiry(now: datetime, healthy_providers: List[str]) -> Dict[str, int]:
         if deadline and deadline < now:
             _expire(job, "Application deadline has passed")
             continue
-        if posted and now - posted > MAX_POSTING_AGE:
-            _expire(job, f"Posted more than {MAX_POSTING_AGE.days} days ago")
+        verified = _aware(job.last_verified_at)
+        recently_confirmed = verified is not None and now - verified <= STALE_AFTER
+        # Age alone is weak evidence: employers keep some roles open for months.
+        # Only archive old postings that the source has not re-confirmed recently.
+        if posted and now - posted > MAX_POSTING_AGE and not recently_confirmed:
+            _expire(job, f"Posted more than {MAX_POSTING_AGE.days} days ago and not re-confirmed by the source")
             continue
         # Absence-based rules only when the job's provider is demonstrably working,
         # so a provider outage or missing credentials never expires listings.
@@ -396,9 +433,15 @@ def run_job_sync(trigger: str = "scheduled", actor_id: Optional[int] = None,
                 res["status"] = "not_configured"
                 continue
             adapter.reset_run_state()
-            searches = (plan_slice(plan, adapter.max_requests_per_run, completed_runs * adapter.max_requests_per_run)
-                        if adapter.provider_key not in ("arbeitnow", "curated_sample") else plan)
-            batches = [[s] for s in searches] if adapter.provider_key not in ("arbeitnow", "curated_sample") else [searches]
+            if not getattr(adapter, "uses_search_plan", True):
+                # company boards: one complete listing per board, no keyword search
+                searches, batches = [], [[]]
+            elif adapter.provider_key in ("arbeitnow", "curated_sample"):
+                searches, batches = plan, [plan]
+            else:
+                searches = plan_slice(plan, adapter.max_requests_per_run,
+                                      completed_runs * adapter.max_requests_per_run)
+                batches = [[s] for s in searches]
             res["searches"] = len(searches)
             for batch in batches:
                 try:
@@ -435,6 +478,17 @@ def run_job_sync(trigger: str = "scheduled", actor_id: Optional[int] = None,
                 db.session.commit()
                 renew_lease(owner)
             res["requests"] = adapter.requests_made
+            res["errors"].extend(getattr(adapter, "run_errors", []))
+            if hasattr(adapter, "filtered_out"):
+                res["filtered_out_not_relevant"] = adapter.filtered_out
+            scopes = getattr(adapter, "completed_scopes", None)
+            if scopes:
+                res["boards_checked"] = len(scopes)
+                removed = expire_removed_from_complete_listings(scopes, now_fn(),
+                                                                kept_ids=getattr(adapter, "kept_ids", None))
+                res["confirmed_removed"] = removed
+                stats["confirmed_removed"] = stats.get("confirmed_removed", 0) + removed
+                db.session.commit()
             if res["status"] == "ok" and res["errors"] and res["fetched"] == 0:
                 res["status"] = "error"
             elif res["status"] == "ok" and res["errors"]:
@@ -472,7 +526,7 @@ def run_job_sync(trigger: str = "scheduled", actor_id: Optional[int] = None,
         run.unchanged_count = stats["unchanged"]
         run.duplicate_count = stats["duplicates"]
         run.invalid_count = stats["invalid"]
-        run.expired_count = expiry["expired"]
+        run.expired_count = expiry["expired"] + stats.get("confirmed_removed", 0)
         run.stale_count = expiry["stale"]
         run.alerts_created = alerts_created
     except Exception as e:  # unexpected bug: record it, never crash the worker

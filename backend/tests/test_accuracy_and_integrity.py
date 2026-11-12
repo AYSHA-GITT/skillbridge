@@ -28,6 +28,8 @@ class SkillExtractionTests(unittest.TestCase):
         self.assertEqual(extract_skill_names("Completed PG-DAC at C-DAC Bangalore. Grade: B"), [])
         self.assertEqual(extract_skill_names("John C. Smith, rest of the team"), [])
         self.assertEqual(extract_skill_names("Spring 2024 semester"), [])
+        self.assertEqual(extract_skill_names("You excel at distributed systems"), [])
+        self.assertEqual(extract_skill_names("Reports in Excel and MS Excel pivot tables"), ["excel"])
 
     def test_ambiguous_names_from_list_context(self):
         self.assertEqual(extract_skill_names("Languages: C, C++, Python | R"), ["c", "c++", "python", "r"])

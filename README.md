@@ -274,7 +274,7 @@ Credit $c(s)$: quiz-verified >= 70% gives 1.0, 40-69% gives 0.6, below 40% gives
 - Integrates topic descriptions, estimated completion hours, and automated educational video queries.
 
 ### Live Job Discovery (two-hour refresh)
-- Jobs and internships are fetched from **Adzuna** and **Jooble** (India; credentials required) and **Arbeitnow** (remote roles; no key) by a scheduled backend process. See "Live Job Discovery & Two-Hour Synchronization" below.
+- Jobs and internships are fetched from **company career boards** via the official Greenhouse and Lever APIs (India; free, no key), **Adzuna** and **Jooble** (India; free credentials required) and **Arbeitnow** (remote roles; no key) by a scheduled backend process. See "Live Job Discovery & Two-Hour Synchronization" below.
 - Listings are normalized, de-duplicated, tracked for freshness and archived when expired; demo listings are never mixed into results.
 - Filters: job vs internship, fresher/entry level, experience, location, work mode, salary, employment type, skill, company, date posted, career category. Sorting: relevance (India first), most recent, best skill match, salary.
 - Personalized in-app job alerts with frequency control; each job is alerted at most once.
@@ -469,7 +469,7 @@ Copy the documented template and fill in your own values:
 ```bash
 cp backend/.env.example backend/.env
 ```
-Minimum for local use: `DATABASE_URL`, `SECRET_KEY`. Job discovery needs Adzuna and/or Jooble credentials (see "Required credentials" below). A free Gemini API key can be generated via [Google AI Studio](https://aistudio.google.com/).
+Minimum for local use: `DATABASE_URL`, `SECRET_KEY`. Job discovery works without keys through company career boards; Adzuna and Jooble credentials add wider coverage (see "Required credentials" below). A free Gemini API key can be generated via [Google AI Studio](https://aistudio.google.com/).
 
 ### Step 3: Backend Setup & Database Migration
 ```powershell
@@ -548,9 +548,12 @@ Useful commands: `flask --app app jobs status`, `flask --app app jobs sync`.
 |---|---|---|
 | `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna (India listings) | Register at developer.adzuna.com. Confirm India (`in`) support and the daily quota of your plan, then set `JOB_ADZUNA_MAX_REQUESTS_PER_RUN` accordingly. |
 | `JOOBLE_API_KEY`, `JOOBLE_API_HOST` | Jooble | Request a key at jooble.org/api/about. Keys are country-domain specific (a jooble.org key returns US jobs only); request one for the Indian domain. |
+| none | Company job boards (Greenhouse, Lever) | Free, no key. Official public APIs of companies' own career boards (e.g. Paytm, Meesho, CRED, Zeta, Groww, Databricks, MongoDB, Stripe, Okta). Only India-based or APAC/anywhere-remote tech, data and analytics roles are kept. Configure with `JOB_GREENHOUSE_BOARDS` / `JOB_LEVER_SITES`. |
 | none | Arbeitnow | Public API; mostly Europe-based roles, so only remote roles are kept by default. |
 
-Without Adzuna or Jooble credentials the system runs, but Indian listings will not appear; it does not substitute demo data.
+Without any credentials the company job boards still provide Indian listings (about 500 tech/data roles across 25 companies when verified on 2026-11-13, mostly Bengaluru, Gurugram, Hyderabad and Pune). Adzuna and Jooble add broad market coverage, including smaller cities such as Mangaluru. Demo data is never substituted.
+
+**Company boards are complete listings:** each request returns every open posting of that company, so a posting that disappears is expired as *confirmed by the source*, and postings the employer still lists are never archived just for being old.
 
 ---
 

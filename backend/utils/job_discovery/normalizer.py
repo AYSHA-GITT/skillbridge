@@ -110,10 +110,16 @@ def make_fingerprint(title: str, company: str, city: Optional[str]) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()
 
 
+# Bump when normalization rules change, so the next sync re-applies them to stored listings.
+NORMALIZER_VERSION = 2
+
+
 def content_hash(job: Dict[str, Any]) -> str:
     keys = ["title", "company", "location", "description", "job_type", "work_arrangement",
-            "salary_min", "salary_max", "application_url", "deadline"]
+            "salary_min", "salary_max", "application_url", "deadline", "city", "required_skills",
+            "preferred_skills", "experience_level"]
     payload = {k: (job.get(k).isoformat() if isinstance(job.get(k), datetime) else job.get(k)) for k in keys}
+    payload["_normalizer_version"] = NORMALIZER_VERSION
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode("utf-8")).hexdigest()
 
 
@@ -140,6 +146,39 @@ def parse_datetime(value: Any) -> Optional[datetime]:
     return None
 
 
+# Old and new official names of Indian cities refer to the same place.
+CITY_ALIASES = {
+    "bangalore": "Bengaluru", "bengaluru": "Bengaluru", "blr": "Bengaluru",
+    "gurgaon": "Gurugram", "gurugram": "Gurugram",
+    "bombay": "Mumbai", "mumbai": "Mumbai", "navi mumbai": "Navi Mumbai",
+    "mangalore": "Mangaluru", "mangaluru": "Mangaluru",
+    "mysore": "Mysuru", "mysuru": "Mysuru",
+    "madras": "Chennai", "chennai": "Chennai",
+    "calcutta": "Kolkata", "kolkata": "Kolkata",
+    "trivandrum": "Thiruvananthapuram", "thiruvananthapuram": "Thiruvananthapuram",
+    "cochin": "Kochi", "kochi": "Kochi",
+    "poona": "Pune", "pune": "Pune", "hyderabad": "Hyderabad", "noida": "Noida",
+    "new delhi": "New Delhi", "delhi": "Delhi", "udupi": "Udupi", "bhatkal": "Bhatkal",
+}
+_CITY_RE = re.compile(r"\b(" + "|".join(sorted((re.escape(k) for k in CITY_ALIASES), key=len, reverse=True)) + r")\b",
+                      re.I)
+
+
+def canonical_city(text: Optional[str]) -> Optional[str]:
+    """First known Indian city mentioned in text, under its current official name."""
+    m = _CITY_RE.search(text or "")
+    return CITY_ALIASES[m.group(1).lower()] if m else None
+
+
+def location_search_terms(query: str) -> List[str]:
+    """All spellings that refer to the same city (search 'Bengaluru' also finds 'Bangalore')."""
+    q = (query or "").strip().lower()
+    canon = CITY_ALIASES.get(q)
+    if not canon:
+        return [query.strip()]
+    return sorted({alias for alias, c in CITY_ALIASES.items() if c == canon} | {canon.lower()})
+
+
 def split_location(location: str, country_hint: Optional[str] = None) -> Dict[str, Optional[str]]:
     parts = [p.strip() for p in re.split(r"[,/|]", location or "") if p.strip()]
     lower = (location or "").lower()
@@ -147,12 +186,15 @@ def split_location(location: str, country_hint: Optional[str] = None) -> Dict[st
     if not country:
         if any(re.search(rf"\b{re.escape(k)}\b", lower) for k in INDIA_KEYWORDS):
             country = "India"
-    city = None
+    if not country and re.search(r"\bIND\b", location or ""):
+        country = "India"
+    city = canonical_city(location)
     state = None
-    if parts:
-        city = parts[0] if parts[0].lower() not in ("india", "remote", "anywhere") else None
-        if len(parts) >= 2 and parts[1].lower() != (country or "").lower():
-            state = parts[1]
+    if city is None and parts and not re.search(r"\b(india|remote|anywhere|hybrid)\b", parts[0], re.I):
+        city = parts[0]
+    if len(parts) >= 2 and parts[1].lower() != (country or "").lower() and not canonical_city(parts[1]) \
+            and not re.search(r"\b(india|ind)\b", parts[1], re.I):
+        state = parts[1]
     return {"city": city, "state": state, "country": country}
 
 
@@ -333,7 +375,9 @@ def normalize_job(raw: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Option
         "state": loc["state"][:120] if loc["state"] else None,
         "country": (loc["country"] or "")[:60] or None,
         "job_type": infer_job_type(title, raw.get("contract_type"), description),
-        "work_arrangement": infer_work_arrangement(title, location, description, raw.get("remote")),
+        # a work mode stated explicitly by the source wins over inference
+        "work_arrangement": raw.get("work_arrangement") or infer_work_arrangement(title, location, description,
+                                                                                 raw.get("remote")),
         "domain": infer_career_category(title, description),
         "career_category": infer_career_category(title, description),
         "experience_level": exp["experience_level"],

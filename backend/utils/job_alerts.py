@@ -36,7 +36,8 @@ def job_matches_alert_filters(job: JobListing, alert: JobAlert) -> bool:
     roles = _list(alert.roles)
     if roles and not any(all(w in title for w in r.split()) for r in roles):
         return False
-    locations = _list(alert.locations)
+    from utils.job_discovery.normalizer import location_search_terms
+    locations = [t.lower() for l in _list(alert.locations) for t in location_search_terms(l)]
     if locations:
         loc = f"{job.location or ''} {job.city or ''} {job.state or ''}".lower()
         is_remote = (job.work_arrangement or "").lower() == "remote"

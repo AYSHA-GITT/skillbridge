@@ -161,6 +161,8 @@ CASE_SENSITIVE_ALIASES = {
     "js": "JS",
     "torch": "Torch",
     "mongo": "Mongo",
+    # "you excel at..." is a verb; only the capitalised product name counts
+    "excel": "Excel",
 }
 
 # characters that may PRECEDE a list item ("Languages: C, ..." / "• C")

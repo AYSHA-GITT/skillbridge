@@ -199,6 +199,119 @@ class ProviderTests(unittest.TestCase):
 
 
 # ════════════════════════════════════════════════════════════════════════
+GH_PAYLOAD = {"jobs": [
+    {"id": 101, "title": "Software Engineer - Backend", "company_name": "Acme",
+     "absolute_url": "https://boards.greenhouse.io/acme/jobs/101", "location": {"name": "Bengaluru, India"},
+     "first_published": "2026-11-10T09:00:00-04:00", "updated_at": "2026-11-12T09:00:00-04:00",
+     "content": "&lt;p&gt;Requirements: Python, SQL and Docker. Nice to have: AWS.&lt;/p&gt;" + "&lt;p&gt;x&lt;/p&gt;" * 10,
+     "metadata": [{"name": "Employment Type", "value": "Full-time"}]},
+    {"id": 102, "title": "Software Engineer", "company_name": "Acme",
+     "absolute_url": "https://boards.greenhouse.io/acme/jobs/102", "location": {"name": "San Francisco, CA"},
+     "content": "US only role " * 10},
+    {"id": 103, "title": "Senior Accountant", "company_name": "Acme",
+     "absolute_url": "https://boards.greenhouse.io/acme/jobs/103", "location": {"name": "Mumbai, India"},
+     "content": "Finance role " * 10},
+]}
+LEVER_PAYLOAD = [
+    {"id": "aaa-1", "text": "Data Analyst Intern", "hostedUrl": "https://jobs.lever.co/beta/aaa-1",
+     "categories": {"location": "hyderabad", "commitment": "intern"}, "country": "IN", "workplaceType": "hybrid",
+     "createdAt": 1762934400000, "descriptionPlain": "Analyse business data for product teams.",
+     "lists": [{"text": "Requirements", "content": "<li>SQL</li><li>Excel and Power BI</li>"}]},
+    {"id": "aaa-2", "text": "Backend Developer", "hostedUrl": "https://jobs.lever.co/beta/aaa-2",
+     "categories": {"location": "Remote - US"}, "country": "US", "workplaceType": "remote",
+     "descriptionPlain": "US remote " * 10},
+]
+
+
+class CompanyBoardTests(unittest.TestCase):
+    def setUp(self):
+        reset_db()
+        self.ctx = app.app_context()
+        self.ctx.push()
+
+    def tearDown(self):
+        db.session.remove()
+        self.ctx.pop()
+
+    def _gh(self, responses, boards=("acme",)):
+        from utils.job_discovery.company_boards_adapter import GreenhouseBoardsAdapter
+        a = GreenhouseBoardsAdapter(boards=list(boards), session=FakeSession(responses))
+        a._sleep = lambda s: None
+        return a
+
+    def test_greenhouse_mapping_and_filters(self):
+        a = self._gh([FakeResponse(200, GH_PAYLOAD)])
+        a.reset_run_state()
+        jobs = a.fetch_jobs()
+        self.assertEqual([j["source_job_id"] for j in jobs], ["acme:101"])   # US + accountant filtered out
+        self.assertEqual(a.filtered_out, 2)
+        j = jobs[0]
+        self.assertEqual(j["posted_at"], "2026-11-10T09:00:00-04:00")       # first_published, not updated_at
+        self.assertEqual(j["contract_type"], "Full-time")
+        self.assertEqual(a.completed_scopes["greenhouse:acme:"],
+                         {"greenhouse:acme:101", "greenhouse:acme:102", "greenhouse:acme:103"})
+        norm, _ = N.normalize_job(j)
+        self.assertEqual(set(norm["required_skills"]), {"python", "sql", "docker"})
+        self.assertEqual(norm["preferred_skills"], ["aws"])
+
+    def test_lever_mapping_and_filters(self):
+        from utils.job_discovery.company_boards_adapter import LeverBoardsAdapter
+        a = LeverBoardsAdapter(boards=["beta"], session=FakeSession([FakeResponse(200, LEVER_PAYLOAD)]))
+        a.reset_run_state()
+        jobs = a.fetch_jobs()
+        self.assertEqual(len(jobs), 1)                                        # US-remote role skipped
+        norm, reason = N.normalize_job(jobs[0])
+        self.assertIsNone(reason)
+        self.assertEqual(norm["job_type"], "Internship")
+        self.assertEqual(norm["work_arrangement"], "Hybrid")
+        self.assertEqual(norm["country"], "India")
+        self.assertIsNotNone(norm["posting_date"])
+        self.assertTrue({"sql", "excel", "power bi"} <= set(norm["required_skills"]))
+
+    def test_one_board_failing_does_not_stop_others(self):
+        a = self._gh([FakeResponse(404, text="no such board"), FakeResponse(200, GH_PAYLOAD)], boards=("gone", "acme"))
+        a.reset_run_state()
+        jobs = a.fetch_jobs()
+        self.assertEqual(len(jobs), 1)
+        self.assertTrue(a.run_errors and a.run_errors[0].startswith("gone:"))
+        self.assertNotIn("greenhouse:gone:", a.completed_scopes)
+
+    def test_removed_posting_expired_as_confirmed(self):
+        sync([self._gh([FakeResponse(200, GH_PAYLOAD)])])
+        job = JobListing.query.filter_by(external_id="greenhouse:acme:101").first()
+        self.assertEqual(job.status, "active")
+        emptied = {"jobs": [GH_PAYLOAD["jobs"][1]]}                          # 101 removed by the employer
+        run = sync([self._gh([FakeResponse(200, emptied)])], now=T0 + timedelta(hours=2))
+        job = JobListing.query.filter_by(external_id="greenhouse:acme:101").first()
+        self.assertEqual(job.status, "expired")
+        self.assertIn("confirmed by the source", job.expiry_reason)
+        self.assertEqual(run["provider_results"]["greenhouse"]["confirmed_removed"], 1)
+
+    def test_title_filter_excludes_finance_keeps_tech(self):
+        from utils.job_discovery.company_boards_adapter import is_relevant_title
+        self.assertFalse(is_relevant_title("AP & Expenses Projects Analyst"))
+        self.assertFalse(is_relevant_title("Senior Accountant"))
+        self.assertTrue(is_relevant_title("AR/VR Engineer"))
+        self.assertTrue(is_relevant_title("Data Analyst Intern"))
+
+    def test_city_aliases(self):
+        self.assertEqual(N.split_location("Bangalore, IND")["city"], "Bengaluru")
+        self.assertEqual(N.split_location("Bangalore, IND")["country"], "India")
+        self.assertEqual(N.split_location("Hybrid in Bangalore")["city"], "Bengaluru")
+        self.assertIn("bangalore", N.location_search_terms("Bengaluru"))
+        sync([FakeAdapter(jobs=[raw_job(1, location="Bangalore, India"), raw_job(2, location="Gurgaon, India")])],
+             now=datetime.now(UTC))
+        from utils.job_discovery import job_discovery_service
+        self.assertEqual(len(job_discovery_service.search_jobs(location="Bengaluru")), 1)
+        self.assertEqual(len(job_discovery_service.search_jobs(location="Gurugram")), 1)
+
+    def test_failed_board_does_not_expire_its_jobs(self):
+        sync([self._gh([FakeResponse(200, GH_PAYLOAD)])])
+        sync([self._gh([FakeResponse(503)] * 3)], now=T0 + timedelta(hours=2))
+        self.assertEqual(JobListing.query.filter_by(external_id="greenhouse:acme:101").first().status, "active")
+
+
+# ════════════════════════════════════════════════════════════════════════
 class NormalizerTests(unittest.TestCase):
     def test_rejects_missing_url_title_company(self):
         self.assertEqual(N.normalize_job(raw_job(url=""))[1], "missing or invalid job URL")
@@ -318,9 +431,18 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(run["status"], "failed")
         self.assertEqual(JobListing.query.filter_by(source_job_id="job-1").first().status, "active")
 
-    def test_old_posting_expires(self):
+    def test_old_posting_still_listed_stays_active(self):
+        # employer still lists a 90-day-old posting -> the source confirms it is open
         sync([FakeAdapter(jobs=[raw_job(1, posted_at=(T0 - timedelta(days=90)).isoformat())])])
-        self.assertEqual(JobListing.query.first().status, "expired")
+        self.assertEqual(JobListing.query.first().status, "active")
+
+    def test_old_posting_not_reconfirmed_expires(self):
+        sync([FakeAdapter(jobs=[raw_job(1, posted_at=(T0 - timedelta(days=58)).isoformat())])])
+        # 5 days later: provider healthy, job not returned again, now 63 days old
+        sync([FakeAdapter(jobs=[raw_job(2)])], now=T0 + timedelta(days=5))
+        job = JobListing.query.filter_by(source_job_id="job-1").first()
+        self.assertEqual(job.status, "expired")
+        self.assertIn("not re-confirmed", job.expiry_reason)
 
     def test_reappearing_job_is_reactivated(self):
         sync([FakeAdapter(jobs=[raw_job(1)])])
