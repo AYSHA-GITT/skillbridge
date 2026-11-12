@@ -505,6 +505,12 @@ python -m unittest discover -s tests -v
 ```
 The older `test_*.py` files in `backend/` run against the database configured in `.env` (and some call the running server).
 
+End-to-end check of every feature against the running app (122 checks; creates and then deletes two throw-away accounts):
+```powershell
+cd backend
+python e2e_check.py
+```
+
 ---
 
 ## 🔄 Live Job Discovery & Two-Hour Synchronization
