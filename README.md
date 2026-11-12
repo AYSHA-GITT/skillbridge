@@ -639,3 +639,4 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 - The [Flower Federated Learning Framework](https://flower.ai/) for decentralized model aggregation primitives.
 - [Google AI Studio](https://ai.google.dev/) for access to the Gemini family of foundational models.
 - The open-source scientific Python community (`scikit-learn`, `numpy`, `pandas`, `PyMuPDF`).
+q
