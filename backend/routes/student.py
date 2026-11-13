@@ -501,15 +501,15 @@ def get_quiz_explanation(skill_id):
             f"   Difficulty: {item.get('difficulty', 'Medium')}\n"
         )
 
-    prompt = f"""You are a friendly, expert senior technical mentor and {skill.skill_name} tutor reviewing a student's quiz mistakes.
-Provide a detailed, insightful, and comprehensive pedagogical explanation for each question they got wrong (2-3 solid paragraphs per question).
+    prompt = f"""You are a technical tutor in {skill.skill_name}.
+Provide a short, crisp, and direct explanation for each missed question. Keep it concise (under 60 words total per question) and easy to read.
 
-For each question:
-1. Explain thoroughly WHY the correct answer is right (explain the underlying core concept, mechanism, or syntax in {skill.skill_name}).
-2. Address the student's chosen answer and explain specifically WHY it is incorrect, pointing out the misconception or error in that reasoning.
-3. Provide a practical rule of thumb, code snippet/insight, or memorable takeaway so they master the concept for real-world development.
+Format each explanation in 3 brief bullet points:
+• Correct: <1 clear, direct sentence explaining why the correct answer is right>
+• Misconception: <1 sentence explaining why the student's selected answer is wrong>
+• Tip: <1 short takeaway or rule-of-thumb>
 
-Skill being assessed: {skill.skill_name}
+Skill: {skill.skill_name}
 
 Questions to explain:
 {items_text}
@@ -519,7 +519,7 @@ Return ONLY valid JSON in this exact format:
   {{
     "question": "<exact question text>",
     "correct_answer_text": "<correct option text>",
-    "explanation": "<detailed, comprehensive explanation covering why the correct answer is right, why the student's choice was incorrect, and the key practical takeaway>"
+    "explanation": "• Correct: ...\\n• Misconception: ...\\n• Tip: ..."
   }}
 ]"""
 
@@ -551,7 +551,7 @@ Return ONLY valid JSON in this exact format:
             except Exception as e:
                 current_app.logger.warning(f'Quiz explanation Gemini error ({model_name}): {e}')
 
-    # Fallback: detailed explanations if Gemini is unavailable
+    # Fallback: short, structured explanation if Gemini is unavailable
     if not explanations:
         explanations = []
         for item in wrong_answers:
@@ -562,13 +562,13 @@ Return ONLY valid JSON in this exact format:
             your_let = item.get('your_answer', '')
 
             why_wrong = (
-                f"Your selected Option {your_let} (\"{your_txt}\") is incorrect because it reflects a common misconception about {skill.skill_name}'s behavior or syntax."
-                if your_txt else "No answer was provided for this question."
+                f"Option {your_let} (\"{your_txt}\") is incorrect because it confuses {skill.skill_name}'s expected behavior."
+                if your_txt else "No answer was provided."
             )
             fallback_text = (
-                f"Why Correct: Option {cor_let} (\"{cor_txt}\") is the standard and correct approach in {skill.skill_name}.\n\n"
-                f"Why Incorrect: {why_wrong}\n\n"
-                f"Key Takeaway: When working with {skill.skill_name}, always verify the interface paradigm and object-oriented vs procedural conventions."
+                f"• Correct: Option {cor_let} (\"{cor_txt}\") is the right technical solution.\n"
+                f"• Misconception: {why_wrong}\n"
+                f"• Tip: Always double-check standard API method signatures and interface paradigms."
             )
             explanations.append({
                 'question': q_txt,
