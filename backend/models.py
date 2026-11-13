@@ -30,6 +30,7 @@ class Student(BaseModel, UserMixin):
     course = db.Column(db.String(200))
     year = db.Column(db.String(20))
     target_career = db.Column(db.String(200))  # replaces target_company
+    profile_photo = db.Column(db.String(300), nullable=True)
     readiness_score = db.Column(db.Float, default=0.0)
     role = db.Column(db.String(20), default='student', nullable=False)
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -81,6 +82,7 @@ class Student(BaseModel, UserMixin):
             'course': self.course,
             'year': self.year,
             'target_career': self.target_career,
+            'profile_photo': self.profile_photo,
             'readiness_score': self.readiness_score,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
@@ -873,4 +875,31 @@ class AuditLog(BaseModel):
             'target': self.target,
             'details': details,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-        }
+        }
+
+
+# ─────────────────────────────────────────
+# PASSWORD RESET TOKEN
+# ─────────────────────────────────────────
+class PasswordResetToken(BaseModel):
+    __tablename__ = 'password_reset_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    token = db.Column(db.String(128), unique=True, nullable=False, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    student = db.relationship('Student', backref=db.backref('reset_tokens', lazy=True, cascade='all, delete-orphan'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'student_id': self.student_id,
+            'token': self.token,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'used': self.used,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+

@@ -22,6 +22,9 @@ import InterviewPrep from './pages/InterviewPrep';
 import FedViz from './pages/FedViz';
 import Admin from './pages/Admin';
 import ResumeOptimizer from './pages/ResumeOptimizer';
+import ProfileSettings from './pages/ProfileSettings';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import { ProtectedRoute, AdminRoute } from './components/RouteGuards';
 
 function App() {
@@ -35,6 +38,8 @@ function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         {/* ============================================================ */}
         {/* PROTECTED STUDENT PORTAL ROUTES */}
@@ -44,6 +49,22 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile-settings"
+          element={
+            <ProtectedRoute>
+              <ProfileSettings />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <ProfileSettings />
             </ProtectedRoute>
           }
         />

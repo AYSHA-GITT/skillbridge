@@ -39,17 +39,39 @@ export default function Navbar({ student, onOpenAssistant, onOpenPrivacyModal })
         {/* User Info & Actions */}
         <div className="flex items-center space-x-4">
           {student && (
-            <div className="hidden md:flex items-center space-x-3 pr-2 border-r border-base-700/60">
+            <Link
+              to="/profile-settings"
+              title="View and edit profile settings"
+              className="hidden md:flex items-center space-x-3 pr-2 border-r border-base-700/60 hover:opacity-90 transition-opacity group"
+            >
               <div className="text-right">
-                <p className="text-xs font-semibold text-white">{student.name}</p>
+                <p className="text-xs font-semibold text-white group-hover:text-accent-300 transition-colors">
+                  {student.name}
+                </p>
                 <p className="text-[11px] text-accent-400 capitalize">
                   {student.target_career || 'Target not set'}
                 </p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-400/40 flex items-center justify-center text-accent-300 font-semibold text-xs">
+              {student.profile_photo ? (
+                <img
+                  src={student.profile_photo.startsWith('http') ? student.profile_photo : `http://127.0.0.1:5000${student.profile_photo}`}
+                  alt={student.name}
+                  className="w-8 h-8 rounded-full object-cover border border-accent-400/50 shadow-sm"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) {
+                      e.currentTarget.nextSibling.style.display = 'flex';
+                    }
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: student.profile_photo ? 'none' : 'flex' }}
+                className="w-8 h-8 rounded-full bg-accent-500/20 border border-accent-400/40 items-center justify-center text-accent-300 font-semibold text-xs"
+              >
                 {student.name ? student.name[0].toUpperCase() : 'S'}
               </div>
-            </div>
+            </Link>
           )}
 
           {onOpenAssistant && (

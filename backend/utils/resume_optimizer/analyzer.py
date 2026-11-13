@@ -5,7 +5,7 @@ and keywords, and flags weak bullet points and formatting deficiencies.
 """
 
 import re
-from typing import Dict, Any, List, Set, Tuple
+from typing import Dict, Any, List, Set, Tuple, Optional
 from data.career_requirements import CAREER_REQUIREMENTS
 from data.skills_list import KNOWN_SKILLS
 
@@ -96,7 +96,7 @@ def find_matched_and_missing_skills(
     for pref in preferred_skills:
         pattern = r'\b' + re.escape(pref) + r'\b'
         if re.search(pattern, text_corpus):
-            if req not in matched:
+            if pref not in matched:
                 matched.append(pref)
         else:
             missing_preferred.append(pref)
@@ -281,8 +281,8 @@ def calculate_job_match_score(
 
 def analyze_resume(
     parsed_sections: Dict[str, Any],
-    target_career: str = None,
-    job_description: str = None
+    target_career: Optional[str] = None,
+    job_description: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Main analysis pipeline.

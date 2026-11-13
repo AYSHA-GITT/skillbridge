@@ -35,6 +35,11 @@ export const skillService = {
     return response.data;
   },
 
+  getQuizExplanation: async (skillId, wrongAnswers) => {
+    const response = await api.post(`/student/quiz_explanation/${skillId}`, { wrong_answers: wrongAnswers });
+    return response.data;
+  },
+
   getAssessments: async () => {
     const response = await api.get('/student/assessments');
     return response.data;

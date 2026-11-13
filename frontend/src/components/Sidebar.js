@@ -16,12 +16,14 @@ import {
   TbCheck,
   TbSearch,
   TbMicrophone,
-  TbFileCheck
+  TbFileCheck,
+  TbUserCircle
 } from 'react-icons/tb';
 
 export default function Sidebar({ onOpenPrivacyModal }) {
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: TbLayoutDashboard },
+    { to: '/profile-settings', label: 'Profile Settings', icon: TbUserCircle },
     { to: '/profile', label: 'Profile & Skills', icon: TbUserCheck },
     { to: '/upload-resume', label: 'Resume Upload', icon: TbFileUpload },
     { to: '/resume-optimizer', label: 'Resume Optimizer', icon: TbFileCheck },

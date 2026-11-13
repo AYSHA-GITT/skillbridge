@@ -8,7 +8,6 @@ import {
   TbAlertCircle,
   TbArrowRight,
   TbRefresh,
-  TbBriefcase,
   TbListCheck,
   TbCircleCheck,
   TbInfoCircle,
@@ -23,6 +22,38 @@ import {
   TbTool
 } from 'react-icons/tb';
 import { skillService } from '../services/skillService';
+import AppLayout from '../components/AppLayout';
+
+const SAMPLE_STUDENT_RESUME = `Alex Chen
+alex.chen@email.com | +91 98765 43210 | Bengaluru, India
+linkedin.com/in/alexchen-dev | github.com/alexchen-dev
+
+PROFESSIONAL SUMMARY
+Motivated computer science student looking for junior software engineer roles. Have experience with Python, web development, and database systems.
+
+TECHNICAL SKILLS
+Languages: Python, JavaScript, SQL, HTML, CSS
+Frameworks & Libraries: React, Node.js, Express, Flask, Git, SQLite, REST APIs
+
+WORK EXPERIENCE
+Software Developer Intern | TechNova Labs | Jan 2024 - Present | Bengaluru, India
+- Responsible for working on backend REST APIs and database endpoints
+- Helped with building frontend UI components using React
+- Assisted senior engineers in debugging web application performance issues
+
+PROJECTS
+Smart Health Analytics Portal | React, Node.js, SQLite
+- Worked on a web application for tracking patient health metrics
+- Handled authentication and implemented user login features
+- Created data visualization dashboards for doctors
+
+EDUCATION
+B.Tech in Computer Science and Engineering | National Institute of Technology | 2021 - 2025 | CGPA: 8.7/10
+
+CERTIFICATIONS
+- Python for Data Science and Machine Learning (Coursera)
+- AWS Certified Cloud Practitioner
+`;
 
 export default function ResumeOptimizer() {
   // Navigation / Workflow State: 'setup' | 'workspace'
@@ -150,7 +181,10 @@ export default function ResumeOptimizer() {
     try {
       const formData = new FormData();
 
-      if (sourceType === 'upload') {
+      if (sourceType === 'sample') {
+        formData.append('sample_text', SAMPLE_STUDENT_RESUME);
+        formData.append('filename', 'Alex_Chen_Software_Engineer_Resume.pdf');
+      } else if (sourceType === 'upload') {
         if (!file) {
           throw new Error('Please select or upload a resume file first.');
         }
@@ -173,11 +207,12 @@ export default function ResumeOptimizer() {
       clearInterval(stepInterval);
       setAnalysis(res.match_analysis);
       setOriginalSections(res.original_sections);
-      setEditableSections(res.optimized_sections || res.original_sections);
-      setSuggestions(res.suggestions || []);
+      // Start editable draft at baseline so student sees improvements applied interactively
+      setEditableSections(JSON.parse(JSON.stringify(res.original_sections)));
+      setSuggestions((res.suggestions || []).map((s) => ({ ...s, status: 'pending' })));
       setStudentPrompts(res.student_prompts || []);
       setMode('workspace');
-      showToast('Resume analyzed and optimization studio ready!', 'success');
+      showToast('Resume analyzed! AI optimization studio is ready.', 'success');
     } catch (err) {
       clearInterval(stepInterval);
       const msg = err.response?.data?.error || err.message || 'Failed to analyze resume. Please try again.';
@@ -187,18 +222,18 @@ export default function ResumeOptimizer() {
     }
   };
 
-  // Suggestion actions: Accept / Reject
+  // Suggestion actions: Accept / Undo / Dismiss
   const handleToggleSuggestion = (sugId, action) => {
     setSuggestions((prev) =>
       prev.map((s) => {
         if (s.id !== sugId) return s;
-        const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+        const newStatus = action === 'accept' ? 'accepted' : action === 'undo' ? 'pending' : 'rejected';
 
         // Apply change to editable sections
         if (s.type === 'summary_rewrite') {
           setEditableSections((cur) => ({
             ...cur,
-            summary: newStatus === 'accepted' ? s.improved : s.original,
+            summary: newStatus === 'accepted' ? s.improved : (originalSections?.summary || s.original),
           }));
         } else if (s.type === 'bullet_enhancement') {
           const sec = (s.section || '').toLowerCase();
@@ -207,22 +242,25 @@ export default function ResumeOptimizer() {
 
           setEditableSections((cur) => {
             const next = JSON.parse(JSON.stringify(cur));
+            const targetText = newStatus === 'accepted' ? s.improved : s.original;
             if (sec.includes('experience') && next.experience && next.experience[iIdx]) {
               const bullets = next.experience[iIdx].bullets || [];
               if (bullets[bIdx] !== undefined) {
-                bullets[bIdx] = newStatus === 'accepted' ? s.improved : s.original;
+                bullets[bIdx] = targetText;
               }
             } else if (sec.includes('project') && next.projects && next.projects[iIdx]) {
               const bullets = next.projects[iIdx].bullets || [];
               if (bullets[bIdx] !== undefined) {
-                bullets[bIdx] = newStatus === 'accepted' ? s.improved : s.original;
+                bullets[bIdx] = targetText;
               }
             }
             return next;
           });
         } else if (s.type === 'missing_skill_prompt' && s.skill_to_add) {
-          if (newStatus === 'accept') {
+          if (newStatus === 'accepted') {
             handleAddSkillDirect(s.skill_to_add);
+          } else if (action === 'undo') {
+            handleRemoveSkill(s.skill_to_add);
           }
         }
 
@@ -231,14 +269,49 @@ export default function ResumeOptimizer() {
     );
   };
 
-  // 1-Click Accept All
+  // 1-Click Accept All Suggestions
   const handleAcceptAll = () => {
-    suggestions.forEach((s) => {
-      if (s.status !== 'accepted') {
-        handleToggleSuggestion(s.id, 'accept');
-      }
+    setSuggestions((prev) => prev.map((s) => ({ ...s, status: 'accepted' })));
+
+    setEditableSections((cur) => {
+      const next = JSON.parse(JSON.stringify(cur));
+
+      suggestions.forEach((s) => {
+        if (s.type === 'summary_rewrite' && s.improved) {
+          next.summary = s.improved;
+        } else if (s.type === 'bullet_enhancement' && s.improved) {
+          const sec = (s.section || '').toLowerCase();
+          const iIdx = s.item_index || 0;
+          const bIdx = s.bullet_index || 0;
+          if (sec.includes('experience') && next.experience && next.experience[iIdx]?.bullets) {
+            if (next.experience[iIdx].bullets[bIdx] !== undefined) {
+              next.experience[iIdx].bullets[bIdx] = s.improved;
+            }
+          } else if (sec.includes('project') && next.projects && next.projects[iIdx]?.bullets) {
+            if (next.projects[iIdx].bullets[bIdx] !== undefined) {
+              next.projects[iIdx].bullets[bIdx] = s.improved;
+            }
+          }
+        } else if (s.type === 'missing_skill_prompt' && s.skill_to_add) {
+          const currentSkills = next.skills || [];
+          if (!currentSkills.some((sk) => sk.toLowerCase() === s.skill_to_add.toLowerCase())) {
+            next.skills = [...currentSkills, s.skill_to_add];
+          }
+        }
+      });
+
+      return next;
     });
-    showToast('Applied all suggested improvements to your optimized resume!', 'success');
+
+    showToast('Applied all AI improvements to your live resume!', 'success');
+  };
+
+  // Revert all changes back to baseline
+  const handleRevertAll = () => {
+    if (!originalSections) return;
+    setEditableSections(JSON.parse(JSON.stringify(originalSections)));
+    setSuggestions((prev) => prev.map((s) => ({ ...s, status: 'pending' })));
+    showToast('Reverted live editor to original baseline.', 'info');
   };
 
   // Direct 1-Click Add Missing Skill from ATS Matrix
@@ -298,11 +371,17 @@ export default function ResumeOptimizer() {
 
     const reqScore = (totalReqMatched / Math.max(1, reqCount)) * 55;
     const prefScore = Math.min(25, (analysis.score_breakdown?.preferred_skills_score || (prefCount * 4)) + matchedReq * 2);
-    const structScore = analysis.score_breakdown?.formatting_score || 18;
+    
+    // Formatting & active phrasing score boosted as STAR rewrites are accepted
+    let structScore = analysis.score_breakdown?.formatting_score || 18;
+    const acceptedCount = (suggestions || []).filter((s) => s.status === 'accepted').length;
+    if (acceptedCount > 0) {
+      structScore = Math.min(20, structScore + Math.min(4, acceptedCount * 0.8));
+    }
 
     const total = Math.round(Math.min(99, Math.max(15, reqScore + prefScore + structScore)));
     return total;
-  }, [analysis, editableSections, careers]);
+  }, [analysis, editableSections, careers, suggestions]);
 
   // Section Editors
   const handleUpdateContact = (field, value) => {
@@ -542,7 +621,8 @@ export default function ResumeOptimizer() {
   };
 
   return (
-    <div className="space-y-6 pb-20">
+    <AppLayout>
+      <div className="space-y-8 pb-20">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -557,60 +637,63 @@ export default function ResumeOptimizer() {
         </div>
       )}
 
-      {/* Main Studio Banner */}
-      <div className="surface p-6 rounded-2xl relative overflow-hidden border border-teal-500/30">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-          <div>
-            <div className="flex items-center space-x-2.5 text-accent-400 mb-1.5">
-              <span className="p-1.5 rounded-lg bg-accent-500/15 border border-accent-400/30">
-                <TbSparkles className="w-5 h-5 text-accent-300" />
-              </span>
-              <span className="text-xs font-mono font-semibold tracking-wider uppercase">
-                SkillLens AI Studio
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold font-heading text-white">
-              AI Resume Optimizer & ATS Studio
-            </h1>
-            <p className="text-xs text-white/60 mt-1 max-w-2xl leading-relaxed">
-              Transform your resume into a top-tier candidate profile with deterministic ATS scoring, STAR/XYZ bullet rewrites,
-              live section editing, and instant ATS-compliant PDF and DOCX downloads.
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-white">
+            AI Resume Optimizer & ATS Studio
+          </h1>
+          <p className="text-white/50 text-sm mt-1">
+            Transform your resume into a top-tier candidate profile with deterministic ATS scoring, STAR/XYZ bullet rewrites, live section editing, and instant ATS-compliant PDF and DOCX downloads.
+          </p>
+        </div>
+
+        {mode === 'workspace' && (
+          <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
+            <button
+              type="button"
+              onClick={() => setMode('setup')}
+              className="btn-ghost flex items-center space-x-1.5 text-xs py-2 px-3"
+            >
+              <TbRefresh className="w-3.5 h-3.5" />
+              <span>New Optimization</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleExport('docx')}
+              disabled={exporting.docx}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-base-800 hover:bg-base-700 text-teal-300 border border-teal-500/30 flex items-center space-x-1.5 transition-all"
+            >
+              <TbDownload className="w-3.5 h-3.5" />
+              <span>{exporting.docx ? 'Exporting...' : 'DOCX'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleExport('pdf')}
+              disabled={exporting.pdf}
+              className="btn-primary !w-auto flex items-center space-x-1.5 text-xs py-2 px-4"
+            >
+              <TbDownload className="w-4 h-4" />
+              <span>{exporting.pdf ? 'Generating...' : 'Download PDF'}</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Info / How It Works Banner (identical to Assessment page layout) */}
+      <div className="glass p-5 rounded-2xl border border-accent-400/20 bg-gradient-to-r from-base-900 to-base-800">
+        <div className="flex items-start space-x-3">
+          <div className="p-2 rounded-xl bg-accent-500/20 text-accent-300">
+            <TbSparkles className="w-5 h-5" />
+          </div>
+          <div className="text-xs text-white/70 space-y-1">
+            <p className="font-semibold text-white">Deterministic ATS Optimization Studio:</p>
+            <p>
+              AI evaluates your resume structure against industry benchmarks with deterministic keyword scoring, STAR/XYZ bullet enhancements, and verified anti-hallucination prompts.
             </p>
           </div>
-
-          {mode === 'workspace' && (
-            <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
-              <button
-                type="button"
-                onClick={() => setMode('setup')}
-                className="btn-ghost flex items-center space-x-1.5 text-xs py-2 px-3"
-              >
-                <TbRefresh className="w-3.5 h-3.5" />
-                <span>New Optimization</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleExport('docx')}
-                disabled={exporting.docx}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-base-800 hover:bg-base-700 text-teal-300 border border-teal-500/30 flex items-center space-x-1.5 transition-all"
-              >
-                <TbDownload className="w-3.5 h-3.5" />
-                <span>{exporting.docx ? 'Exporting...' : 'DOCX'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleExport('pdf')}
-                disabled={exporting.pdf}
-                className="btn-primary !w-auto flex items-center space-x-1.5 text-xs py-2 px-4"
-              >
-                <TbDownload className="w-4 h-4" />
-                <span>{exporting.pdf ? 'Generating...' : 'Download PDF'}</span>
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -618,42 +701,81 @@ export default function ResumeOptimizer() {
           MODE 1: SETUP & CONFIGURATION
       ───────────────────────────────────────────────────────────── */}
       {mode === 'setup' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Resume Source */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="surface p-5 rounded-2xl border border-base-700/60 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white flex items-center space-x-2">
-                  <TbFileText className="w-4 h-4 text-teal-400" />
-                  <span>1. Select Resume Source</span>
-                </h2>
-                <div className="flex p-0.5 rounded-xl bg-base-900 border border-base-700 text-[11px] font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setSourceType('upload')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      sourceType === 'upload'
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    Upload File
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSourceType('existing')}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      sourceType === 'existing'
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    Existing Resumes ({myResumes.length})
-                  </button>
-                </div>
-              </div>
+        <div className="space-y-8">
+          {/* Section 1: Resume Source */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="font-heading font-semibold text-lg text-white flex items-center space-x-2">
+                <span>Select Resume Source</span>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                  {sourceType === 'upload' ? 'Upload' : sourceType === 'existing' ? `Saved (${myResumes.length})` : 'Sample Demo'}
+                </span>
+              </h2>
 
-              {sourceType === 'upload' ? (
+              <div className="flex p-0.5 rounded-xl bg-base-900 border border-base-700 text-xs font-medium self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setSourceType('upload')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    sourceType === 'upload'
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceType('existing')}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    sourceType === 'existing'
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  My Resumes ({myResumes.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSourceType('sample')}
+                  className={`px-3 py-1 rounded-lg transition-all flex items-center space-x-1 ${
+                    sourceType === 'sample'
+                      ? 'bg-accent-500/20 text-accent-300 border border-accent-400/30'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <TbSparkles className="w-3.5 h-3.5 text-accent-400" />
+                  <span>Try Sample</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="glass p-6 rounded-2xl border border-white/5 space-y-4">
+              {sourceType === 'sample' ? (
+                <div className="p-4 rounded-xl bg-accent-950/20 border border-accent-500/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                      ⚡ 1-Click Instant Demo
+                    </span>
+                    <span className="text-[10px] text-white/50 font-mono">Pre-loaded Candidate</span>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Alex Chen • Junior Software Engineer</h4>
+                    <p className="text-[11px] text-white/60 mt-0.5">
+                      B.Tech in Computer Science • TechNova Labs Developer Intern
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-base-900/60 border border-base-800 text-[11px] text-white/70 space-y-1 font-mono">
+                    <p className="text-accent-300 font-semibold text-[10px] uppercase">Draft Issues Detected in Sample:</p>
+                    <p>• Passive introductory verbs ("Responsible for working on...", "Helped with...")</p>
+                    <p>• Missing quantitative business impact metrics</p>
+                    <p>• Missing core production competencies (Docker, AWS, REST APIs)</p>
+                  </div>
+                  <p className="text-[11px] text-accent-300/80">
+                    Click "Optimize My Resume" below to see Gemini transform these bullets into high-impact STAR accomplishments!
+                  </p>
+                </div>
+              ) : sourceType === 'upload' ? (
                 <div>
                   <div
                     onDragEnter={handleDrag}
@@ -718,7 +840,7 @@ export default function ResumeOptimizer() {
                         <div className="flex items-center space-x-3">
                           <TbFileText className="w-4 h-4 text-teal-400 flex-shrink-0" />
                           <div>
-                            <p className="text-xs font-semibold text-white truncate max-w-[220px]">
+                            <p className="text-xs font-semibold text-white truncate max-w-[260px]">
                               {r.original_filename}
                             </p>
                             <p className="text-[10px] text-white/40 font-mono">
@@ -745,59 +867,62 @@ export default function ResumeOptimizer() {
             </div>
           </div>
 
-          {/* Right Column: Target Career or Custom JD */}
-          <div className="lg:col-span-6 space-y-6">
-            <div className="surface p-5 rounded-2xl border border-base-700/60 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-white flex items-center space-x-2">
-                  <TbBriefcase className="w-4 h-4 text-teal-400" />
-                  <span>2. Target Role / Job Description</span>
-                </h2>
-                <div className="flex p-0.5 rounded-xl bg-base-900 border border-base-700 text-[11px] font-medium">
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomJd(false)}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      !useCustomJd
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    Target Career
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomJd(true)}
-                    className={`px-3 py-1 rounded-lg transition-all ${
-                      useCustomJd
-                        ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
-                        : 'text-white/50 hover:text-white'
-                    }`}
-                  >
-                    Custom JD
-                  </button>
-                </div>
-              </div>
+          {/* Section 2: Target Role or Custom JD */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="font-heading font-semibold text-lg text-white flex items-center space-x-2">
+                <span>Target Role & Job Description</span>
+                <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-300 border border-accent-400/30">
+                  {!useCustomJd ? (careers.find((c) => c.id === selectedCareer)?.title || 'Select Role') : 'Custom JD'}
+                </span>
+              </h2>
 
+              <div className="flex p-0.5 rounded-xl bg-base-900 border border-base-700 text-xs font-medium self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setUseCustomJd(false)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    !useCustomJd
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Target Career
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseCustomJd(true)}
+                  className={`px-3 py-1 rounded-lg transition-all ${
+                    useCustomJd
+                      ? 'bg-teal-500/20 text-teal-300 border border-teal-400/30'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  Custom JD
+                </button>
+              </div>
+            </div>
+
+            <div className="glass p-6 rounded-2xl border border-white/5 space-y-5">
               {!useCustomJd ? (
                 <div className="space-y-3">
-                  <p className="text-[11px] text-white/50">
+                  <p className="text-xs text-white/50">
                     Choose an industry track to match against curated required and nice-to-have competencies:
                   </p>
-                  <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-60 overflow-y-auto pr-1">
                     {careers.map((c) => (
                       <button
                         key={c.id}
                         type="button"
                         onClick={() => setSelectedCareer(c.id)}
-                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                        className={`p-3 rounded-xl border text-left transition-all ${
                           selectedCareer === c.id
                             ? 'bg-teal-500/20 border-teal-400/40 text-teal-200 shadow-sm'
                             : 'bg-base-900/60 border-base-700/60 hover:border-base-600 text-white/60'
                         }`}
                       >
                         <p className="text-xs font-semibold text-white">{c.title}</p>
-                        <p className="text-[10px] text-white/40 mt-0.5 truncate">
+                        <p className="text-[10px] text-white/40 mt-1 truncate">
                           {c.required.slice(0, 3).join(', ')}...
                         </p>
                       </button>
@@ -806,11 +931,11 @@ export default function ResumeOptimizer() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-[11px] text-white/60 block">
+                  <label className="text-xs text-white/60 block font-medium">
                     Paste Job Description / Internship Posting:
                   </label>
                   <textarea
-                    rows={7}
+                    rows={6}
                     value={customJd}
                     onChange={(e) => setCustomJd(e.target.value)}
                     placeholder="Paste job posting text here (requirements, qualifications, tech stack)..."
@@ -831,25 +956,27 @@ export default function ResumeOptimizer() {
               )}
 
               {/* Launch Optimization Button */}
-              <button
-                type="button"
-                onClick={handleRunOptimization}
-                disabled={loading}
-                className="btn-primary flex items-center justify-center space-x-2 text-sm font-bold py-3.5 mt-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-base-950 border-t-transparent rounded-full animate-spin" />
-                    <span>Analyzing & Enhancing...</span>
-                  </>
-                ) : (
-                  <>
-                    <TbSparkles className="w-4 h-4" />
-                    <span>Optimize My Resume</span>
-                    <TbArrowRight className="w-4 h-4 ml-1" />
-                  </>
-                )}
-              </button>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleRunOptimization}
+                  disabled={loading}
+                  className="btn-primary w-full flex items-center justify-center space-x-2 text-sm font-bold py-3.5"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-base-950 border-t-transparent rounded-full animate-spin" />
+                      <span>Analyzing & Enhancing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <TbSparkles className="w-4 h-4" />
+                      <span>Optimize My Resume</span>
+                      <TbArrowRight className="w-4 h-4 ml-1" />
+                    </>
+                  )}
+                </button>
+              </div>
 
               {loading && (
                 <div className="p-3 rounded-xl bg-teal-950/20 border border-teal-500/20 text-center space-y-1.5 animate-pulse">
@@ -1115,14 +1242,25 @@ export default function ResumeOptimizer() {
             </div>
 
             {suggestions.length > 0 && (
-              <button
-                type="button"
-                onClick={handleAcceptAll}
-                className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-950/50 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-900/50 transition-all flex items-center space-x-1.5"
-              >
-                <TbCheck className="w-3.5 h-3.5" />
-                <span>Accept All ({suggestions.filter((s) => s.status !== 'accepted').length})</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptAll}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-emerald-950/60 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/60 transition-all flex items-center space-x-1.5 shadow-sm"
+                >
+                  <TbCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Accept All ({suggestions.filter((s) => s.status !== 'accepted').length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRevertAll}
+                  className="px-3 py-1.5 rounded-xl text-xs font-medium text-white/50 hover:text-white bg-base-900 border border-base-700/60 hover:border-base-600 transition-all flex items-center space-x-1"
+                  title="Reset all editable fields back to original baseline"
+                >
+                  <TbRefresh className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -1180,27 +1318,49 @@ export default function ResumeOptimizer() {
                             </span>
 
                             <div className="flex items-center space-x-1.5">
+                              {isAccepted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSuggestion(sug.id, 'undo')}
+                                  className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-base-800 text-white/70 hover:text-white border border-base-700 hover:border-base-600 transition-all"
+                                  title="Revert back to original phrasing"
+                                >
+                                  Undo
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleSuggestion(sug.id, 'reject')}
+                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                                    isRejected
+                                      ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
+                                      : 'text-white/40 hover:text-white'
+                                  }`}
+                                >
+                                  {isRejected ? 'Dismissed' : 'Dismiss'}
+                                </button>
+                              )}
+
                               <button
                                 type="button"
-                                onClick={() => handleToggleSuggestion(sug.id, 'reject')}
-                                className={`px-2.5 py-0.5 rounded text-[11px] font-medium transition-all ${
-                                  isRejected
-                                    ? 'bg-rose-950 text-rose-300 border border-rose-500/40'
-                                    : 'text-white/40 hover:text-white'
-                                }`}
-                              >
-                                Reject
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleSuggestion(sug.id, 'accept')}
-                                className={`px-2.5 py-0.5 rounded text-[11px] font-semibold transition-all ${
+                                onClick={() => handleToggleSuggestion(sug.id, isAccepted ? 'undo' : 'accept')}
+                                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all flex items-center space-x-1 ${
                                   isAccepted
-                                    ? 'bg-emerald-500 text-base-950 font-bold'
+                                    ? 'bg-emerald-500 text-base-950 font-bold shadow-glow'
                                     : 'bg-teal-500/20 text-teal-300 border border-teal-400/30 hover:bg-teal-500/30'
                                 }`}
                               >
-                                {isAccepted ? 'Applied' : 'Apply'}
+                                {isAccepted ? (
+                                  <>
+                                    <TbCheck className="w-3.5 h-3.5" />
+                                    <span>Applied</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <TbSparkles className="w-3.5 h-3.5" />
+                                    <span>Apply</span>
+                                  </>
+                                )}
                               </button>
                             </div>
                           </div>
@@ -1963,5 +2123,6 @@ export default function ResumeOptimizer() {
         </div>
       )}
     </div>
+  </AppLayout>
   );
 }

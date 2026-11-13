@@ -9,7 +9,7 @@ import os
 import re
 import json
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 ACTION_VERB_MAP = {
     "responsible for": ["Architected", "Engineered", "Spearheaded", "Directed"],
@@ -136,7 +136,7 @@ def generate_rule_based_summary(
 def enhance_resume_with_ai(
     parsed_sections: Dict[str, Any],
     analysis_results: Dict[str, Any],
-    target_career: str = None
+    target_career: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Main enhancement engine.
@@ -193,6 +193,7 @@ def enhance_resume_with_ai(
 
     gemini_suggestions = []
     gemini_summary = None
+    summary_exp = 'Optimized summary tailored for target role.'
 
     if ai_client and (bullets_to_enhance or not summary):
         bullets_payload = [

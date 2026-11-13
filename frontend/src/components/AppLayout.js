@@ -6,18 +6,37 @@ import AskAssistantModal from './AskAssistantModal';
 import PrivacyInfoModal from './PrivacyInfoModal';
 import authService from '../services/authService';
 
-export default function AppLayout({ children }) {
+export default function AppLayout({ children, fullWidth = false }) {
   const navigate = useNavigate();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [privacyModalOpen, setPrivacyModalOpen] = useState(false);
 
+  const refreshUser = () => {
+    authService.getCurrentUser()
+      .then((data) => setStudent(data))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     authService.getCurrentUser()
       .then((data) => setStudent(data))
       .catch(() => navigate('/login'))
       .finally(() => setLoading(false));
+
+    const handleProfileUpdated = (e) => {
+      if (e?.detail) {
+        setStudent(e.detail);
+      } else {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener('skillbridge:profileUpdated', handleProfileUpdated);
+    return () => {
+      window.removeEventListener('skillbridge:profileUpdated', handleProfileUpdated);
+    };
   }, [navigate]);
 
   if (loading) {
@@ -36,9 +55,9 @@ export default function AppLayout({ children }) {
         onOpenAssistant={() => setAssistantOpen(true)}
         onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
       />
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className={`flex-1 flex w-full mx-auto ${fullWidth ? 'max-w-[1600px] px-2 md:px-4' : 'max-w-7xl'}`}>
         <Sidebar onOpenPrivacyModal={() => setPrivacyModalOpen(true)} />
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto max-w-5xl">
+        <main className={`flex-1 p-4 md:p-8 overflow-y-auto ${fullWidth ? 'w-full' : 'max-w-5xl'}`}>
           {children}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TbX, TbCheck, TbAlertCircle } from 'react-icons/tb';
+import { TbX, TbCheck, TbAlertCircle, TbBulb, TbLoader2, TbChevronDown, TbChevronUp } from 'react-icons/tb';
 import skillService from '../services/skillService';
 
 export default function QuizModal({ skill, onClose, onQuizComplete }) {
@@ -9,6 +9,12 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+
+  // Post-quiz explanation state
+  const [explanations, setExplanations] = useState(null);
+  const [loadingExplanations, setLoadingExplanations] = useState(false);
+  const [explanationError, setExplanationError] = useState('');
+  const [expandedExpl, setExpandedExpl] = useState({});
 
   useEffect(() => {
     if (!skill) return;
@@ -53,7 +59,42 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
     }
   };
 
+  const handleExplainMistakes = async () => {
+    if (!result || !result.review) return;
+
+    // Build payload with the question text, the student's wrong choice, and the correct choice text
+    const wrongAnswers = result.review
+      .filter((r) => !r.is_correct)
+      .map((r) => ({
+        question: r.question,
+        your_answer_text: r.your_answer
+          ? quizData?.questions?.find((q) => q.id === r.question_id)?.[`option_${r.your_answer.toLowerCase()}`] || r.your_answer
+          : 'No answer selected',
+        correct_answer_text: r.correct_option_text || r.correct_answer,
+        difficulty: r.difficulty,
+      }));
+
+    if (wrongAnswers.length === 0) return;
+
+    setLoadingExplanations(true);
+    setExplanationError('');
+    try {
+      const res = await skillService.getQuizExplanation(skill.id || skill.skill_id, wrongAnswers);
+      setExplanations(res.explanations || []);
+      // Auto-expand first explanation
+      if (res.explanations?.length > 0) {
+        setExpandedExpl({ 0: true });
+      }
+    } catch (err) {
+      setExplanationError(err.response?.data?.error || 'Failed to generate explanations. Please try again.');
+    } finally {
+      setLoadingExplanations(false);
+    }
+  };
+
   if (!skill) return null;
+
+  const wrongCount = result ? result.review?.filter((r) => !r.is_correct).length : 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
@@ -92,53 +133,161 @@ export default function QuizModal({ skill, onClose, onQuizComplete }) {
             </div>
           )}
 
-          {/* Result view */}
+          {/* ── Result view ── */}
           {result && (
-            <div className="py-8 text-center space-y-4">
-              <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
-                result.quiz_score_percent >= 60
-                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                  : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-              }`}>
-                {result.quiz_score_percent >= 60 ? (
-                  <TbCheck className="w-8 h-8" />
-                ) : (
-                  <TbAlertCircle className="w-8 h-8" />
-                )}
-              </div>
-
-              <div>
-                <h3 className="text-2xl font-bold text-white">
-                  Score: {result.quiz_score_percent}%
-                </h3>
-                <p className="text-sm text-white/50 mt-1">
-                  Answered {result.correct_count} of {result.total_questions} questions correctly.
-                </p>
-                <div className="mt-3 inline-block px-4 py-1.5 rounded-full bg-accent-500/15 border border-accent-400/30 text-accent-300 text-xs font-mono">
-                  Verification Score: {Math.round(result.verification_score * 100)}%
+            <div className="space-y-6">
+              {/* Score summary */}
+              <div className="text-center space-y-3 py-4">
+                <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
+                  result.quiz_score_percent >= 60
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                    : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                }`}>
+                  {result.quiz_score_percent >= 60 ? (
+                    <TbCheck className="w-8 h-8" />
+                  ) : (
+                    <TbAlertCircle className="w-8 h-8" />
+                  )}
                 </div>
-                {result.proficiency && (
-                  <p className="text-xs text-white/60 mt-2">Demonstrated level: {result.proficiency}</p>
-                )}
+
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    Score: {result.quiz_score_percent}%
+                  </h3>
+                  <p className="text-sm text-white/50 mt-1">
+                    Answered {result.correct_count} of {result.total_questions} questions correctly.
+                  </p>
+                  <div className="mt-3 inline-block px-4 py-1.5 rounded-full bg-accent-500/15 border border-accent-400/30 text-accent-300 text-xs font-mono">
+                    Verification Score: {Math.round(result.verification_score * 100)}%
+                  </div>
+                  {result.proficiency && (
+                    <p className="text-xs text-white/60 mt-2">Demonstrated level: {result.proficiency}</p>
+                  )}
+                </div>
               </div>
 
-              {Array.isArray(result.review) && result.review.some((r) => !r.is_correct) && (
-                <div className="text-left space-y-2 max-w-xl mx-auto">
-                  <h4 className="text-xs font-semibold text-white/70 uppercase tracking-wider">Review your mistakes</h4>
-                  {result.review.filter((r) => !r.is_correct).map((r) => (
-                    <div key={r.question_id} className="bg-base-950/60 border border-base-800 rounded-xl p-3 text-xs space-y-1">
-                      <p className="text-white/80">{r.question}</p>
-                      <p className="text-rose-300">Your answer: {r.your_answer || '—'}</p>
-                      <p className="text-emerald-300">
-                        Correct answer: {r.correct_answer}{r.correct_option_text ? ` — ${r.correct_option_text}` : ''}
-                      </p>
-                      {r.difficulty && <p className="text-white/40">Difficulty: {r.difficulty}</p>}
+              {/* Wrong answers review */}
+              {Array.isArray(result.review) && wrongCount > 0 && (
+                <div className="space-y-4">
+                  {/* Section header with Explain button */}
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-white/80 flex items-center space-x-2">
+                      <span>Review Your Mistakes</span>
+                      <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-400/30">
+                        {wrongCount} incorrect
+                      </span>
+                    </h4>
+
+                    {!explanations && (
+                      <button
+                        type="button"
+                        onClick={handleExplainMistakes}
+                        disabled={loadingExplanations}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-accent-500/15 border border-accent-400/30 text-accent-300 hover:bg-accent-500/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loadingExplanations ? (
+                          <>
+                            <TbLoader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Generating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <TbBulb className="w-3.5 h-3.5" />
+                            <span>Explain My Mistakes</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {explanationError && (
+                    <div className="p-3 rounded-xl bg-rose-950/30 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+                      <TbAlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{explanationError}</span>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Wrong answer cards */}
+                  <div className="space-y-3">
+                    {result.review.filter((r) => !r.is_correct).map((r, idx) => {
+                      const expl = explanations ? explanations[idx] : null;
+                      const isOpen = !!expandedExpl[idx];
+                      return (
+                        <div key={r.question_id} className="rounded-xl border border-base-700/60 overflow-hidden">
+                          {/* Question row */}
+                          <div className="bg-base-950/60 p-4 space-y-2">
+                            <p className="text-xs font-medium text-white/90 leading-relaxed">{r.question}</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 text-[11px] font-mono">
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-rose-950/50 border border-rose-500/30 text-rose-300">
+                                <TbX className="w-3 h-3" />
+                                <span>Your answer: {r.your_answer || '—'}</span>
+                              </span>
+                              <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-lg bg-emerald-950/50 border border-emerald-500/30 text-emerald-300">
+                                <TbCheck className="w-3 h-3" />
+                                <span>Correct: {r.correct_answer}{r.correct_option_text ? ` — ${r.correct_option_text}` : ''}</span>
+                              </span>
+                              {r.difficulty && (
+                                <span className="text-white/30 px-1">
+                                  {r.difficulty}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AI Explanation panel */}
+                          {expl && (
+                            <div className="border-t border-base-700/40">
+                              <button
+                                type="button"
+                                onClick={() => setExpandedExpl((prev) => ({ ...prev, [idx]: !isOpen }))}
+                                className="w-full flex items-center justify-between px-4 py-2.5 bg-accent-950/20 hover:bg-accent-950/30 transition-colors text-left"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <TbBulb className="w-3.5 h-3.5 text-accent-400" />
+                                  <span className="text-xs font-semibold text-accent-300">AI Explanation</span>
+                                </div>
+                                {isOpen
+                                  ? <TbChevronUp className="w-3.5 h-3.5 text-white/40" />
+                                  : <TbChevronDown className="w-3.5 h-3.5 text-white/40" />
+                                }
+                              </button>
+                              {isOpen && (
+                                <div className="px-4 py-3 bg-accent-950/10 border-t border-accent-400/10">
+                                  <p className="text-xs text-white/75 leading-relaxed">{expl.explanation}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Loading shimmer for explanation */}
+                          {loadingExplanations && !expl && (
+                            <div className="border-t border-base-700/40 px-4 py-3 bg-accent-950/10">
+                              <div className="h-3 bg-accent-400/10 rounded animate-pulse w-3/4 mb-1.5" />
+                              <div className="h-3 bg-accent-400/10 rounded animate-pulse w-1/2" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Prompt to explain if not yet triggered */}
+                  {!explanations && !loadingExplanations && (
+                    <p className="text-[11px] text-white/40 text-center">
+                      Click <span className="text-accent-400 font-medium">Explain My Mistakes</span> above to get Gemini-powered explanations for each wrong answer.
+                    </p>
+                  )}
                 </div>
               )}
 
-              <div className="pt-4">
+              {/* All correct — no mistakes */}
+              {Array.isArray(result.review) && wrongCount === 0 && (
+                <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/20 text-center text-xs text-emerald-300">
+                  🎉 Perfect score! No mistakes to explain — great work!
+                </div>
+              )}
+
+              <div className="pt-2 text-center">
                 <button onClick={onClose} className="btn-primary max-w-xs mx-auto text-sm py-2.5">
                   Done & Close
                 </button>

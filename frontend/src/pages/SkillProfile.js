@@ -17,7 +17,8 @@ import {
   TbAward,
   TbShieldLock,
   TbDownload,
-  TbTrash
+  TbTrash,
+  TbUserCircle
 } from 'react-icons/tb';
 
 export default function SkillProfile() {
@@ -140,13 +141,23 @@ export default function SkillProfile() {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate('/upload-resume')}
-            className="btn-primary text-xs py-2.5 px-4 flex items-center justify-center space-x-2 max-w-xs shadow-glow"
-          >
-            <TbFileUpload className="w-4 h-4" />
-            <span>Upload New Resume</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => navigate('/profile-settings')}
+              className="px-3.5 py-2.5 rounded-xl border border-base-700/80 bg-base-900/60 hover:bg-base-800 text-white/80 hover:text-white text-xs font-semibold flex items-center space-x-1.5 transition-colors"
+              title="Edit Profile Settings & Password"
+            >
+              <TbUserCircle className="w-4 h-4 text-accent-400" />
+              <span>Edit Profile</span>
+            </button>
+            <button
+              onClick={() => navigate('/upload-resume')}
+              className="btn-primary text-xs py-2.5 px-4 flex items-center justify-center space-x-2 shadow-glow"
+            >
+              <TbFileUpload className="w-4 h-4" />
+              <span>Upload New Resume</span>
+            </button>
+          </div>
         </div>
 
         {alert && (

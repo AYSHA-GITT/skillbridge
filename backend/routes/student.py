@@ -427,6 +427,127 @@ def submit_quiz(skill_id):
     }), 201
 
 
+@student_bp.route('/quiz_explanation/<int:skill_id>', methods=['POST'])
+@login_required
+def get_quiz_explanation(skill_id):
+    """
+    Given a list of incorrectly-answered questions from the last quiz attempt,
+    generate a concise Gemini explanation for each wrong answer so the student
+    understands their mistake and the correct reasoning.
+
+    Request body:
+    {
+        "wrong_answers": [
+            {
+                "question": "...",
+                "your_answer_text": "...",
+                "correct_answer_text": "...",
+                "difficulty": "Medium"
+            },
+            ...
+        ]
+    }
+
+    Response:
+    {
+        "explanations": [
+            {
+                "question": "...",
+                "correct_answer_text": "...",
+                "explanation": "..."
+            },
+            ...
+        ]
+    }
+    """
+    skill = Skill.query.filter_by(id=skill_id, student_id=current_user.id).first()
+    if not skill:
+        return jsonify({'error': 'Skill not found or does not belong to you'}), 404
+
+    data = request.get_json(silent=True) or {}
+    wrong_answers = data.get('wrong_answers', [])
+
+    if not wrong_answers or not isinstance(wrong_answers, list):
+        return jsonify({'error': 'No wrong answers provided'}), 400
+
+    # Cap at 10 questions to keep prompt size and latency reasonable
+    wrong_answers = wrong_answers[:10]
+
+    # Build a focused prompt for Gemini
+    items_text = ''
+    for i, item in enumerate(wrong_answers, 1):
+        items_text += (
+            f"\n{i}. Question: {item.get('question', '')}\n"
+            f"   Student answered: {item.get('your_answer_text') or 'No answer'}\n"
+            f"   Correct answer: {item.get('correct_answer_text', '')}\n"
+            f"   Difficulty: {item.get('difficulty', 'Medium')}\n"
+        )
+
+    prompt = f"""You are an expert {skill.skill_name} tutor helping a student understand why they got certain quiz questions wrong.
+
+For each question below, write a clear, concise explanation (2-4 sentences) that:
+1. Explains WHY the correct answer is correct
+2. Points out the common misconception that leads students to pick the wrong option
+3. Gives a memorable tip or rule-of-thumb to remember the concept
+
+Skill being assessed: {skill.skill_name}
+
+Wrong answers to explain:
+{items_text}
+
+Return ONLY valid JSON in this exact format:
+[
+  {{
+    "question": "<exact question text>",
+    "correct_answer_text": "<correct option text>",
+    "explanation": "<your 2-4 sentence explanation>"
+  }}
+]"""
+
+    from utils.ai_question_generator import get_genai_client
+    import json as _json
+
+    ai_client = get_genai_client()
+    explanations = []
+
+    if ai_client:
+        for model_name in ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']:
+            try:
+                response = ai_client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+                text = (response.text or '').strip()
+                if text.startswith('```json'):
+                    text = text[7:]
+                elif text.startswith('```'):
+                    text = text[3:]
+                if text.endswith('```'):
+                    text = text[:-3]
+                text = text.strip()
+                parsed = _json.loads(text)
+                if isinstance(parsed, list):
+                    explanations = parsed
+                    break
+            except Exception as e:
+                current_app.logger.warning(f'Quiz explanation Gemini error ({model_name}): {e}')
+
+    # Fallback: basic explanations if Gemini is unavailable
+    if not explanations:
+        explanations = [
+            {
+                'question': item.get('question', ''),
+                'correct_answer_text': item.get('correct_answer_text', ''),
+                'explanation': (
+                    f"The correct answer is \"{item.get('correct_answer_text', '')}\". "
+                    f"Review the core {skill.skill_name} concepts related to this topic to strengthen your understanding."
+                )
+            }
+            for item in wrong_answers
+        ]
+
+    return jsonify({'explanations': explanations}), 200
+
 
 @student_bp.route('/analyze_skill_gap', methods=['POST'])
 @login_required
@@ -2071,8 +2192,13 @@ def analyze_resume_for_optimization():
     raw_text = None
     original_filename = "Resume"
 
+    # Option 0: Direct sample text for instant 1-click demo
+    sample_text = request.form.get('sample_text') or (request.get_json(silent=True) or {}).get('sample_text')
+    if sample_text and len(sample_text.strip()) > 30:
+        raw_text = sample_text.strip()
+        original_filename = request.form.get('filename') or "Sample_Software_Engineer_Resume.pdf"
     # Option A: Directly uploaded file
-    if 'resume' in request.files and request.files['resume'].filename:
+    elif 'resume' in request.files and request.files['resume'].filename:
         file = request.files['resume']
         if not file.filename or not allowed_file(file.filename):
             return jsonify({'error': 'Invalid file format. Only PDF and DOCX documents are supported.'}), 400

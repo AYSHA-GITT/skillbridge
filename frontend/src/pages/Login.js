@@ -151,9 +151,19 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-[11px] font-mono uppercase tracking-wider text-white/50 mb-1.5">
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-white/50">
+                Password
+              </label>
+              {!isAdminPortal && (
+                <Link
+                  to="/forgot-password"
+                  className="text-[11px] text-accent-400 hover:text-accent-300 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              )}
+            </div>
             <input
               type="password"
               name="password"

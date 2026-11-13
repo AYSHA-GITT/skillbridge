@@ -11,12 +11,21 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
+from xml.sax.saxutils import escape as _escape_xml
+
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
 )
+
+
+def safe_xml(text: Any) -> str:
+    """Escapes raw dynamic text safely for ReportLab XML Paragraphs."""
+    if not text:
+        return ""
+    return _escape_xml(str(text))
 
 
 def generate_resume_docx(sections: Dict[str, Any]) -> io.BytesIO:
@@ -332,26 +341,20 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     story = []
 
     contact = sections.get('contact', {})
-    name = contact.get('name') or "Candidate Name"
+    name = safe_xml(contact.get('name') or "Candidate Name")
     story.append(Paragraph(f"<b>{name}</b>", style_name))
 
     contact_parts = []
-    if contact.get('phone'):
-        contact_parts.append(contact['phone'])
-    if contact.get('email'):
-        contact_parts.append(contact['email'])
-    if contact.get('linkedin'):
-        contact_parts.append(contact['linkedin'])
-    if contact.get('github'):
-        contact_parts.append(contact['github'])
-    if contact.get('location'):
-        contact_parts.append(contact['location'])
+    for field in ['phone', 'email', 'linkedin', 'github', 'location']:
+        val = contact.get(field)
+        if val:
+            contact_parts.append(safe_xml(val))
 
     if contact_parts:
         story.append(Paragraph(" &nbsp;|&nbsp; ".join(contact_parts), style_contact))
 
     def add_section_divider(title: str):
-        story.append(Paragraph(f"<b>{title.upper()}</b>", style_heading))
+        story.append(Paragraph(f"<b>{safe_xml(title.upper())}</b>", style_heading))
         story.append(HRFlowable(
             width="100%", thickness=0.75, color=colors.HexColor('#0d9488'),
             spaceBefore=1, spaceAfter=4
@@ -361,13 +364,13 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     summary = sections.get('summary', '').strip()
     if summary:
         add_section_divider("Professional Summary")
-        story.append(Paragraph(summary, style_body))
+        story.append(Paragraph(safe_xml(summary), style_body))
 
     # Skills
     skills = sections.get('skills', [])
     if skills:
         add_section_divider("Technical Skills")
-        skills_str = "<b>Core Competencies:</b> " + ", ".join(skills)
+        skills_str = "<b>Core Competencies:</b> " + ", ".join(safe_xml(s) for s in skills)
         story.append(Paragraph(skills_str, style_body))
 
     # Experience
@@ -375,10 +378,10 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     if experience:
         add_section_divider("Work Experience")
         for exp in experience:
-            role = exp.get('role', '')
-            company = exp.get('company', '')
-            period = exp.get('period', '')
-            location = exp.get('location', '')
+            role = safe_xml(exp.get('role', ''))
+            company = safe_xml(exp.get('company', ''))
+            period = safe_xml(exp.get('period', ''))
+            location = safe_xml(exp.get('location', ''))
 
             title_html = f"<b>{role}</b>"
             if company:
@@ -403,7 +406,7 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
             story.append(row_table)
 
             for bullet in exp.get('bullets', []):
-                clean_b = bullet.strip().lstrip('•-* ')
+                clean_b = safe_xml(bullet.strip().lstrip('•-* '))
                 story.append(Paragraph(f"&bull; {clean_b}", style_bullet))
             story.append(Spacer(1, 3))
 
@@ -412,8 +415,8 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     if projects:
         add_section_divider("Key Projects")
         for proj in projects:
-            p_name = proj.get('name', 'Project')
-            tech = proj.get('technologies', '')
+            p_name = safe_xml(proj.get('name', 'Project'))
+            tech = safe_xml(proj.get('technologies', ''))
 
             title_html = f"<b>{p_name}</b>"
             meta_html = f"<i>{tech}</i>" if tech else ""
@@ -432,7 +435,7 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
             story.append(row_table)
 
             for bullet in proj.get('bullets', []):
-                clean_b = bullet.strip().lstrip('•-* ')
+                clean_b = safe_xml(bullet.strip().lstrip('•-* '))
                 story.append(Paragraph(f"&bull; {clean_b}", style_bullet))
             story.append(Spacer(1, 3))
 
@@ -441,10 +444,10 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     if education:
         add_section_divider("Education")
         for edu in education:
-            degree = edu.get('degree', '')
-            inst = edu.get('institution', '')
-            year = edu.get('year', '')
-            score = edu.get('score', '')
+            degree = safe_xml(edu.get('degree', ''))
+            inst = safe_xml(edu.get('institution', ''))
+            year = safe_xml(edu.get('year', ''))
+            score = safe_xml(edu.get('score', ''))
 
             deg_html = f"<b>{degree}</b>" if degree else ""
             if inst:
@@ -471,7 +474,7 @@ def generate_resume_pdf(sections: Dict[str, Any]) -> io.BytesIO:
     if certifications:
         add_section_divider("Certifications & Honors")
         for cert in certifications:
-            clean_c = cert.strip().lstrip('•-* ')
+            clean_c = safe_xml(cert.strip().lstrip('•-* '))
             story.append(Paragraph(f"&bull; {clean_c}", style_bullet))
 
     doc.build(story)

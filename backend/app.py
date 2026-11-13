@@ -21,6 +21,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'resumes')
+app.config['AVATAR_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'avatars')
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
 # Bind extensions to this app
