@@ -19,13 +19,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def send_password_reset_email(to_email, reset_url):
-    mail_server = os.environ.get('MAIL_SERVER')
+def send_password_reset_email(to_email: str, reset_url: str):
+    mail_server = (os.environ.get('MAIL_SERVER') or '').strip()
     mail_port = int(os.environ.get('MAIL_PORT', 587))
-    mail_username = os.environ.get('MAIL_USERNAME')
-    mail_password = os.environ.get('MAIL_PASSWORD')
+    mail_username = (os.environ.get('MAIL_USERNAME') or '').strip()
+    mail_password = (os.environ.get('MAIL_PASSWORD') or '').strip()
     mail_use_tls = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('true', '1')
-    mail_from = os.environ.get('MAIL_FROM', mail_username or 'noreply@skillbridge.edu')
+    mail_from = (os.environ.get('MAIL_FROM') or mail_username or 'noreply@skillbridge.edu').strip()
 
     if not mail_server or not mail_username or not mail_password:
         print(f"\n=======================================================")
@@ -215,18 +215,22 @@ def update_profile():
     if len(target_career) > 200:
         return jsonify({'error': 'Target career cannot exceed 200 characters'}), 400
 
-    current_user.name = name
-    current_user.college = college
-    current_user.course = course
-    current_user.year = year
+    student = db.session.get(Student, current_user.id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    student.name = name
+    student.college = college
+    student.course = course
+    student.year = year
     if target_career:
-        current_user.target_career = target_career
+        student.target_career = target_career
 
     db.session.commit()
 
     return jsonify({
         'message': 'Profile updated successfully',
-        'student': current_user.to_dict()
+        'student': student.to_dict()
     }), 200
 
 
@@ -237,22 +241,26 @@ def upload_profile_photo():
         return jsonify({'error': 'No photo file provided'}), 400
 
     file = request.files['photo']
-    orig_filename = file.filename
+    orig_filename = file.filename or ''
     if not orig_filename:
         return jsonify({'error': 'No file selected'}), 400
 
     if not allowed_file(orig_filename):
         return jsonify({'error': 'Invalid file format. Allowed: PNG, JPG, JPEG, WEBP, GIF'}), 400
 
+    student = db.session.get(Student, current_user.id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
     ext = orig_filename.rsplit('.', 1)[1].lower()
-    filename = f"avatar_{current_user.id}_{secrets.token_hex(8)}.{ext}"
+    filename = f"avatar_{student.id}_{secrets.token_hex(8)}.{ext}"
 
     avatar_dir = os.path.join(current_app.root_path, 'uploads', 'avatars')
     os.makedirs(avatar_dir, exist_ok=True)
 
     # Delete existing old photo if present
-    if current_user.profile_photo:
-        old_filename = os.path.basename(current_user.profile_photo)
+    if student.profile_photo:
+        old_filename = os.path.basename(student.profile_photo)
         old_path = os.path.join(avatar_dir, old_filename)
         if os.path.exists(old_path):
             try:
@@ -263,13 +271,13 @@ def upload_profile_photo():
     save_path = os.path.join(avatar_dir, filename)
     file.save(save_path)
 
-    current_user.profile_photo = f"/api/auth/profile/photo/{filename}"
+    student.profile_photo = f"/api/auth/profile/photo/{filename}"
     db.session.commit()
 
     return jsonify({
         'message': 'Profile photo uploaded successfully',
-        'profile_photo': current_user.profile_photo,
-        'student': current_user.to_dict()
+        'profile_photo': student.profile_photo,
+        'student': student.to_dict()
     }), 200
 
 
@@ -294,7 +302,11 @@ def change_password():
     if not current_password or not new_password or not confirm_password:
         return jsonify({'error': 'Current password, new password, and confirmation are all required'}), 400
 
-    if not current_user.check_password(current_password):
+    student = db.session.get(Student, current_user.id)
+    if not student:
+        return jsonify({'error': 'Student not found'}), 404
+
+    if not student.check_password(current_password):
         return jsonify({'error': 'Current password is incorrect'}), 401
 
     if len(new_password) < 8:
@@ -303,7 +315,7 @@ def change_password():
     if new_password != confirm_password:
         return jsonify({'error': 'New password and confirmation do not match'}), 400
 
-    current_user.set_password(new_password)
+    student.set_password(new_password)
     db.session.commit()
 
     return jsonify({'message': 'Password changed successfully'}), 200
@@ -366,7 +378,7 @@ def verify_reset_token(token):
     if expires < datetime.now(timezone.utc):
         return jsonify({'valid': False, 'error': 'This password reset link has expired'}), 400
 
-    student = Student.query.get(token_record.student_id)
+    student = db.session.get(Student, token_record.student_id)
     return jsonify({
         'valid': True,
         'email': student.email if student else ''
@@ -399,7 +411,7 @@ def reset_password():
     if expires < datetime.now(timezone.utc):
         return jsonify({'error': 'Reset token has expired'}), 400
 
-    student = Student.query.get(token_record.student_id)
+    student = db.session.get(Student, token_record.student_id)
     if not student:
         return jsonify({'error': 'Student account not found'}), 404
 
