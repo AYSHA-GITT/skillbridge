@@ -82,11 +82,28 @@ export default function AdminJobSync() {
 
   const t = data.totals || {};
   const s = data.schedule || {};
+  const sched = s.scheduler || null;
   const salary = health?.models?.salary;
 
   return (
     <div className="space-y-6">
       {alert && <AlertBanner type={alert.type} message={alert.message} onClose={() => setAlert(null)} />}
+
+      {sched && !sched.healthy && (
+        <div className="p-4 rounded-2xl border border-amber-500/40 bg-amber-500/10 text-xs text-amber-100 flex gap-3">
+          <TbAlertTriangle className="w-5 h-5 text-amber-300 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <div className="font-semibold text-amber-200">
+              Automatic two-hour refresh is not running
+              {sched.overdue_minutes > 0 && ` (overdue by ${Math.floor(sched.overdue_minutes / 60)} h ${sched.overdue_minutes % 60} min)`}
+            </div>
+            <p className="text-amber-100/80">{sched.message}</p>
+            {sched.last_heartbeat_at && (
+              <p className="text-amber-100/60">Last scheduler check-in: {fmt(sched.last_heartbeat_at)} ({sched.worker})</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -97,6 +114,11 @@ export default function AdminJobSync() {
             <TbClock className="w-3.5 h-3.5" />
             Every {s.interval_hours ?? 2} h · last success {fmt(s.last_successful_sync)} · next {fmt(s.next_scheduled_sync)}
             {s.currently_running?.running && ' · a run is in progress'}
+            {sched && (
+              <span className={sched.alive ? 'text-emerald-300' : 'text-amber-300'}>
+                {' · scheduler '}{sched.alive ? `running (${sched.worker})` : sched.state === 'never_started' ? 'never started' : 'stopped'}
+              </span>
+            )}
           </p>
         </div>
         <button

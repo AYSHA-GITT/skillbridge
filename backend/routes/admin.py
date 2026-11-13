@@ -191,7 +191,7 @@ def get_jobs_overview():
     from sqlalchemy import func
     from models import JobListing, JobSyncRun, JobApplication, JobAlertMatch, SavedJob
     from utils.job_discovery.sync_service import (
-        last_success, lease_status, next_due_at, provider_health, SYNC_INTERVAL)
+        last_success, lease_status, next_due_at, provider_health, scheduler_status, SYNC_INTERVAL)
 
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     day_ago = now - timedelta(hours=24)
@@ -222,6 +222,8 @@ def get_jobs_overview():
             'next_scheduled_sync': next_due_at().isoformat(),
             'currently_running': lease_status(),
             'failed_runs_last_24h': failed_24h,
+            # is anything actually driving the schedule? (worker / cron / in-process thread)
+            'scheduler': scheduler_status(),
         },
         'providers': provider_health(),
         'activity': {

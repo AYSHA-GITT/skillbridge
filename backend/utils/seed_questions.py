@@ -68,4 +68,4 @@ with app.app_context():
     for q in questions:
         db.session.add(QuestionBank(**q))
     db.session.commit()
-    print(f"✅ Seeded {len(questions)} questions into question_bank")
+    print(f"Seeded {len(questions)} questions into question_bank")

@@ -1577,6 +1577,15 @@ export default function Jobs() {
                       ? new Date(telemetryData.last_successful_sync).toLocaleString() : 'never'}</p>
                     <p>Next scheduled refresh: {telemetryData.next_scheduled_sync
                       ? new Date(telemetryData.next_scheduled_sync).toLocaleString() : '—'}</p>
+                    {telemetryData.scheduler && (
+                      <p className={telemetryData.scheduler.healthy ? 'text-emerald-300/80' : 'text-amber-300'}>
+                        Automatic refresh: {telemetryData.scheduler.healthy
+                          ? 'running'
+                          : `not running${telemetryData.scheduler.overdue_minutes > 0
+                            ? ` (overdue by ${Math.floor(telemetryData.scheduler.overdue_minutes / 60)} h ${telemetryData.scheduler.overdue_minutes % 60} min)`
+                            : ''} - listings may be out of date`}
+                      </p>
+                    )}
                     <p>Listings without a stated posting date: {telemetryData.listings_without_posting_date ?? 0}</p>
                     <p>Listings without recognisable skills: {telemetryData.listings_without_skills ?? 0}</p>
                   </div>

@@ -5,6 +5,10 @@ Flask CLI commands.
     flask --app app jobs sync-if-due     run only if the 2-hour schedule says it is due (for cron)
     flask --app app jobs status          show schedule, last runs and provider health
     flask --app app jobs run-scheduler   run the scheduler loop in the foreground
+    flask --app app skills seed-questions [--skill X]
+                                         insert curated quiz questions missing from the bank
+    flask --app app resumes prune-orphans [--apply]
+                                         list / delete uploaded resume files no account references
     flask --app app skills reextract [--apply]
                                          re-run skill extraction on every student's latest resume;
                                          reports (and with --apply removes) unverified skills that
@@ -19,6 +23,34 @@ from flask.cli import AppGroup
 jobs_cli = AppGroup("jobs", help="Job discovery synchronization")
 skills_cli = AppGroup("skills", help="Skill data maintenance")
 users_cli = AppGroup("users", help="User administration")
+resumes_cli = AppGroup("resumes", help="Uploaded resume file maintenance")
+
+
+@resumes_cli.command("prune-orphans")
+@click.option("--apply", is_flag=True, help="Actually delete orphan files (default: dry run)")
+def resumes_prune_orphans(apply):
+    """List (and with --apply delete) uploaded resume files that no account references
+    any more - e.g. left behind by accounts deleted before file cleanup existed."""
+    from utils.resume_files import find_orphan_resume_files, delete_resume_files
+    orphans, missing = find_orphan_resume_files()
+    removed = delete_resume_files(orphans) if apply else 0
+    click.echo(json.dumps({
+        "mode": "applied" if apply else "dry-run (use --apply to delete)",
+        "orphan_files": orphans,
+        "orphan_count": len(orphans),
+        "deleted": removed,
+        "db_rows_whose_file_is_missing": missing,
+    }, indent=2))
+
+
+@skills_cli.command("seed-questions")
+@click.option("--skill", default=None, help="Only this skill (default: every curated skill)")
+def skills_seed_questions(skill):
+    """Insert the reviewed, curated quiz questions (data/curated_questions.py) that are
+    not in the question bank yet. Idempotent: existing questions are never duplicated."""
+    from utils.question_bank_manager import seed_curated_questions, curated_coverage
+    added = seed_curated_questions(skill)
+    click.echo(json.dumps({"added": added, "coverage": curated_coverage()}, indent=2))
 
 
 @users_cli.command("make-admin")
@@ -45,7 +77,9 @@ def jobs_sync():
 
 @jobs_cli.command("sync-if-due")
 def jobs_sync_if_due():
-    from utils.job_discovery.sync_service import is_due, next_due_at, run_job_sync
+    from utils.job_discovery.scheduler import worker_owner
+    from utils.job_discovery.sync_service import is_due, next_due_at, record_scheduler_heartbeat, run_job_sync
+    record_scheduler_heartbeat(worker_owner("cron"))   # cron drives the schedule: count as alive
     if not is_due():
         click.echo(f"Not due. Next sync at {next_due_at().isoformat()}")
         return
@@ -57,10 +91,11 @@ def jobs_sync_if_due():
 @jobs_cli.command("status")
 def jobs_status():
     from models import JobListing, JobSyncRun
-    from utils.job_discovery.sync_service import lease_status, next_due_at, provider_health
+    from utils.job_discovery.sync_service import lease_status, next_due_at, provider_health, scheduler_status
     runs = JobSyncRun.query.order_by(JobSyncRun.started_at.desc()).limit(5).all()
     click.echo(json.dumps({
         "next_due_at": next_due_at().isoformat(),
+        "scheduler": scheduler_status(),
         "lease": lease_status(),
         "jobs_by_status": {s: JobListing.query.filter_by(status=s).count()
                            for s in ("active", "stale", "expired", "sample")},

@@ -28,8 +28,8 @@ Three ways to drive it in production (pick one; combining them is safe):
 """
 import logging
 import os
+import socket
 import threading
-import time
 from typing import Optional
 
 logger = logging.getLogger("skillbridge.job_scheduler")
@@ -45,11 +45,27 @@ def run_if_due(app, trigger: str = "scheduled") -> Optional[dict]:
         return run_job_sync(trigger=trigger)
 
 
-def run_forever(app, stop_event: Optional[threading.Event] = None) -> None:
+def heartbeat(app, owner: str) -> None:
+    """Record that this scheduler is alive (visible in the admin dashboard / CLI)."""
+    from utils.job_discovery.sync_service import record_scheduler_heartbeat
+    with app.app_context():
+        record_scheduler_heartbeat(owner)
+
+
+def worker_owner(kind: str = "worker") -> str:
+    return f"{kind}:{socket.gethostname()}:{os.getpid()}"
+
+
+def run_forever(app, stop_event: Optional[threading.Event] = None, owner: Optional[str] = None,
+                max_iterations: Optional[int] = None) -> None:
     logger.info("Job scheduler started (poll every %ss)", POLL_SECONDS)
     stop_event = stop_event or threading.Event()
+    owner = owner or worker_owner()
+    iterations = 0
     while not stop_event.is_set():
+        iterations += 1
         try:
+            heartbeat(app, owner)
             result = run_if_due(app)
             if result:
                 logger.info("Scheduled job sync finished with status=%s", result.get("status"))
@@ -62,6 +78,8 @@ def run_forever(app, stop_event: Optional[threading.Event] = None) -> None:
                     db.session.rollback()
             except Exception:
                 pass
+        if max_iterations is not None and iterations >= max_iterations:
+            break
         stop_event.wait(POLL_SECONDS)
 
 
@@ -76,6 +94,7 @@ def start_in_process_scheduler(app) -> bool:
     # Flask's debug reloader imports the app twice; only run in the serving child
     if app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true":
         return False
-    _thread = threading.Thread(target=run_forever, args=(app,), name="job-scheduler", daemon=True)
+    _thread = threading.Thread(target=run_forever, args=(app,), kwargs={"owner": worker_owner("in-process")},
+                               name="job-scheduler", daemon=True)
     _thread.start()
     return True

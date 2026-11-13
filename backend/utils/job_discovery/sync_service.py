@@ -47,6 +47,10 @@ LEASE_TTL = timedelta(minutes=float(os.getenv("JOB_SYNC_LEASE_MINUTES", "30")))
 STALE_AFTER = timedelta(hours=float(os.getenv("JOB_STALE_AFTER_HOURS", "72")))
 EXPIRE_AFTER_UNSEEN = timedelta(days=float(os.getenv("JOB_EXPIRE_AFTER_DAYS", "21")))
 MAX_POSTING_AGE = timedelta(days=float(os.getenv("JOB_MAX_POSTING_AGE_DAYS", "60")))
+# A scheduler (worker loop or cron `jobs sync-if-due`) must check in at least this often
+# to be considered alive. 20 min covers a worker polling every minute and a */15 cron.
+HEARTBEAT_NAME = "job_scheduler_heartbeat"
+HEARTBEAT_STALE = timedelta(minutes=float(os.getenv("JOB_SCHEDULER_HEARTBEAT_STALE_MINUTES", "20")))
 
 DEFAULT_ROLES = [
     "software developer", "python developer", "java developer", "frontend developer",
@@ -229,6 +233,81 @@ def next_due_at() -> datetime:
 
 def is_due() -> bool:
     return _now() >= next_due_at()
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Scheduler liveness (is anything actually driving the two-hour schedule?)
+# ──────────────────────────────────────────────────────────────────────────
+def record_scheduler_heartbeat(owner: str, now: Optional[datetime] = None) -> None:
+    """Called by every scheduler iteration (worker loop, in-process thread) and by
+    `flask jobs sync-if-due` (cron). Stored in the scheduler_leases table, so the
+    admin dashboard and CLI can tell whether the schedule is really being driven."""
+    naive_now = (now or _now()).replace(tzinfo=None)
+    row = db.session.get(SchedulerLease, HEARTBEAT_NAME)
+    if row is None:
+        row = SchedulerLease(name=HEARTBEAT_NAME, owner=owner, acquired_at=naive_now, expires_at=naive_now)
+        db.session.add(row)
+    else:
+        if row.owner != owner:
+            row.owner = owner
+            row.acquired_at = naive_now
+        row.expires_at = naive_now
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()  # concurrent insert from another worker: harmless
+
+
+def scheduler_status() -> Dict[str, Any]:
+    """Honest liveness report: the schedule itself lives in the DB and is always
+    correct, but a sync only happens if a worker, cron job or in-process thread
+    is running. Returns alive/overdue facts plus a human-readable message."""
+    now = _now()
+    row = db.session.get(SchedulerLease, HEARTBEAT_NAME)
+    beat = _aware(row.expires_at) if row and row.expires_at else None
+    alive = beat is not None and now - beat <= HEARTBEAT_STALE
+    due = next_due_at()
+    overdue_minutes = int((now - due).total_seconds() // 60) if (now >= due and due != NEVER_RUN) else 0
+    lease = lease_status()
+
+    if alive:
+        state = "running"
+    elif beat is None:
+        state = "never_started"
+    else:
+        state = "stopped"
+
+    how_to_start = ("Start it with `python job_worker.py` (or run the API with `python app.py`, which "
+                    "starts the scheduler thread), or schedule `flask --app app jobs sync-if-due` with cron.")
+    if lease.get("running"):
+        message = "A synchronization is running right now."
+    elif alive:
+        message = f"Scheduler is running (last check-in {beat.strftime('%Y-%m-%d %H:%M UTC')})."
+    elif due == NEVER_RUN:
+        message = "No job synchronization has ever run and no scheduler process is running. " + how_to_start
+    elif overdue_minutes:
+        hours, mins = divmod(overdue_minutes, 60)
+        ago = f"{hours} h {mins} min" if hours else f"{mins} min"
+        message = (f"No scheduler process is running: the automatic refresh is overdue by {ago}, so job "
+                   f"listings are not being refreshed every two hours. " + how_to_start)
+    else:
+        message = (f"No scheduler process is running: the next refresh (due "
+                   f"{due.strftime('%Y-%m-%d %H:%M UTC')}) will not happen automatically. " + how_to_start)
+
+    return {
+        "state": state,
+        "alive": alive,
+        "worker": row.owner if row else None,
+        "worker_started_at": _aware(row.acquired_at).isoformat() if row and row.acquired_at else None,
+        "last_heartbeat_at": beat.isoformat() if beat else None,
+        "heartbeat_stale_after_minutes": HEARTBEAT_STALE.total_seconds() / 60,
+        "next_due_at": due.isoformat(),
+        "is_due": now >= due,
+        "overdue_minutes": overdue_minutes,
+        "sync_in_progress": bool(lease.get("running")),
+        "healthy": alive or bool(lease.get("running")),
+        "message": message,
+    }
 
 
 # ──────────────────────────────────────────────────────────────────────────

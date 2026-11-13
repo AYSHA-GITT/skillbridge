@@ -481,7 +481,8 @@ cd backend
 pip install -r requirements.txt
 flask --app app db upgrade                         # creates / upgrades the schema (safe to re-run)
 flask --app app users make-admin you@example.com   # optional: grant admin to an existing account
-python app.py                                      # API at http://127.0.0.1:5000
+flask --app app skills seed-questions              # curated quiz questions (also auto-seeded on first quiz)
+python app.py                                      # API at http://127.0.0.1:5000 (+ in-process job scheduler)
 ```
 
 ### Step 4: Frontend
@@ -496,9 +497,10 @@ npm start                           # http://localhost:3000
 cd backend
 python job_worker.py                # syncs immediately if due, then every 2 hours
 ```
+`python app.py` already runs the scheduler in a background thread for local development, unless `RUN_JOB_SCHEDULER_IN_PROCESS=0` is set. **If nothing drives the schedule, no refresh happens**: the admin Job Synchronization page and the student data-source panel then show "Automatic refresh is not running" with how long the refresh is overdue. Every scheduler (worker, thread or cron `sync-if-due`) records a heartbeat; `flask --app app jobs status` shows it under `scheduler`.
 
 ### Step 6: Tests
-The isolated suites use a temporary database and fake providers (no network, dev data untouched):
+The isolated suites (110 tests) use a temporary database and fake providers (no network, dev data untouched):
 ```powershell
 cd backend
 python -m unittest discover -s tests -v
@@ -510,6 +512,15 @@ End-to-end check of every feature against the running app (122 checks; creates a
 cd backend
 python e2e_check.py
 ```
+
+---
+
+### Maintenance commands
+```powershell
+flask --app app skills seed-questions [--skill react]   # insert reviewed quiz questions missing from the bank
+flask --app app resumes prune-orphans [--apply]         # list (dry run) / delete resume files no account references
+```
+Quiz questions: `backend/data/curated_questions.py` holds hand-reviewed questions (Easy, Medium and Hard) for every career-required skill and common nice-to-have skills, so skills can be verified even when the AI question generator is unavailable. AI-generated questions still top the bank up when a provider is configured. Deleting an account now also deletes that student's uploaded resume files.
 
 ---
 
@@ -541,7 +552,7 @@ Pick one (combining them is safe because of the lease):
 | Platform cron | `*/15 * * * *  flask --app app jobs sync-if-due` | Hosts with cron jobs, GitHub Actions, systemd timers; exits immediately unless due |
 | In-process thread | `RUN_JOB_SCHEDULER_IN_PROCESS=1` | Local development only (web processes may sleep or scale) |
 
-Useful commands: `flask --app app jobs status`, `flask --app app jobs sync`.
+Useful commands: `flask --app app jobs status` (includes scheduler liveness), `flask --app app jobs sync`.
 
 ### Required credentials
 | Variable | Needed for | How to get it |

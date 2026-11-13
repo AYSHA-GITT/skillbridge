@@ -220,7 +220,7 @@ class JobDiscoveryService:
 
     # ── Metrics (computed from stored data, never hard-coded) ────────────
     def get_quality_metrics(self) -> Dict[str, Any]:
-        from utils.job_discovery.sync_service import last_success, next_due_at, provider_health
+        from utils.job_discovery.sync_service import last_success, next_due_at, provider_health, scheduler_status
         total = JobListing.query.count()
         by_status = {s: JobListing.query.filter_by(status=s).count() for s in ("active", "stale", "expired", "sample")}
         dup = JobListing.query.filter(JobListing.duplicate_of_id.isnot(None)).count()
@@ -245,6 +245,7 @@ class JobDiscoveryService:
             "last_sync_status": last_run.status if last_run else None,
             "last_successful_sync": _aware(ok.finished_at or ok.started_at).isoformat() if ok else None,
             "next_scheduled_sync": next_due_at().isoformat(),
+            "scheduler": scheduler_status(),
             "adapters": [{"name": p["source"], "is_sample_source": p["is_sample_source"], "health": p}
                          for p in provider_health()],
         }

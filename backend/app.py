@@ -50,10 +50,11 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
-from cli import jobs_cli, skills_cli, users_cli
+from cli import jobs_cli, skills_cli, users_cli, resumes_cli
 app.cli.add_command(jobs_cli)
 app.cli.add_command(skills_cli)
 app.cli.add_command(users_cli)
+app.cli.add_command(resumes_cli)
 
 # Optional in-process scheduler (single-instance/dev). Production: use job_worker.py or cron.
 if os.getenv('RUN_JOB_SCHEDULER_IN_PROCESS', '0').lower() in ('1', 'true', 'yes'):
@@ -72,4 +73,13 @@ def home():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # `python app.py` is the development entry point.
+    #  - The auto-reloader is OFF by default: file activity (OneDrive, editors) restarts the
+    #    server mid-request. Set FLASK_USE_RELOADER=1 to turn it back on.
+    #  - The two-hour job scheduler runs in-process unless RUN_JOB_SCHEDULER_IN_PROCESS is set
+    #    explicitly (1 = started above at import time, 0 = never; use job_worker.py or cron).
+    _use_reloader = os.getenv('FLASK_USE_RELOADER', '0').lower() in ('1', 'true', 'yes')
+    if os.getenv('RUN_JOB_SCHEDULER_IN_PROCESS') is None and             (not _use_reloader or os.environ.get('WERKZEUG_RUN_MAIN') == 'true'):
+        from utils.job_discovery.scheduler import start_in_process_scheduler
+        start_in_process_scheduler(app)
+    app.run(debug=True, port=5000, use_reloader=_use_reloader)

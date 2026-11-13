@@ -2003,13 +2003,21 @@ def delete_student_account():
     if not student:
         return jsonify({'error': 'Student not found'}), 404
 
+    # Uploaded resume files live outside the database; collect them before the
+    # cascade deletes the Resume rows, remove them after the commit succeeds.
+    from utils.resume_files import delete_resume_files
+    resume_files = [r.file_path for r in student.resumes if r.file_path]
+
     db.session.delete(student)
     db.session.commit()
+    files_removed = delete_resume_files(resume_files)
     logout_user()
 
     return jsonify({
         'status': 'deleted',
-        'message': 'Account and all associated private learning records have been permanently erased.'
+        'resume_files_removed': files_removed,
+        'message': 'Account, all associated private learning records and uploaded resume files '
+                   'have been permanently erased.'
     }), 200
 
 

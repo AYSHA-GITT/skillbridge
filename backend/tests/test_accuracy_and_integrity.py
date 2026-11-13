@@ -166,15 +166,16 @@ class QuizIntegrityTests(unittest.TestCase):
                 "correct_answer": "A", "difficulty": "Easy"}
         bad = [dict(good, option_d="docker ps"), dict(good, correct_answer="E"),
                dict(good, option_d="None of the above"), dict(good, question="short")]
+        # skills without curated questions, so only the generated output counts
         with app.app_context():
             with mock.patch.object(qbm, "generate_questions", lambda *a, **k: [good] + bad):
-                qbm.ensure_minimum_questions("docker")
-            self.assertEqual(QuestionBank.query.filter_by(skill_name="docker").count(), 1)
+                qbm.ensure_minimum_questions("ansible")
+            self.assertEqual(QuestionBank.query.filter_by(skill_name="ansible").count(), 1)
             with mock.patch("utils.ai_question_generator.get_genai_client", lambda: None):
                 from utils.ai_question_generator import generate_questions
-                self.assertIsNone(generate_questions("kubernetes"))   # no template fallback
-                qbm.ensure_minimum_questions("kubernetes")
-            self.assertEqual(QuestionBank.query.filter_by(skill_name="kubernetes").count(), 0)
+                self.assertIsNone(generate_questions("cobol"))   # no template fallback
+                qbm.ensure_minimum_questions("cobol")
+            self.assertEqual(QuestionBank.query.filter_by(skill_name="cobol").count(), 0)
 
     def test_quiz_mixes_difficulty(self):
         data = self._get_quiz()
