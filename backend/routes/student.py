@@ -372,13 +372,26 @@ def submit_quiz(skill_id):
         else:
             lvl = (question.difficulty or 'Medium').title()
             weak_by_level[lvl] = weak_by_level.get(lvl, 0) + 1
+        # Collect all displayed options in review
+        displayed_options = {}
+        for idx_opt, disp_let in enumerate(['A', 'B', 'C', 'D']):
+            orig_let = perm[idx_opt]
+            text = getattr(question, f'option_{orig_let.lower()}', None)
+            if text:
+                displayed_options[disp_let] = text
+
+        your_option_text = displayed_options.get(shown) if shown else None
+        correct_option_text = displayed_options.get(correct_shown)
+
         review.append({
             'question_id': question.id,
             'question': question.question,
             'difficulty': question.difficulty,
             'your_answer': shown,
+            'your_option_text': your_option_text,
             'correct_answer': correct_shown,   # letter as displayed to this student
-            'correct_option_text': getattr(question, f'option_{(question.correct_answer or "a").lower()}', None),
+            'correct_option_text': correct_option_text,
+            'options': displayed_options,
             'is_correct': is_correct,
         })
 
@@ -476,23 +489,29 @@ def get_quiz_explanation(skill_id):
     # Build a focused prompt for Gemini
     items_text = ''
     for i, item in enumerate(wrong_answers, 1):
+        opts_str = ''
+        if isinstance(item.get('options'), dict):
+            opts_str = '   All Options:\n' + '\n'.join([f"     {k}: {v}" for k, v in item['options'].items()]) + '\n'
+
         items_text += (
             f"\n{i}. Question: {item.get('question', '')}\n"
-            f"   Student answered: {item.get('your_answer_text') or 'No answer'}\n"
-            f"   Correct answer: {item.get('correct_answer_text', '')}\n"
+            f"{opts_str}"
+            f"   Student answered: Option {item.get('your_answer', 'None')} ({item.get('your_answer_text') or 'No answer text'})\n"
+            f"   Correct answer: Option {item.get('correct_answer', '')} ({item.get('correct_answer_text', '')})\n"
             f"   Difficulty: {item.get('difficulty', 'Medium')}\n"
         )
 
-    prompt = f"""You are an expert {skill.skill_name} tutor helping a student understand why they got certain quiz questions wrong.
+    prompt = f"""You are a friendly, expert senior technical mentor and {skill.skill_name} tutor reviewing a student's quiz mistakes.
+Provide a detailed, insightful, and comprehensive pedagogical explanation for each question they got wrong (2-3 solid paragraphs per question).
 
-For each question below, write a clear, concise explanation (2-4 sentences) that:
-1. Explains WHY the correct answer is correct
-2. Points out the common misconception that leads students to pick the wrong option
-3. Gives a memorable tip or rule-of-thumb to remember the concept
+For each question:
+1. Explain thoroughly WHY the correct answer is right (explain the underlying core concept, mechanism, or syntax in {skill.skill_name}).
+2. Address the student's chosen answer and explain specifically WHY it is incorrect, pointing out the misconception or error in that reasoning.
+3. Provide a practical rule of thumb, code snippet/insight, or memorable takeaway so they master the concept for real-world development.
 
 Skill being assessed: {skill.skill_name}
 
-Wrong answers to explain:
+Questions to explain:
 {items_text}
 
 Return ONLY valid JSON in this exact format:
@@ -500,7 +519,7 @@ Return ONLY valid JSON in this exact format:
   {{
     "question": "<exact question text>",
     "correct_answer_text": "<correct option text>",
-    "explanation": "<your 2-4 sentence explanation>"
+    "explanation": "<detailed, comprehensive explanation covering why the correct answer is right, why the student's choice was incorrect, and the key practical takeaway>"
   }}
 ]"""
 
@@ -511,7 +530,7 @@ Return ONLY valid JSON in this exact format:
     explanations = []
 
     if ai_client:
-        for model_name in ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']:
+        for model_name in ['gemini-flash-lite-latest', 'gemini-flash-latest', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.8-flash']:
             try:
                 response = ai_client.models.generate_content(
                     model=model_name,
@@ -532,19 +551,30 @@ Return ONLY valid JSON in this exact format:
             except Exception as e:
                 current_app.logger.warning(f'Quiz explanation Gemini error ({model_name}): {e}')
 
-    # Fallback: basic explanations if Gemini is unavailable
+    # Fallback: detailed explanations if Gemini is unavailable
     if not explanations:
-        explanations = [
-            {
-                'question': item.get('question', ''),
-                'correct_answer_text': item.get('correct_answer_text', ''),
-                'explanation': (
-                    f"The correct answer is \"{item.get('correct_answer_text', '')}\". "
-                    f"Review the core {skill.skill_name} concepts related to this topic to strengthen your understanding."
-                )
-            }
-            for item in wrong_answers
-        ]
+        explanations = []
+        for item in wrong_answers:
+            q_txt = item.get('question', '')
+            cor_txt = item.get('correct_answer_text', '')
+            your_txt = item.get('your_answer_text', '')
+            cor_let = item.get('correct_answer', '')
+            your_let = item.get('your_answer', '')
+
+            why_wrong = (
+                f"Your selected Option {your_let} (\"{your_txt}\") is incorrect because it reflects a common misconception about {skill.skill_name}'s behavior or syntax."
+                if your_txt else "No answer was provided for this question."
+            )
+            fallback_text = (
+                f"Why Correct: Option {cor_let} (\"{cor_txt}\") is the standard and correct approach in {skill.skill_name}.\n\n"
+                f"Why Incorrect: {why_wrong}\n\n"
+                f"Key Takeaway: When working with {skill.skill_name}, always verify the interface paradigm and object-oriented vs procedural conventions."
+            )
+            explanations.append({
+                'question': q_txt,
+                'correct_answer_text': cor_txt,
+                'explanation': fallback_text
+            })
 
     return jsonify({'explanations': explanations}), 200
 
