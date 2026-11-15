@@ -446,10 +446,69 @@ def main():
         check(A, "FL round detail", adm.get(f"{BASE}/api/admin/federated/round/{rounds[-1]['round_number']}").status_code == 200)
         check(A, "FL status", adm.get(f"{BASE}/api/admin/federated/status").status_code == 200)
 
+    # ── Skill Passport ───────────────────────────────────────────────────
+    A = "Skill Passport"
+    r = s.get(f"{BASE}/api/passport/me")
+    pp = js(r)
+    check(A, "Passport loads", r.status_code == 200 and len(pp.get("skills", [])) == len(EXPECTED_SKILLS),
+          f"{len(pp.get('skills', []))} skills counts={ {k: v for k, v in pp.get('status_counts', {}).items() if v} }")
+    check(A, "Resume-only skills not verified",
+          all(x["status"] != "verified" for x in pp.get("skills", []) if not x.get("assessment")))
+    check(A, "Save profile", s.put(f"{BASE}/api/passport/me/profile", json={
+        "headline": "E2E headline", "summary": "E2E summary", "github_url": "https://github.com/e2e"}).status_code == 200)
+    check(A, "Unsafe URL rejected", s.put(f"{BASE}/api/passport/me/profile",
+                                          json={"github_url": "javascript:alert(1)"}).status_code == 400)
+    r = s.post(f"{BASE}/api/passport/me/skills", json={"skill_name": "Leadership"})
+    check(A, "Add self-declared skill", r.status_code == 201)
+    flask_id = next((x["id"] for x in pp.get("skills", []) if x["skill_name"] == "flask"), None)
+    r = s.post(f"{BASE}/api/passport/me/evidence", json={"kind": "project", "title": "E2E API",
+               "url": "https://github.com/e2e/api", "skill_ids": [flask_id]})
+    evid = js(r).get("evidence", {}).get("id")
+    check(A, "Add evidence", r.status_code == 201)
+    flask_status = lambda: next(x["status"] for x in js(s.get(f"{BASE}/api/passport/me"))["skills"] if x["skill_name"] == "flask")
+    check(A, "Evidence alone does not verify", flask_status() in ("evidence_submitted", "assessment_completed"), flask_status())
+    check(A, "Request review", s.post(f"{BASE}/api/passport/me/evidence/{evid}/request_review").status_code == 200)
+    check(A, "Other user cannot edit evidence",
+          s2.put(f"{BASE}/api/passport/me/evidence/{evid}", json={"title": "x"}).status_code == 404)
+    if admin_ok:
+        q = js(adm.get(f"{BASE}/api/passport/admin/evidence"))["evidence"]
+        check(A, "Admin sees review queue", evid in [e["id"] for e in q])
+        r = adm.post(f"{BASE}/api/passport/admin/evidence/{evid}/review", json={"decision": "verified", "note": "e2e"})
+        check(A, "Admin accepts evidence -> verified", r.status_code == 200 and flask_status() == "verified", flask_status())
+    r = s.get(f"{BASE}/api/passport/me/pdf")
+    check(A, "Owner PDF export", r.status_code == 200 and r.content[:4] == b"%PDF", f"{len(r.content)} bytes")
+    check(A, "Share needs consent", s.post(f"{BASE}/api/passport/me/shares", json={"expires_in_days": 7}).status_code == 400)
+    r = s.post(f"{BASE}/api/passport/me/shares", json={"consent": True, "expires_in_days": 7, "label": "e2e",
+               "visibility": {"sections": {"profile": True, "skills": True, "projects": True}, "skill_filter": "all"}})
+    sh = js(r)
+    token = sh.get("url", "").rsplit("/", 1)[-1]
+    check(A, "Create share link + QR", r.status_code == 201 and "<svg" in sh.get("qr_svg", "") and len(token) >= 43)
+    anon = requests.Session()
+    r = anon.get(f"{BASE}/api/passport/public/{token}")
+    pub = js(r)
+    raw = json.dumps(pub)
+    check(A, "Public view works without login", r.status_code == 200 and pub.get("profile", {}).get("headline") == "E2E headline")
+    check(A, "Public view hides email/ids/hidden sections",
+          email_a not in raw and '"id"' not in raw and "career_interests" not in pub and "education" not in pub)
+    r = anon.get(f"{BASE}/api/passport/public/{token}/pdf")
+    check(A, "Public PDF", r.status_code == 200 and r.content[:4] == b"%PDF")
+    r = anon.get(f"{FRONT}/passport/{token}")
+    check(A, "Frontend serves public passport route", r.status_code == 200 and '<div id="root">' in r.text, warn=True)
+    log = js(s.get(f"{BASE}/api/passport/me/shares/{sh['share']['id']}/access_log"))
+    check(A, "Access history", [l["event"] for l in log.get("access_log", [])] == ["pdf", "view"])
+    check(A, "Other user cannot revoke", s2.post(f"{BASE}/api/passport/me/shares/{sh['share']['id']}/revoke").status_code == 404)
+    check(A, "Revoke link", s.post(f"{BASE}/api/passport/me/shares/{sh['share']['id']}/revoke").status_code == 200)
+    check(A, "Revoked link blocked", anon.get(f"{BASE}/api/passport/public/{token}").status_code == 410)
+    check(A, "Unknown token 404", anon.get(f"{BASE}/api/passport/public/{'x' * 43}").status_code == 404)
+
     # ── Account export / delete (cleanup) ────────────────────────────────
     A = "Account"
     ex = js(s.get(f"{BASE}/api/student/account/export"))
-    check(A, "Export my data", ex.get("profile", {}).get("email") == email_a and len(ex.get("skills", [])) == len(EXPECTED_SKILLS))
+    resume_skills = [x for x in ex.get("skills", []) if x.get("source") != "self_declared"]
+    check(A, "Export my data", ex.get("profile", {}).get("email") == email_a and len(resume_skills) == len(EXPECTED_SKILLS),
+          f"{len(resume_skills)} resume skills of {len(ex.get('skills', []))}")
+    check(A, "Export includes Skill Passport", len(ex.get("skill_passport", {}).get("evidence", [])) == 1
+          and "token" not in json.dumps(ex.get("skill_passport", {}).get("share_links", [])).replace("token_hint", ""))
     check(A, "Delete needs confirmation", s.delete(f"{BASE}/api/student/account/delete", json={}).status_code == 400)
     for sess_, em in ((s, email_a), (s2, email_b)):
         r = sess_.delete(f"{BASE}/api/student/account/delete", json={"confirmation": "DELETE_MY_ACCOUNT"})

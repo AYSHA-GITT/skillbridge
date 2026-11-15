@@ -17,7 +17,8 @@ import {
   TbSearch,
   TbMicrophone,
   TbFileCheck,
-  TbUserCircle
+  TbUserCircle,
+  TbId
 } from 'react-icons/tb';
 
 export default function Sidebar({ onOpenPrivacyModal }) {
@@ -25,6 +26,7 @@ export default function Sidebar({ onOpenPrivacyModal }) {
     { to: '/dashboard', label: 'Dashboard', icon: TbLayoutDashboard },
     { to: '/profile-settings', label: 'Profile Settings', icon: TbUserCircle },
     { to: '/profile', label: 'Profile & Skills', icon: TbUserCheck },
+    { to: '/skill-passport', label: 'Skill Passport', icon: TbId },
     { to: '/upload-resume', label: 'Resume Upload', icon: TbFileUpload },
     { to: '/resume-optimizer', label: 'Resume Optimizer', icon: TbFileCheck },
     { to: '/assessment', label: 'Skill Verification', icon: TbClipboardCheck },

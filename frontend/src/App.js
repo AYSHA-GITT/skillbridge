@@ -25,6 +25,8 @@ import ResumeOptimizer from './pages/ResumeOptimizer';
 import ProfileSettings from './pages/ProfileSettings';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import SkillPassport from './pages/SkillPassport';
+import PublicPassport from './pages/PublicPassport';
 import { ProtectedRoute, AdminRoute } from './components/RouteGuards';
 
 function App() {
@@ -40,6 +42,8 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        {/* Recruiter view of a shared Skill Passport (token-gated, no login) */}
+        <Route path="/passport/:token" element={<PublicPassport />} />
 
         {/* ============================================================ */}
         {/* PROTECTED STUDENT PORTAL ROUTES */}
@@ -105,6 +109,14 @@ function App() {
           element={
             <ProtectedRoute>
               <SkillProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/skill-passport"
+          element={
+            <ProtectedRoute>
+              <SkillPassport />
             </ProtectedRoute>
           }
         />

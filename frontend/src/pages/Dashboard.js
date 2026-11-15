@@ -16,7 +16,8 @@ import {
   TbSparkles,
   TbShieldCheck,
   TbBriefcase,
-  TbInfoCircle
+  TbInfoCircle,
+  TbId
 } from 'react-icons/tb';
 
 export default function Dashboard() {
@@ -372,6 +373,14 @@ export default function Dashboard() {
               >
                 <TbUserCheck className="w-4 h-4 text-accent-400 flex-shrink-0" />
                 <span className="truncate">Verified Profile</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/skill-passport')}
+                className="surface p-3 rounded-xl text-left hover:border-accent-400/40 transition-all flex items-center space-x-2 text-xs col-span-2"
+              >
+                <TbId className="w-4 h-4 text-accent-400 flex-shrink-0" />
+                <span className="truncate">Skill Passport — share your evidence-backed profile</span>
               </button>
 
               <button

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import AdminFLCenter from '../components/AdminFLCenter';
 import AdminJobSync from '../components/AdminJobSync';
+import AdminEvidenceReview from '../components/AdminEvidenceReview';
 import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
 import authService from '../services/authService';
@@ -563,6 +564,11 @@ export default function Admin() {
         {/* ============================================================ */}
         {activeTab === 'jobs' && (
           <AdminJobSync />
+        )}
+
+        {/* SKILL PASSPORT EVIDENCE REVIEW */}
+        {activeTab === 'evidence' && (
+          <AdminEvidenceReview />
         )}
 
         {/* ============================================================ */}

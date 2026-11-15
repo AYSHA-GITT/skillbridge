@@ -60,6 +60,10 @@ class Student(BaseModel, UserMixin):
     job_alerts = db.relationship('JobAlert', lazy=True, cascade='all, delete-orphan')
     job_alert_matches = db.relationship('JobAlertMatch', lazy=True, cascade='all, delete-orphan',
                                         overlaps='matches')
+    passport_profile = db.relationship('PassportProfile', uselist=False, lazy=True,
+                                       cascade='all, delete-orphan')
+    passport_evidence = db.relationship('PassportEvidence', lazy=True, cascade='all, delete-orphan')
+    passport_shares = db.relationship('PassportShare', lazy=True, cascade='all, delete-orphan')
 
 
     def set_password(self, password):
@@ -130,6 +134,9 @@ class Skill(BaseModel):
     evidence = db.Column(db.Text)  # JSON list of {section, snippet}
     extraction_explanation = db.Column(db.String(400))
     category = db.Column(db.String(50))
+    # Where the skill first came from: 'resume' (AI-extracted) or 'self_declared'
+    # (added by the student in the Skill Passport). NULL on legacy rows = 'resume'.
+    source = db.Column(db.String(20))
     added_on = db.Column(db.DateTime, default=utc_now)
 
     def get_evidence(self):
@@ -147,6 +154,7 @@ class Skill(BaseModel):
             'evidence': self.get_evidence(),
             'extraction_explanation': self.extraction_explanation,
             'category': self.category,
+            'source': self.source or 'resume',
             'proficiency': self.proficiency,
             'added_on': self.added_on.isoformat() if self.added_on else None
         }
@@ -901,5 +909,189 @@ class PasswordResetToken(BaseModel):
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'used': self.used,
             'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# ─────────────────────────────────────────
+# VERIFIED SKILL PASSPORT
+# Everything else in the passport (education, skills, assessments, career
+# interests, resume content) is read from the existing tables; these tables
+# only hold what SkillBridge did not already store.
+# ─────────────────────────────────────────
+def _iso(dt):
+    return dt.isoformat() if dt else None
+
+
+class PassportProfile(BaseModel):
+    """Student-written professional profile shown at the top of the passport."""
+    __tablename__ = 'passport_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, unique=True)
+    headline = db.Column(db.String(160))
+    summary = db.Column(db.Text)
+    linkedin_url = db.Column(db.String(300))
+    github_url = db.Column(db.String(300))
+    portfolio_url = db.Column(db.String(300))
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+    def to_dict(self):
+        return {
+            'headline': self.headline or '',
+            'summary': self.summary or '',
+            'linkedin_url': self.linkedin_url or '',
+            'github_url': self.github_url or '',
+            'portfolio_url': self.portfolio_url or '',
+            'updated_at': _iso(self.updated_at),
+        }
+
+
+passport_evidence_skills = db.Table(
+    'passport_evidence_skills',
+    db.Column('evidence_id', db.Integer, db.ForeignKey('passport_evidence.id', ondelete='CASCADE'),
+              primary_key=True),
+    db.Column('skill_id', db.Integer, db.ForeignKey('skills.id', ondelete='CASCADE'), primary_key=True),
+)
+
+
+class PassportEvidence(BaseModel):
+    """
+    A project, certificate, experience or practical challenge the student submits
+    as evidence for one or more skills. Submitting evidence never verifies a skill
+    by itself: review_status only becomes 'verified' through an administrator review,
+    and any later edit of the evidence resets it.
+    """
+    __tablename__ = 'passport_evidence'
+
+    KINDS = ('project', 'certificate', 'experience', 'practical_challenge')
+    REVIEW_STATUSES = ('not_requested', 'pending', 'verified', 'rejected')
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    kind = db.Column(db.String(30), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    organization = db.Column(db.String(200))       # issuer / employer / platform
+    description = db.Column(db.Text)
+    url = db.Column(db.String(500))                # repo, demo, credential or challenge URL
+    start_date = db.Column(db.String(20))          # free-form "2024-06" style, as students write them
+    end_date = db.Column(db.String(20))
+    source = db.Column(db.String(20), default='student')   # student | resume (imported from parsed resume)
+    file_path = db.Column(db.String(500))          # optional uploaded file (never shared publicly)
+    original_filename = db.Column(db.String(200))
+    review_status = db.Column(db.String(20), default='not_requested', nullable=False, index=True)
+    review_requested_at = db.Column(db.DateTime)
+    reviewed_at = db.Column(db.DateTime)
+    reviewed_by = db.Column(db.Integer)            # admin student id (no FK: survives deletion)
+    review_note = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+    skills = db.relationship('Skill', secondary=passport_evidence_skills, lazy='selectin')
+
+    def to_dict(self, include_review=True):
+        d = {
+            'id': self.id,
+            'kind': self.kind,
+            'title': self.title,
+            'organization': self.organization or '',
+            'description': self.description or '',
+            'url': self.url or '',
+            'start_date': self.start_date or '',
+            'end_date': self.end_date or '',
+            'source': self.source or 'student',
+            'has_file': bool(self.file_path),
+            'original_filename': self.original_filename,
+            'review_status': self.review_status or 'not_requested',
+            'skills': [{'id': s.id, 'skill_name': s.skill_name} for s in self.skills],
+            'created_at': _iso(self.created_at),
+            'updated_at': _iso(self.updated_at),
+        }
+        if include_review:
+            d.update({
+                'review_requested_at': _iso(self.review_requested_at),
+                'reviewed_at': _iso(self.reviewed_at),
+                'review_note': self.review_note,
+            })
+        return d
+
+
+class PassportShare(BaseModel):
+    """
+    A recruiter-facing share link. Only a SHA-256 hash of the random token is
+    stored, so the link cannot be recovered from the database; the student sees
+    the full link once, when it is created.
+    """
+    __tablename__ = 'passport_shares'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    token_hint = db.Column(db.String(8))           # last characters, to tell links apart
+    label = db.Column(db.String(120))
+    visibility = db.Column(db.Text, nullable=False, default='{}')   # JSON: sections + skill filter
+    allow_pdf = db.Column(db.Boolean, default=True)
+    consent_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime)
+    last_accessed_at = db.Column(db.DateTime)
+    access_count = db.Column(db.Integer, default=0)
+
+    access_logs = db.relationship('PassportAccessLog', backref='share', lazy=True,
+                                  cascade='all, delete-orphan', order_by='PassportAccessLog.id.desc()')
+
+    def get_visibility(self):
+        try:
+            data = json.loads(self.visibility) if self.visibility else {}
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def status(self, now=None):
+        now = now or datetime.now(timezone.utc)
+        if self.revoked_at:
+            return 'revoked'
+        exp = self.expires_at
+        if exp is not None and exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp is None or exp <= now:
+            return 'expired'
+        return 'active'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'label': self.label or '',
+            'token_hint': self.token_hint,
+            'visibility': self.get_visibility(),
+            'allow_pdf': bool(self.allow_pdf),
+            'status': self.status(),
+            'consent_at': _iso(self.consent_at),
+            'created_at': _iso(self.created_at),
+            'expires_at': _iso(self.expires_at),
+            'revoked_at': _iso(self.revoked_at),
+            'last_accessed_at': _iso(self.last_accessed_at),
+            'access_count': self.access_count or 0,
+        }
+
+
+class PassportAccessLog(BaseModel):
+    """One access attempt on a share link. Raw IP addresses are not stored."""
+    __tablename__ = 'passport_access_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    share_id = db.Column(db.Integer, db.ForeignKey('passport_shares.id'), nullable=False, index=True)
+    event = db.Column(db.String(30), nullable=False)   # view | pdf | denied_expired | denied_revoked
+    viewer_hash = db.Column(db.String(16))             # keyed hash of IP, to count distinct viewers
+    user_agent = db.Column(db.String(200))
+    accessed_at = db.Column(db.DateTime, default=utc_now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'event': self.event,
+            'viewer': self.viewer_hash,
+            'user_agent': self.user_agent,
+            'accessed_at': _iso(self.accessed_at),
         }
 

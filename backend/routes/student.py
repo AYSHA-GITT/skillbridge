@@ -200,6 +200,7 @@ def extract_skills_endpoint(resume_id):
                     skill_name=skill_name_clean,
                     extraction_confidence=confidence,
                     proficiency=None,
+                    source='resume',
                     **evidence_fields
                 )
                 db.session.add(skill)
@@ -2130,6 +2131,12 @@ def export_student_data():
         'saved_jobs': saved_jobs,
         'interview_sessions': interviews,
         'interview_history': interviews,
+        'skill_passport': {
+            'profile': current_user.passport_profile.to_dict() if current_user.passport_profile else None,
+            'evidence': [e.to_dict() for e in current_user.passport_evidence],
+            # share tokens are stored only as hashes and are never exported
+            'share_links': [s.to_dict() for s in current_user.passport_shares],
+        },
         'exported_at': datetime.now(timezone.utc).isoformat(),
         'data_sovereignty_notice': 'This export includes all profile and learning artifacts stored under your account.'
     }
@@ -2157,16 +2164,20 @@ def delete_student_account():
     # Uploaded resume files live outside the database; collect them before the
     # cascade deletes the Resume rows, remove them after the commit succeeds.
     from utils.resume_files import delete_resume_files
+    from utils.skill_passport import delete_evidence_files
     resume_files = [r.file_path for r in student.resumes if r.file_path]
+    evidence_files = [e.file_path for e in student.passport_evidence if e.file_path]
 
     db.session.delete(student)
     db.session.commit()
     files_removed = delete_resume_files(resume_files)
+    evidence_removed = delete_evidence_files(evidence_files)
     logout_user()
 
     return jsonify({
         'status': 'deleted',
         'resume_files_removed': files_removed,
+        'evidence_files_removed': evidence_removed,
         'message': 'Account, all associated private learning records and uploaded resume files '
                    'have been permanently erased.'
     }), 200

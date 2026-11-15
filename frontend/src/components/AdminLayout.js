@@ -13,7 +13,8 @@ import {
   TbAdjustments,
   TbLogout,
   TbServer2,
-  TbBriefcase
+  TbBriefcase,
+  TbId
 } from 'react-icons/tb';
 import authService from '../services/authService';
 
@@ -36,6 +37,7 @@ export default function AdminLayout({ activeTab, onTabChange, adminUser, childre
     { id: 'careers', label: 'Career Trends', icon: TbTrendingUp },
     { id: 'gaps', label: 'Common Skill Gaps', icon: TbTargetArrow },
     { id: 'jobs', label: 'Job Sync & Health', icon: TbBriefcase },
+    { id: 'evidence', label: 'Evidence Review', icon: TbId },
     { id: 'federated', label: 'Federated Learning', icon: TbNetwork, badge: 'Core FL' },
     { id: 'rounds', label: 'FL Rounds', icon: TbRotateClockwise },
     { id: 'reports', label: 'Reports', icon: TbFileSpreadsheet },

@@ -46,10 +46,12 @@ def unauthorized():
 from routes.auth import auth_bp
 from routes.student import student_bp
 from routes.admin import admin_bp
+from routes.passport import passport_bp
 
 app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
+app.register_blueprint(passport_bp, url_prefix='/api/passport')
 
 from cli import jobs_cli, skills_cli, users_cli, resumes_cli
 app.cli.add_command(jobs_cli)

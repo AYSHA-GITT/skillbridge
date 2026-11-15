@@ -17,9 +17,15 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table('students', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('profile_photo', sa.String(length=300), nullable=True))
+    # Idempotent: app.py runs db.create_all() on import, which may already have
+    # created the table (it never adds columns to existing tables, though).
+    insp = sa.inspect(op.get_bind())
+    if 'profile_photo' not in {c['name'] for c in insp.get_columns('students')}:
+        with op.batch_alter_table('students', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('profile_photo', sa.String(length=300), nullable=True))
 
+    if 'password_reset_tokens' in insp.get_table_names():
+        return
     op.create_table('password_reset_tokens',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('student_id', sa.Integer(), nullable=False),

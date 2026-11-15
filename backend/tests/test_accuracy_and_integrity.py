@@ -293,9 +293,46 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
         import sqlite3
         con = sqlite3.connect(db_path)
-        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], "c9f1e2a7b3d4")
+        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], "e4a1c7d9b2f0")
         cols = {r[1] for r in con.execute("pragma table_info(job_listings)")}
         self.assertTrue({"canonical_url", "status", "last_verified_at", "salary_is_estimated"} <= cols)
+        self.assertIn("source", {r[1] for r in con.execute("pragma table_info(skills)")})
+        tables = {r[0] for r in con.execute("select name from sqlite_master where type='table'")}
+        self.assertTrue({"passport_profiles", "passport_evidence", "passport_evidence_skills",
+                         "passport_shares", "passport_access_logs"} <= tables)
+
+    def test_passport_migration_on_pre_passport_database(self):
+        """An existing database at the previous head (tables made before the passport
+        existed) upgrades cleanly: skills.source is added and passport tables appear."""
+        backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(tempfile.mkdtemp(), "old.db").replace("\\", "/")
+        import sqlite3
+        con = sqlite3.connect(db_path)
+        con.executescript(
+            "CREATE TABLE students (id INTEGER PRIMARY KEY, name VARCHAR(100) NOT NULL, email VARCHAR(100), "
+            "password_hash VARCHAR(200), college VARCHAR(200), course VARCHAR(200), year VARCHAR(20), "
+            "target_career VARCHAR(200), readiness_score FLOAT, created_at DATETIME, is_active BOOLEAN, "
+            "role VARCHAR(20));"
+            "CREATE TABLE skills (id INTEGER PRIMARY KEY, student_id INTEGER, resume_id INTEGER, "
+            "skill_name VARCHAR(100), extraction_confidence FLOAT, proficiency VARCHAR(50), added_on DATETIME, "
+            "evidence_strength VARCHAR(20), evidence TEXT, extraction_explanation VARCHAR(400), "
+            "category VARCHAR(50));"
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL);"
+            "INSERT INTO alembic_version VALUES ('c9f1e2a7b3d4');"
+            "INSERT INTO skills (id, student_id, skill_name) VALUES (1, 1, 'python');")
+        con.commit()
+        con.close()
+        # Importing the app runs db.create_all() first: it creates the new passport tables
+        # but cannot add skills.source to the existing table, so the migration must do that.
+        env = {**os.environ, "DATABASE_URL": f"sqlite:///{db_path}", "FLASK_APP": "app.py"}
+        r = subprocess.run([sys.executable, "-m", "flask", "db", "upgrade"], cwd=backend, env=env,
+                           capture_output=True, text=True, timeout=300)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        con = sqlite3.connect(db_path)
+        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], "e4a1c7d9b2f0")
+        self.assertIn("source", {r[1] for r in con.execute("pragma table_info(skills)")})
+        self.assertIn("profile_photo", {r[1] for r in con.execute("pragma table_info(students)")})
+        self.assertEqual(con.execute("select skill_name from skills").fetchone()[0], "python")
 
 
 if __name__ == "__main__":
