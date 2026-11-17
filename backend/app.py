@@ -18,6 +18,11 @@ CORS(
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+if (app.config['SQLALCHEMY_DATABASE_URI'] or '').startswith('sqlite'):
+    # SQLite allows one writer at a time. Wait up to 30 s for the lock (default 5 s) so a
+    # request that writes while the background job sync is committing is delayed, not failed
+    # with "database is locked".
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 30}}
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'resumes')

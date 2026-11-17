@@ -47,6 +47,8 @@ LEASE_TTL = timedelta(minutes=float(os.getenv("JOB_SYNC_LEASE_MINUTES", "30")))
 STALE_AFTER = timedelta(hours=float(os.getenv("JOB_STALE_AFTER_HOURS", "72")))
 EXPIRE_AFTER_UNSEEN = timedelta(days=float(os.getenv("JOB_EXPIRE_AFTER_DAYS", "21")))
 MAX_POSTING_AGE = timedelta(days=float(os.getenv("JOB_MAX_POSTING_AGE_DAYS", "60")))
+# Jobs written per transaction during a sync (keeps SQLite's write lock short)
+SYNC_COMMIT_EVERY = max(1, int(os.getenv("JOB_SYNC_COMMIT_EVERY", "50")))
 # A scheduler (worker loop or cron `jobs sync-if-due`) must check in at least this often
 # to be considered alive. 20 min covers a worker polling every minute and a */15 cron.
 HEARTBEAT_NAME = "job_scheduler_heartbeat"
@@ -546,7 +548,11 @@ def run_job_sync(trigger: str = "scheduled", actor_id: Optional[int] = None,
                     res["errors"].append(str(e)); continue
                 res["fetched"] += len(raw_jobs)
                 stats["fetched"] += len(raw_jobs)
-                for raw in raw_jobs:
+                for i, raw in enumerate(raw_jobs, 1):
+                    # SQLite holds its single write lock until commit: commit in small chunks so
+                    # registrations, quiz submissions etc. are not blocked for the whole batch
+                    if i % SYNC_COMMIT_EVERY == 0:
+                        db.session.commit()
                     norm, reason = normalize_job(raw)
                     if norm is None:
                         res["rejected"] += 1
