@@ -415,6 +415,67 @@ class ApplicationAndConsentTests(RecruiterBase):
         self.assertEqual(rep['fit_label'], 'Not enough information')
 
 
+class EmployerPreviewTests(RecruiterBase):
+    """'How this employer will see you' before applying."""
+
+    def preview(self, job_id, sections=None, skill_filter='all', client=None, **extra):
+        return _api(client or self.stu, 'post', f'/api/student/jobs/{job_id}/employer_preview',
+                    json={'share_visibility': {'sections': sections or ALL_SECTIONS, 'skill_filter': skill_filter},
+                          **extra})
+
+    def test_preview_matches_what_the_recruiter_sees_after_applying(self):
+        job = self.published_job()
+        res, prev = self.preview(job['id'], skill_filter='all')
+        self.assertEqual(res.status_code, 200, prev)
+        self.assertEqual(prev['report']['summary']['missing_mandatory'], ['docker'])
+        self.assertEqual(prev['report']['summary']['required_verified'], 1)
+        self.assertIn('Nothing has been sent', prev['note'])
+        self.apply(job['id'], skill_filter='all')
+        res, prof = _api(self.rec, 'get', f"/api/recruiter/candidates/{self.ref()}?job_id={job['id']}")
+        self.assertEqual(prev['report'], prof['report'])
+
+    def test_preview_is_read_only(self):
+        job = self.published_job()
+        with app.app_context():
+            before = (JobApplication.query.count(), RecruiterAccessLog.query.count(), ApplicationEvent.query.count())
+        self.assertEqual(self.preview(job['id'])[0].status_code, 200)
+        with app.app_context():
+            after = (JobApplication.query.count(), RecruiterAccessLog.query.count(), ApplicationEvent.query.count())
+        self.assertEqual(before, after)
+        res, apps = _api(self.rec, 'get', f"/api/recruiter/jobs/{job['id']}/applicants")
+        self.assertEqual(apps['applicants'], [])
+
+    def test_preview_respects_sharing_choices(self):
+        job = self.published_job()
+        _, only_verified = self.preview(job['id'], skill_filter='verified')
+        self.assertEqual(only_verified['report']['summary']['required_matched'], 1)    # sql hidden
+        self.assertTrue(any('only verified' in l.lower() for l in only_verified['report']['limitations']))
+        _, no_skills = self.preview(job['id'], sections={'profile': True, 'skills': False})
+        self.assertIsNone(no_skills['report']['skill_fit_score'])
+        self.assertEqual(no_skills['shared_sections'], ['profile'])
+        _, with_readiness = self.preview(job['id'], share_readiness=True)
+        self.assertIsNotNone(with_readiness['readiness'])
+
+    def test_preview_errors(self):
+        draft = self.create_job(title='Draft only')
+        self.assertEqual(self.preview(draft['id'])[0].status_code, 404)                 # unpublished
+        self.assertEqual(self.preview(999999)[0].status_code, 404)
+        job = self.published_job(title='Live role')
+        res, body = self.preview(job['id'], sections={k: False for k in ALL_SECTIONS})
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('at least one', body['error'])
+        with app.app_context():
+            ext = JobListing(title='External role', company='Elsewhere Ltd', status='active')
+            db.session.add(ext)
+            db.session.commit()
+            ext_id = ext.id
+        res, body = self.preview(ext_id)
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('employer', body['error'])
+        self.assertEqual(self.preview(job['id'], client=self.rec)[0].status_code, 403)  # recruiters
+        self.assertEqual(self.preview(job['id'], client=app.test_client())[0].status_code, 401)
+
+
 class PipelineTests(RecruiterBase):
     def test_stage_changes_reach_the_student_and_notes_stay_internal(self):
         job = self.published_job()

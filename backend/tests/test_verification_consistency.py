@@ -75,6 +75,41 @@ class VerificationConsistencyTest(unittest.TestCase):
             self.assertTrue(any(u['skill'] == 'docker' and '70%' in u['reason'] for u in res['uncertain_skills']))
             self.assertTrue(any(u['skill'] == 'git' for u in res['uncertain_skills']))
             self.assertIn("Retake the quiz for 'docker'", ' '.join(res['suggested_next_steps']))
+            # the Jobs page labels each skill from skill_status and links it to /verify-skill/<id>
+            ids = {s.skill_name: s.id for s in Skill.query.filter_by(student_id=self.sid)}
+            self.assertEqual(res['skill_ids'], {k: ids[k] for k in ('python', 'docker', 'sql', 'git')})
+
+    def test_match_endpoint_gives_the_page_status_and_quiz_link_per_skill(self):
+        # The Jobs page reads this endpoint's matched_skills array (not evaluate_job_match directly)
+        import json as _json
+        from models import JobListing
+        with app.app_context():
+            job = JobListing(title='Cloud Engineer', company='Acme', status='active',
+                             required_skills=_json.dumps(['Python', 'Docker', 'Git']),
+                             preferred_skills=_json.dumps(['SQL']))
+            db.session.add(job)
+            db.session.commit()
+            job_id = job.id
+            ids = {s.skill_name: s.id for s in Skill.query.filter_by(student_id=self.sid)}
+        body = self.client.get(f'/api/student/jobs/{job_id}/match').get_json()
+        matched = body.get('match', body)['matched_skills']
+        by = {m['skill']: m for m in matched}
+        self.assertEqual({k: (v['status'], v['skill_id'], v['is_verified']) for k, v in by.items()}, {
+            'python': ('verified', ids['python'], True),
+            'docker': ('assessment_completed', ids['docker'], False),   # shown "Below pass mark" + Retake quiz
+            'git': ('ai_extracted', ids['git'], False),                 # shown "Resume only" + Verify
+            'sql': ('verified', ids['sql'], True),                      # preferred, verified by reviewed evidence
+        })
+
+    def test_preferred_skills_report_their_real_status(self):
+        with app.app_context():
+            student = db.session.get(Student, self.sid)
+            res = evaluate_job_match(student=student, include_resources=False, job_data={
+                'title': 'Platform Engineer', 'required_skills': ['Python'], 'preferred_skills': ['Git', 'AWS']})
+            self.assertEqual(res['matched_skills']['preferred'], ['git', 'aws'])
+            # preferred skills used to be shown as "Verified Quiz" whatever their status
+            self.assertEqual(res['skill_status']['git'], 'ai_extracted')
+            self.assertEqual(res['skill_status']['aws'], 'assessment_completed')
 
     def test_student_and_recruiter_credit_each_skill_the_same(self):
         with app.app_context():

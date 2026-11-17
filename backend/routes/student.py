@@ -1889,6 +1889,38 @@ def get_applied_jobs():
     }), 200
 
 
+@student_bp.route('/jobs/<int:job_id>/employer_preview', methods=['POST'])
+@login_required
+def employer_preview(job_id):
+    """'How this employer will see you': the exact compatibility report a recruiter
+    gets for this job, computed from only the Skill Passport sections the student is
+    about to share. Read-only - nothing is saved, shared or logged as employer access."""
+    from models import JobListing
+    from routes.recruiter import _job_target
+    from utils.recruiting import candidate_passport, compatibility_report
+    from utils.skill_passport import normalize_visibility
+
+    job = db.session.get(JobListing, job_id)
+    if _hidden_from_students(job):
+        return jsonify({'error': 'Job listing not found'}), 404
+    if not job.organisation_id:
+        return jsonify({'error': 'Only jobs posted on SkillBridge by an employer have an employer view'}), 400
+    data = request.get_json(silent=True) or {}
+    visibility = normalize_visibility(data.get('share_visibility'))
+    if not any(visibility['sections'].values()):
+        return jsonify({'error': 'Select at least one Skill Passport section to share'}), 400
+    passport = candidate_passport(current_user, {'visibility': visibility,
+                                                 'share_readiness': bool(data.get('share_readiness'))})
+    return jsonify({
+        'report': compatibility_report(passport, _job_target(job)),
+        'shared_sections': sorted(k for k, v in visibility['sections'].items() if v),
+        'skill_filter': visibility['skill_filter'],
+        'readiness': passport.get('readiness'),
+        'note': 'This is the same skill report the employer sees for your application, built only from what '
+                'you choose to share. Nothing has been sent.',
+    }), 200
+
+
 @student_bp.route('/jobs/<int:job_id>/withdraw', methods=['POST', 'DELETE'])
 @student_bp.route('/jobs/withdraw', methods=['POST'])
 @login_required
@@ -1938,15 +1970,18 @@ def get_job_match_breakdown(job_id):
 
     evaluation = evaluate_job_match(current_user, job)
 
-    # Format matched_skills as array of objects with {skill, is_verified} for direct UI mapping
+    # Format matched_skills as array of objects for direct UI mapping. 'status' is the Skill
+    # Passport status (the Jobs page labels it) and 'skill_id' lets it link to the skill's quiz.
+    status = evaluation.get('skill_status', {})
+    ids = evaluation.get('skill_ids', {})
     matched_list = []
     for s in evaluation.get('matched_skills', {}).get('verified', []):
-        matched_list.append({'skill': s, 'is_verified': True})
+        matched_list.append({'skill': s, 'is_verified': True, 'status': status.get(s), 'skill_id': ids.get(s)})
     for s in evaluation.get('matched_skills', {}).get('unverified', []):
-        matched_list.append({'skill': s, 'is_verified': False})
-    status = evaluation.get('skill_status', {})
+        matched_list.append({'skill': s, 'is_verified': False, 'status': status.get(s), 'skill_id': ids.get(s)})
     for s in evaluation.get('matched_skills', {}).get('preferred', []):
-        matched_list.append({'skill': s, 'is_verified': status.get(s) == 'verified', 'is_preferred': True})
+        matched_list.append({'skill': s, 'is_verified': status.get(s) == 'verified', 'is_preferred': True,
+                             'status': status.get(s), 'skill_id': ids.get(s)})
 
     missing_mandatory = evaluation.get('missing_skills', {}).get('mandatory', [])
     missing_preferred = evaluation.get('missing_skills', {}).get('preferred', [])

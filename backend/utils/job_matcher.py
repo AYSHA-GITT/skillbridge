@@ -145,7 +145,7 @@ def build_student_profile(student: Any = None, user_skills: Optional[List[Any]] 
             if not name:
                 continue
             entry = {"credit": skill_credit(st["status"], st["latest_score"], st["resume_evidence_strength"]),
-                     "status": st["status"], "quiz_score": st["latest_score"],
+                     "status": st["status"], "quiz_score": st["latest_score"], "skill_id": st["skill_id"],
                      "evidence_strength": st["resume_evidence_strength"],
                      "extraction_confidence": st["extraction_confidence"]}
             if name not in skills or entry["credit"] > skills[name]["credit"]:
@@ -402,6 +402,9 @@ def evaluate_job_match(
         "match_reasons": reasons,
         "matched_skills": {"verified": matched_verified, "unverified": matched_unverified, "preferred": matched_preferred},
         "skill_status": {s: have[s]["status"] for s in matched_verified + matched_unverified + matched_preferred},
+        # lets the page link an unverified skill straight to its verification quiz
+        "skill_ids": {s: have[s]["skill_id"] for s in matched_verified + matched_unverified + matched_preferred
+                      if have[s].get("skill_id")},
         "missing_skills": {"mandatory": missing_mandatory, "preferred": missing_preferred},
         "transferable_skills": transferable_found,
         "transferable_bridges": [

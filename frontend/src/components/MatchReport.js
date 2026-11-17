@@ -72,7 +72,7 @@ export default function MatchReport({ report, defaultOpen = true }) {
           <FitPill report={report} size="lg" />
           {report.job?.title && <span className="text-xs text-white/50">for {report.job.title}</span>}
         </div>
-        <button onClick={() => setOpen(!open)} className="text-[11px] text-white/50 hover:text-white flex items-center gap-1">
+        <button type="button" onClick={() => setOpen(!open)} className="text-[11px] text-white/50 hover:text-white flex items-center gap-1">
           {open ? <>Hide details <TbChevronUp /></> : <>Show details <TbChevronDown /></>}
         </button>
       </div>
@@ -141,7 +141,7 @@ export default function MatchReport({ report, defaultOpen = true }) {
             </div>
           </div>
 
-          <button onClick={() => setShowMethod(!showMethod)} className="text-[11px] text-indigo-300 hover:text-indigo-200 flex items-center gap-1">
+          <button type="button" onClick={() => setShowMethod(!showMethod)} className="text-[11px] text-indigo-300 hover:text-indigo-200 flex items-center gap-1">
             <TbInfoCircle className="w-3.5 h-3.5" /> How is this calculated?
           </button>
           {showMethod && (

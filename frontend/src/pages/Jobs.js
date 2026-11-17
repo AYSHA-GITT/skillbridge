@@ -7,6 +7,8 @@ import skillService from '../services/skillService';
 import authService from '../services/authService';
 import JobAlertsPanel from '../components/JobAlertsPanel';
 import { SECTION_LABELS } from '../components/PassportBits';
+import MatchReport from '../components/MatchReport';
+import { apiErrorMessage } from '../utils/apiErrors';
 import {
   TbBell,
   TbClock,
@@ -71,6 +73,17 @@ const SORTS = [
 ];
 
 const PER_PAGE = 20;
+
+// Skill Passport statuses returned by the match API (backend utils/skill_passport.py)
+const MATCH_STATUS_LABELS = {
+  verified: 'Verified',
+  assessment_completed: 'Below pass mark',
+  pending_verification: 'Under review',
+  evidence_submitted: 'Evidence added',
+  ai_extracted: 'Resume only',
+  resume_only: 'Resume only',
+  self_declared: 'Self-declared'
+};
 
 function formatSalary(salary) {
   if (!salary || (salary.min == null && salary.max == null)) return null;
@@ -175,6 +188,27 @@ export default function Jobs() {
     portfolio_url: '',
     contact_email: ''
   });
+
+  // "How this employer will see you" (employer-posted jobs, before applying)
+  const [employerView, setEmployerView] = useState({ loading: false, data: null, error: '' });
+  // Any change to what is shared makes an earlier preview wrong, so it is cleared
+  useEffect(() => {
+    setEmployerView({ loading: false, data: null, error: '' });
+  }, [applyModalJob, applyForm.share_sections, applyForm.skill_filter, applyForm.share_readiness]);
+
+  const loadEmployerView = async () => {
+    if (!applyModalJob) return;
+    setEmployerView({ loading: true, data: null, error: '' });
+    try {
+      const data = await skillService.employerPreview(applyModalJob.id, {
+        share_visibility: { sections: applyForm.share_sections, skill_filter: applyForm.skill_filter },
+        share_readiness: !!applyForm.share_readiness
+      });
+      setEmployerView({ loading: false, data, error: '' });
+    } catch (err) {
+      setEmployerView({ loading: false, data: null, error: apiErrorMessage(err, 'Could not build the preview.') });
+    }
+  };
 
   // Match Modal
   const [matchModalJob, setMatchModalJob] = useState(null);
@@ -1340,13 +1374,19 @@ export default function Jobs() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     {/* Satisfied Skills */}
                     {(() => {
+                      // Status comes from the server (Skill Passport rule), never assumed from the list it is in
+                      const statusOf = (s, fallback) => matchData.skill_status?.[s] || fallback;
                       const satisfiedList = Array.isArray(matchData.matched_skills)
-                        ? matchData.matched_skills
+                        ? matchData.matched_skills.map((ms) => ({
+                            ...ms,
+                            status: ms.status || statusOf(ms.skill, ms.is_verified ? 'verified' : 'resume_only'),
+                            skill_id: ms.skill_id || matchData.skill_ids?.[ms.skill]
+                          }))
                         : [
-                            ...(matchData.matched_skills?.verified || []).map((s) => ({ skill: s, is_verified: true })),
-                            ...(matchData.matched_skills?.unverified || []).map((s) => ({ skill: s, is_verified: false })),
-                            ...(matchData.matched_skills?.preferred || []).map((s) => ({ skill: s, is_verified: true }))
-                          ];
+                            ...(matchData.matched_skills?.verified || []).map((s) => ({ skill: s, status: statusOf(s, 'verified') })),
+                            ...(matchData.matched_skills?.unverified || []).map((s) => ({ skill: s, status: statusOf(s, 'resume_only') })),
+                            ...(matchData.matched_skills?.preferred || []).map((s) => ({ skill: s, status: statusOf(s, 'resume_only') }))
+                          ].map((ms) => ({ ...ms, is_verified: ms.status === 'verified', skill_id: matchData.skill_ids?.[ms.skill] }));
 
                       return (
                         <div className="space-y-2">
@@ -1364,14 +1404,26 @@ export default function Jobs() {
                                   className="flex items-center justify-between bg-base-950/60 px-2.5 py-1.5 rounded-lg border border-base-800"
                                 >
                                   <span className="text-white/80">{ms.skill}</span>
-                                  <span
-                                    className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                                      ms.is_verified
-                                        ? 'bg-emerald-500/20 text-emerald-300'
-                                        : 'bg-amber-500/20 text-amber-300'
-                                    }`}
-                                  >
-                                    {ms.is_verified ? 'Verified Quiz' : 'Resume Only'}
+                                  <span className="flex items-center gap-1.5">
+                                    <span
+                                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                        ms.is_verified
+                                          ? 'bg-emerald-500/20 text-emerald-300'
+                                          : 'bg-amber-500/20 text-amber-300'
+                                      }`}
+                                    >
+                                      {MATCH_STATUS_LABELS[ms.status] || (ms.is_verified ? 'Verified' : 'Not verified yet')}
+                                    </span>
+                                    {!ms.is_verified && ms.skill_id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => navigate(`/verify-skill/${ms.skill_id}`)}
+                                        className="text-[10px] text-indigo-300 hover:text-indigo-200 underline"
+                                        title="Take the verification quiz for this skill"
+                                      >
+                                        {ms.status === 'assessment_completed' ? 'Retake quiz' : 'Verify'}
+                                      </button>
+                                    )}
                                   </span>
                                 </div>
                               ))
@@ -1766,6 +1818,39 @@ export default function Jobs() {
                     />
                     Share my readiness score
                   </label>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-white/75 font-semibold">How {applyModalJob.company} will see you</span>
+                    <button
+                      type="button"
+                      onClick={loadEmployerView}
+                      disabled={employerView.loading}
+                      className="text-[11px] px-2.5 py-1 rounded-lg border border-indigo-400/40 text-indigo-200 hover:bg-indigo-500/15 disabled:opacity-50"
+                    >
+                      {employerView.loading ? 'Building preview...' : employerView.data ? 'Refresh preview' : 'Preview the employer view'}
+                    </button>
+                  </div>
+                  {!employerView.data && !employerView.error && (
+                    <p className="text-[11px] text-white/45">
+                      See the exact skill report the employer gets, built only from what you have ticked above.
+                      Nothing is sent until you submit.
+                    </p>
+                  )}
+                  {employerView.error && <p role="alert" className="text-[11px] text-rose-300">{employerView.error}</p>}
+                  {employerView.data && (
+                    <div className="space-y-2">
+                      {employerView.data.readiness && (
+                        <p className="text-[10px] text-white/55">
+                          Readiness shared: {employerView.data.readiness.score == null
+                            ? employerView.data.readiness.label
+                            : `${employerView.data.readiness.score}% (${employerView.data.readiness.label})`}
+                        </p>
+                      )}
+                      <MatchReport report={employerView.data.report} defaultOpen={false} />
+                      <p className="text-[10px] text-white/40">{employerView.data.note}</p>
+                    </div>
+                  )}
                 </div>
                 <label className="flex items-start gap-1.5 text-white/80">
                   <input

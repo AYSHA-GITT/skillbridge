@@ -273,6 +273,13 @@ export const skillService = {
     return response.data;
   },
 
+  // Employer-posted jobs: the exact report the employer would see, from what the student chooses to share.
+  // Read-only: nothing is sent to the employer.
+  employerPreview: async (jobId, { share_visibility, share_readiness }) => {
+    const response = await api.post(`/student/jobs/${jobId}/employer_preview`, { share_visibility, share_readiness });
+    return response.data;
+  },
+
   getAppliedJobs: async () => {
     const response = await api.get('/student/jobs/applied');
     return response.data;

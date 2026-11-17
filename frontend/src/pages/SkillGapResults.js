@@ -132,7 +132,26 @@ export default function SkillGapResults() {
               </div>
             </div>
 
-            <button onClick={() => navigate('/dashboard')} className="btn-primary">
+            <h2 className="font-heading text-lg font-semibold mb-3">Next steps</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+              {(result.missing_required.length + result.missing_nice_to_have.length) > 0 && (
+                <button type="button" onClick={() => navigate('/roadmap')} className="btn-primary text-sm">
+                  Build a learning roadmap for these gaps
+                </button>
+              )}
+              <button type="button" onClick={() => navigate('/assessment')} className="btn-ghost text-sm">
+                Verify skills you already have
+              </button>
+              <button type="button" onClick={() => navigate('/jobs')} className="btn-ghost text-sm">
+                See jobs that match you
+              </button>
+            </div>
+            <p className="text-white/40 text-xs mb-6">
+              Only verified skills count here: pass a skill quiz (70% or more) or have evidence accepted by a reviewer
+              to move a skill from missing to matched.
+            </p>
+
+            <button onClick={() => navigate('/dashboard')} className="btn-ghost text-sm">
               Back to Dashboard
             </button>
           </>
