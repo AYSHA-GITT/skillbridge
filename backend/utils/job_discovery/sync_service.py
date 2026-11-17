@@ -360,7 +360,9 @@ def _upsert(norm: Dict[str, Any], now: datetime, stats: Dict[str, int]) -> Optio
                         .filter(JobListing.fingerprint == norm["fingerprint"],
                                 JobListing.source_provider != norm["source_provider"],
                                 JobListing.duplicate_of_id.is_(None),
-                                JobListing.is_sample.is_(False))
+                                JobListing.is_sample.is_(False),
+                                # an unpublished employer draft must not hide a live aggregated copy
+                                or_(JobListing.organisation_id.is_(None), JobListing.status == "active"))
                         .first())
     row = JobListing(
         external_id=norm["external_id"],
@@ -448,6 +450,10 @@ def apply_expiry(now: datetime, healthy_providers: List[str]) -> Dict[str, int]:
         seen = _aware(job.last_seen_at) or _aware(job.collected_at)
         if deadline and deadline < now:
             _expire(job, "Application deadline has passed")
+            continue
+        if job.organisation_id:
+            # Employer-posted jobs stay open until the employer closes them or the
+            # deadline passes; the age / absence rules are for aggregated listings.
             continue
         verified = _aware(job.last_verified_at)
         recently_confirmed = verified is not None and now - verified <= STALE_AFTER

@@ -21,6 +21,7 @@ from models import (Skill, SkillVerification, PassportProfile, PassportEvidence,
                     PassportAccessLog, Student)
 from routes.admin import admin_required
 from utils.audit import audit
+from utils.rate_limit import rate_limited
 from utils.skill_passport import (
     build_owner_passport, build_public_passport, normalize_visibility, default_visibility,
     render_passport_pdf, make_qr_svg, hash_token, viewer_fingerprint, is_safe_url,
@@ -30,6 +31,14 @@ from utils.skill_passport import (
 from utils.skill_taxonomy import normalize_skill_name, skill_category, extract_skill_names
 
 passport_bp = Blueprint('passport', __name__)
+
+
+@passport_bp.before_request
+def _block_recruiters_from_owner_api():
+    # Recruiters only ever see passports through consent: share links or the recruiter portal
+    if request.path.startswith('/api/passport/me') and current_user.is_authenticated \
+            and getattr(current_user, 'is_recruiter', False):
+        return jsonify({'error': 'Access denied: recruiter accounts do not have a Skill Passport.'}), 403
 
 MAX_ACTIVE_SHARES = 20
 MAX_EXPIRY_DAYS = 180
@@ -550,6 +559,7 @@ def _log_access(share, event):
 
 
 @passport_bp.route('/public/<token>', methods=['GET'])
+@rate_limited('public_passport', 60, 60)
 def public_passport(token):
     share, student, err = _resolve_share(token)
     if err:
@@ -563,6 +573,7 @@ def public_passport(token):
 
 
 @passport_bp.route('/public/<token>/pdf', methods=['GET'])
+@rate_limited('public_passport_pdf', 20, 60)
 def public_passport_pdf(token):
     share, student, err = _resolve_share(token)
     if err:

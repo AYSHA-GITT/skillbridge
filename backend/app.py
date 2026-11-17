@@ -53,6 +53,10 @@ app.register_blueprint(student_bp, url_prefix='/api/student')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 app.register_blueprint(passport_bp, url_prefix='/api/passport')
 
+from routes.recruiter import recruiter_bp, candidate_bp
+app.register_blueprint(recruiter_bp, url_prefix='/api/recruiter')
+app.register_blueprint(candidate_bp, url_prefix='/api/candidate')
+
 from cli import jobs_cli, skills_cli, users_cli, resumes_cli
 app.cli.add_command(jobs_cli)
 app.cli.add_command(skills_cli)

@@ -27,6 +27,8 @@ from app import app  # noqa: E402
 from extensions import db  # noqa: E402
 
 app.config["TESTING"] = True
+# Tests log in many times from one client; rate limiting has its own dedicated test.
+app.config["RATELIMIT_ENABLED"] = False
 
 
 def reset_db():

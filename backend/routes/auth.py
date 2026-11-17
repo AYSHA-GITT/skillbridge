@@ -10,8 +10,14 @@ from flask import Blueprint, request, jsonify, send_from_directory, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from models import Student, PasswordResetToken
+from utils.rate_limit import hit, blocked_for, too_many, rate_limited
 
 auth_bp = Blueprint('auth', __name__)
+
+# Failed logins allowed per (client IP, email) in the window, before a cool-down
+LOGIN_FAILURE_LIMIT = 10
+LOGIN_FAILURE_WINDOW = 15 * 60
+PORTAL_ROLES = {'admin': 'admin', 'recruiter': 'recruiter'}
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
@@ -98,6 +104,7 @@ The SkillBridge Team
 
 
 @auth_bp.route('/register', methods=['POST'])
+@rate_limited('register', 10, 3600)
 def register():
     data = request.get_json(silent=True) or {}
 
@@ -140,6 +147,56 @@ def register():
     }), 201
 
 
+@auth_bp.route('/register_recruiter', methods=['POST'])
+@rate_limited('register_recruiter', 5, 3600)
+def register_recruiter():
+    """Creates a recruiter account and its organisation. The organisation starts
+    'unverified': it cannot publish jobs or search candidates until an
+    administrator verifies it."""
+    from models import Organisation, RecruiterProfile
+    from routes.recruiter import apply_org_payload
+    from utils.audit import audit
+
+    data = request.get_json(silent=True) or {}
+    for field in ('name', 'email', 'password'):
+        if not data.get(field) or not isinstance(data.get(field), str):
+            return jsonify({'error': f'{field} is required'}), 400
+    email = data['email'].strip().lower()
+    if '@' not in email or '.' not in email.split('@')[-1] or len(email) > 100:
+        return jsonify({'error': 'Please enter a valid email address'}), 400
+    if len(data['password']) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+    name = data['name'].strip()[:100]
+    job_title = (data.get('job_title') or '').strip()
+    if len(job_title) > 120:
+        return jsonify({'error': 'Job title cannot exceed 120 characters'}), 400
+    org_data = data.get('organisation')
+    if not isinstance(org_data, dict):
+        return jsonify({'error': 'organisation details are required'}), 400
+    if Student.query.filter(db.func.lower(Student.email) == email).first():
+        return jsonify({'error': 'An account with this email already exists'}), 409
+
+    org = Organisation(verification_status='unverified')
+    _, err = apply_org_payload(org, org_data, creating=True)
+    if err:
+        return jsonify({'error': err}), 400
+
+    # SECURITY: the role is fixed by this endpoint, never read from the request
+    user = Student(name=name, email=email, role='recruiter', college=None, course=None)
+    user.set_password(data['password'])
+    db.session.add_all([org, user])
+    db.session.flush()
+    org.created_by = user.id
+    db.session.add(RecruiterProfile(user_id=user.id, organisation_id=org.id, job_title=job_title,
+                                    org_role='owner'))
+    db.session.commit()
+    audit('recruiter.registered', actor_id=user.id, target=f'organisation:{org.id}')
+    login_user(user)
+    return jsonify({'message': 'Recruiter account created. Request organisation verification to start '
+                               'publishing jobs and searching candidates.',
+                    'student': user.to_dict(), 'organisation': org.to_dict()}), 201
+
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json(silent=True) or {}
@@ -150,12 +207,21 @@ def login():
     if not email or not password:
         return jsonify({'error': 'Email and password are required'}), 400
 
+    # Brute-force protection: only failed attempts count, per client IP + email
+    bucket = f"login_fail:{request.remote_addr or 'unknown'}:{email}"
+    wait = blocked_for(bucket, LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW)
+    if wait:
+        return too_many(wait)
+
     email = str(data.get('email') or '').strip()
     student = Student.query.filter_by(email=email).first() or \
         Student.query.filter(db.func.lower(Student.email) == email.lower()).first()
 
     if not student or not student.check_password(password):
+        hit(bucket, LOGIN_FAILURE_LIMIT, LOGIN_FAILURE_WINDOW)
         return jsonify({'error': 'Invalid email or password'}), 401
+    if student.is_active is False:
+        return jsonify({'error': 'This account has been deactivated'}), 403
 
     # Optional portal restriction check
     portal = data.get('portal')
@@ -163,6 +229,11 @@ def login():
         return jsonify({
             'error': 'Access denied: This account does not possess institutional administrator privileges'
         }), 403
+    if portal == 'recruiter' and student.role != 'recruiter':
+        return jsonify({'error': 'Access denied: this is not a recruiter account. '
+                                 'Students sign in through the Student Portal.'}), 403
+    if portal == 'student' and student.role == 'recruiter':
+        return jsonify({'error': 'This is a recruiter account. Please sign in through the Recruiter Portal.'}), 403
 
     login_user(student)
 

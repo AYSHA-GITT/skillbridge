@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import AlertBanner from '../components/AlertBanner';
 import ProgressBar from '../components/ProgressBar';
 import skillService from '../services/skillService';
 import authService from '../services/authService';
 import JobAlertsPanel from '../components/JobAlertsPanel';
+import { SECTION_LABELS } from '../components/PassportBits';
 import {
   TbBell,
   TbClock,
@@ -100,6 +101,7 @@ const VERIFICATION_BADGE = {
   unverified_recently: { label: 'Not re-checked recently', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
   unverified: { label: 'Unverified', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
   expired: { label: 'Expired / archived', cls: 'bg-rose-500/15 text-rose-300 border-rose-500/30' },
+  employer_posted: { label: 'Posted by employer', cls: 'bg-indigo-500/15 text-indigo-200 border-indigo-400/40' },
   sample: { label: 'Demo listing', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/30' }
 };
 
@@ -138,6 +140,7 @@ export default function Jobs() {
   const [workMode, setWorkMode] = useState('All Work Modes');
   const [opportunity, setOpportunity] = useState('all'); // 'all' | 'job' | 'internship'
   const [entryLevel, setEntryLevel] = useState(false);
+  const [origin, setOrigin] = useState(''); // '' | 'employer' | 'external'
   const [locationFilter, setLocationFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [skillFilter, setSkillFilter] = useState('');
@@ -252,6 +255,7 @@ export default function Jobs() {
         if (workMode !== 'All Work Modes') params.work_arrangement = workMode;
         if (opportunity !== 'all') params.opportunity = opportunity;
         if (entryLevel) params.entry_level = true;
+        if (origin) params.origin = origin;
         if (locationFilter.trim()) params.location = locationFilter.trim();
         if (companyFilter.trim()) params.company = companyFilter.trim();
         if (skillFilter.trim()) params.skill = skillFilter.trim();
@@ -278,7 +282,7 @@ export default function Jobs() {
     }
   }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, workMode, opportunity, entryLevel,
       locationFilter, companyFilter, skillFilter, experienceMax, salaryMinLpa, datePosted, sortBy, page,
-      showSavedOnly, showAppliedOnly]);
+      showSavedOnly, showAppliedOnly, origin]);
 
   const loadSyncInfo = useCallback(async () => {
     try {
@@ -320,7 +324,7 @@ export default function Jobs() {
   useEffect(() => {
     setPage(1);
   }, [searchQuery, selectedDomain, selectedJobType, selectedRegion, workMode, opportunity, entryLevel,
-      locationFilter, companyFilter, skillFilter, experienceMax, salaryMinLpa, datePosted, sortBy]);
+      locationFilter, companyFilter, skillFilter, experienceMax, salaryMinLpa, datePosted, sortBy, origin]);
 
   const resetFilters = () => {
     setSearchQuery('');
@@ -330,6 +334,7 @@ export default function Jobs() {
     setWorkMode('All Work Modes');
     setOpportunity('all');
     setEntryLevel(false);
+    setOrigin('');
     setLocationFilter('');
     setCompanyFilter('');
     setSkillFilter('');
@@ -346,7 +351,12 @@ export default function Jobs() {
     setApplyForm({
       cover_note: `I am enthusiastic to apply for the ${job.title} position at ${job.company}. My verified technical competencies and practical project background align closely with your team's objectives.`,
       portfolio_url: '',
-      contact_email: ''
+      contact_email: '',
+      // Employer-posted jobs: the student chooses what the employer may see
+      share_sections: Object.fromEntries(Object.keys(SECTION_LABELS).map((k) => [k, k !== 'links'])),
+      skill_filter: 'all',
+      share_readiness: false,
+      share_consent: false
     });
   };
 
@@ -355,23 +365,35 @@ export default function Jobs() {
     if (!applyModalJob) return;
     setApplying(true);
     try {
-      const res = await skillService.applyForJob(applyModalJob.id, applyForm);
+      const inApp = Boolean(applyModalJob.accepts_in_app_applications);
+      const payload = {
+        cover_note: applyForm.cover_note,
+        portfolio_url: applyForm.portfolio_url,
+        contact_email: applyForm.contact_email
+      };
+      if (inApp) {
+        payload.share_consent = applyForm.share_consent;
+        payload.share_visibility = { sections: applyForm.share_sections, skill_filter: applyForm.skill_filter };
+        payload.share_readiness = applyForm.share_readiness;
+      }
+      const res = await skillService.applyForJob(applyModalJob.id, payload);
       setAppliedJobsMap((prev) => ({
         ...prev,
         [applyModalJob.id]: res.application
       }));
       setAlert({
         type: 'success',
-        message: `Recorded in your tracker: ${applyModalJob.title} at ${applyModalJob.company}. ` +
-          'Remember to complete the application on the employer\'s site.'
+        message: inApp ? res.message
+          : `Recorded in your tracker: ${applyModalJob.title} at ${applyModalJob.company}. ` +
+            'Remember to complete the application on the employer\'s site.'
       });
       setApplyModalJob(null);
       loadJobs();
       loadAppliedJobs();
-    } catch {
+    } catch (err) {
       setAlert({
         type: 'error',
-        message: 'Failed to submit application. Please try again.'
+        message: err?.response?.data?.error || 'Failed to submit application. Please try again.'
       });
     } finally {
       setApplying(false);
@@ -470,6 +492,17 @@ export default function Jobs() {
       setMatchLoading(false);
     }
   };
+
+  // Deep link (e.g. from an employer invitation): /jobs?job=<id> opens that job's match breakdown
+  const [searchParams] = useSearchParams();
+  const deepLinkJob = searchParams.get('job');
+  useEffect(() => {
+    if (!deepLinkJob) return;
+    skillService.getJobDetail(deepLinkJob)
+      .then((job) => handleOpenMatch(job))
+      .catch(() => setAlert({ type: 'error', message: 'That job is no longer available.' }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkJob]);
 
   // Toggle selection for comparison
   const toggleCompare = (jobId) => {
@@ -720,6 +753,17 @@ export default function Jobs() {
               <span className="text-[11px]">Fresher / entry level</span>
             </label>
 
+            <select
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              className="bg-base-950 border border-base-700 text-white/80 rounded-xl px-2.5 py-1.5 text-xs focus:border-accent-400 outline-none"
+              title="Employer-posted jobs take applications inside SkillBridge; external listings are applied to on the source site"
+            >
+              <option value="">All sources</option>
+              <option value="employer">Posted by employers on SkillBridge</option>
+              <option value="external">External listings</option>
+            </select>
+
             {/* Sort */}
             <select
               value={sortBy}
@@ -961,7 +1005,13 @@ export default function Jobs() {
                       </div>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-white/40 mt-1">
                         <span>{job.freshness?.posted_label}</span>
-                        <span>Source: {job.source}</span>
+                        {job.is_employer_posted ? (
+                          <span className={job.employer?.is_verified ? 'text-emerald-300/90' : 'text-amber-300/90'}>
+                            {job.employer?.is_verified ? 'Verified employer · apply in SkillBridge' : 'Employer not verified'}
+                          </span>
+                        ) : (
+                          <span>Source: {job.source}</span>
+                        )}
                         {job.experience_level && job.experience_level !== 'Not specified' && (
                           <span>{job.experience_level}</span>
                         )}
@@ -1018,9 +1068,12 @@ export default function Jobs() {
                     {/* Apply Button */}
                     {isApplied ? (
                       <div className="flex items-center space-x-1">
-                        <span className="text-xs px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium flex items-center space-x-1">
+                        <span
+                          className="text-xs px-2.5 py-1.5 rounded-xl bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium flex items-center space-x-1"
+                          title={appliedJobsMap[job.id]?.is_in_app ? 'Status set by the employer' : 'Tracked in SkillBridge only'}
+                        >
                           <TbCheck className="w-3.5 h-3.5" />
-                          <span>Applied</span>
+                          <span>{appliedJobsMap[job.id]?.is_in_app ? appliedJobsMap[job.id].status : 'Applied'}</span>
                         </span>
                         <button
                           onClick={() => handleWithdrawApply(job.id)}
@@ -1138,6 +1191,14 @@ export default function Jobs() {
                     {matchModalJob.title}
                   </h2>
                   <p className="text-xs text-white/50">{matchModalJob.company} · {matchModalJob.location}</p>
+                  {matchModalJob.accepts_in_app_applications && !appliedJobsMap[matchModalJob.id] && (
+                    <button
+                      onClick={() => { const j = matchModalJob; setMatchModalJob(null); handleOpenApply(j); }}
+                      className="mt-2 text-xs px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-400/40 text-indigo-200 flex items-center gap-1"
+                    >
+                      <TbSend className="w-3.5 h-3.5" /> Apply to {matchModalJob.company}
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => setMatchModalJob(null)}
@@ -1656,7 +1717,68 @@ export default function Jobs() {
                 </button>
               </div>
 
-              {/* Honest notice: SkillBridge does not submit applications to employers */}
+              {applyModalJob.accepts_in_app_applications ? (
+              /* Employer-posted job: a real application; the student decides what is shared */
+              <div className="bg-indigo-500/10 p-4 rounded-2xl border border-indigo-400/30 space-y-3 text-xs">
+                <div className="flex items-center gap-1.5 text-indigo-200 font-semibold">
+                  <TbShieldCheck className="w-4 h-4" />
+                  <span>
+                    This application goes to {applyModalJob.company}
+                    {applyModalJob.employer?.is_verified ? ' (verified employer)' : ''}
+                  </span>
+                </div>
+                <p className="text-[11px] text-white/60 leading-relaxed">
+                  Choose what they can see from your Skill Passport. They also see the contact email, portfolio link
+                  and note below. Your account email, phone, resume file and evidence files are not shared. Withdrawing
+                  the application removes their access, and you can see every time they open your profile on the
+                  Employer Access page.
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {Object.entries(SECTION_LABELS).map(([k, label]) => (
+                    <label key={k} className="flex items-center gap-1.5 text-white/75">
+                      <input
+                        type="checkbox"
+                        checked={!!applyForm.share_sections?.[k]}
+                        onChange={() => setApplyForm({
+                          ...applyForm,
+                          share_sections: { ...applyForm.share_sections, [k]: !applyForm.share_sections?.[k] }
+                        })}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3 items-center text-white/75">
+                  <select
+                    value={applyForm.skill_filter}
+                    onChange={(e) => setApplyForm({ ...applyForm, skill_filter: e.target.value })}
+                    className="bg-base-950 border border-base-700 rounded-lg px-2 py-1 text-[11px]"
+                  >
+                    <option value="all">All skills (with verification status)</option>
+                    <option value="evidence">Only skills with evidence or an assessment</option>
+                    <option value="verified">Only verified skills</option>
+                  </select>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="checkbox"
+                      checked={!!applyForm.share_readiness}
+                      onChange={(e) => setApplyForm({ ...applyForm, share_readiness: e.target.checked })}
+                    />
+                    Share my readiness score
+                  </label>
+                </div>
+                <label className="flex items-start gap-1.5 text-white/80">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={!!applyForm.share_consent}
+                    onChange={(e) => setApplyForm({ ...applyForm, share_consent: e.target.checked })}
+                  />
+                  I agree to share the selected information with {applyModalJob.company} for this application.
+                </label>
+              </div>
+              ) : (
+              /* Honest notice: SkillBridge does not submit applications to external employers */
               <div className="bg-amber-500/10 p-4 rounded-2xl border border-amber-500/30 space-y-2">
                 <div className="flex items-center gap-1.5 text-xs text-amber-300 font-semibold">
                   <TbAlertTriangle className="w-4 h-4" />
@@ -1678,6 +1800,7 @@ export default function Jobs() {
                   </a>
                 )}
               </div>
+              )}
 
               <form onSubmit={handleSubmitApply} className="space-y-4 text-xs">
                 {/* Contact Email */}
@@ -1740,11 +1863,11 @@ export default function Jobs() {
                   </button>
                   <button
                     type="submit"
-                    disabled={applying}
-                    className="btn-primary text-xs py-2 px-4 flex items-center space-x-1.5 shadow-glow"
+                    disabled={applying || (applyModalJob.accepts_in_app_applications && !applyForm.share_consent)}
+                    className="btn-primary text-xs py-2 px-4 flex items-center space-x-1.5 shadow-glow disabled:opacity-40"
                   >
                     <TbSend className="w-3.5 h-3.5" />
-                    <span>{applying ? 'Saving...' : 'Record in My Tracker'}</span>
+                    <span>{applying ? 'Saving...' : applyModalJob.accepts_in_app_applications ? 'Send Application' : 'Record in My Tracker'}</span>
                   </button>
                 </div>
               </form>

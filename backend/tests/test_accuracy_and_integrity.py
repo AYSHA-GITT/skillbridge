@@ -282,6 +282,9 @@ class RagRetrievalTests(unittest.TestCase):
         self.assertGreaterEqual(res["mrr"], 0.90)
 
 
+HEAD = "f7c2a9e4d1b3"  # latest migration (recruiter portal)
+
+
 class MigrationTests(unittest.TestCase):
     def test_upgrade_fresh_database_twice(self):
         backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -293,13 +296,51 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
         import sqlite3
         con = sqlite3.connect(db_path)
-        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], "e4a1c7d9b2f0")
+        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], HEAD)
         cols = {r[1] for r in con.execute("pragma table_info(job_listings)")}
         self.assertTrue({"canonical_url", "status", "last_verified_at", "salary_is_estimated"} <= cols)
         self.assertIn("source", {r[1] for r in con.execute("pragma table_info(skills)")})
         tables = {r[0] for r in con.execute("select name from sqlite_master where type='table'")}
         self.assertTrue({"passport_profiles", "passport_evidence", "passport_evidence_skills",
                          "passport_shares", "passport_access_logs"} <= tables)
+        self.assertTrue({"organisations", "recruiter_profiles", "candidate_discovery_settings",
+                         "recruiter_access_logs", "application_events", "recruitment_notes",
+                         "candidate_shortlists", "shortlist_entries", "job_invitations"} <= tables)
+        self.assertTrue({"organisation_id", "posted_by"} <= cols)
+        self.assertTrue({"stage", "share_consent_at", "share_visibility"}
+                        <= {r[1] for r in con.execute("pragma table_info(job_applications)")})
+
+    def test_recruiter_migration_on_existing_job_tables(self):
+        """A database at the passport head whose job tables predate the recruiter portal
+        gets the new columns added (db.create_all() cannot add columns)."""
+        backend = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        db_path = os.path.join(tempfile.mkdtemp(), "prerecruiter.db").replace("\\", "/")
+        import sqlite3
+        con = sqlite3.connect(db_path)
+        con.executescript(
+            "CREATE TABLE job_listings (id INTEGER PRIMARY KEY, external_id VARCHAR(150), title VARCHAR(200) NOT NULL, "
+            "company VARCHAR(200) NOT NULL, status VARCHAR(20));"
+            "CREATE TABLE job_applications (id INTEGER PRIMARY KEY, student_id INTEGER NOT NULL, "
+            "job_id INTEGER NOT NULL, status VARCHAR(50), match_score FLOAT);"
+            "CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL);"
+            "INSERT INTO alembic_version VALUES ('e4a1c7d9b2f0');"
+            "INSERT INTO job_listings (id, title, company, status) VALUES (1, 'Data Analyst', 'Acme', 'active');"
+            "INSERT INTO job_applications (id, student_id, job_id, status) VALUES (1, 1, 1, 'Applied');")
+        con.commit()
+        con.close()
+        env = {**os.environ, "DATABASE_URL": f"sqlite:///{db_path}", "FLASK_APP": "app.py"}
+        r = subprocess.run([sys.executable, "-m", "flask", "db", "upgrade"], cwd=backend, env=env,
+                           capture_output=True, text=True, timeout=300)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        con = sqlite3.connect(db_path)
+        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], HEAD)
+        self.assertTrue({"organisation_id", "posted_by"}
+                        <= {r[1] for r in con.execute("pragma table_info(job_listings)")})
+        self.assertTrue({"stage", "stage_updated_at", "share_consent_at", "share_visibility", "share_readiness"}
+                        <= {r[1] for r in con.execute("pragma table_info(job_applications)")})
+        # existing records are untouched
+        self.assertEqual(con.execute("select title from job_listings").fetchone()[0], "Data Analyst")
+        self.assertEqual(con.execute("select status from job_applications").fetchone()[0], "Applied")
 
     def test_passport_migration_on_pre_passport_database(self):
         """An existing database at the previous head (tables made before the passport
@@ -329,7 +370,7 @@ class MigrationTests(unittest.TestCase):
                            capture_output=True, text=True, timeout=300)
         self.assertEqual(r.returncode, 0, r.stderr[-2000:])
         con = sqlite3.connect(db_path)
-        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], "e4a1c7d9b2f0")
+        self.assertEqual(con.execute("select version_num from alembic_version").fetchone()[0], HEAD)
         self.assertIn("source", {r[1] for r in con.execute("pragma table_info(skills)")})
         self.assertIn("profile_photo", {r[1] for r in con.execute("pragma table_info(students)")})
         self.assertEqual(con.execute("select skill_name from skills").fetchone()[0], "python")

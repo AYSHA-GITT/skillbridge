@@ -118,6 +118,30 @@ def register(s, email):
         "target_career": "software engineer"})
 
 
+def _remove_e2e_organisation(org_name):
+    """The recruiter API has no 'delete organisation' (jobs keep students' application
+    history), so the throw-away e2e organisation and its job are removed directly."""
+    try:
+        from app import app
+        from extensions import db
+        from models import Organisation, JobListing, JobInvitation, CandidateShortlist, RecruiterProfile
+        with app.app_context():
+            org = Organisation.query.filter_by(name=org_name).first()
+            if not org:
+                return
+            jobs = JobListing.query.filter_by(organisation_id=org.id).all()
+            for j in jobs:
+                JobInvitation.query.filter_by(job_id=j.id).delete()
+                db.session.delete(j)
+            CandidateShortlist.query.filter_by(organisation_id=org.id).delete()
+            RecruiterProfile.query.filter_by(organisation_id=org.id).delete()
+            db.session.delete(org)
+            db.session.commit()
+            check("Recruiter Portal", "Cleanup e2e organisation", True, f"{len(jobs)} job(s)")
+    except Exception as e:  # cleanup must not hide the results
+        check("Recruiter Portal", "Cleanup e2e organisation", False, str(e))
+
+
 def main():
     pdf_path, docx_path = os.path.join(OUT, "e2e_resume.pdf"), os.path.join(OUT, "e2e_resume.docx")
     make_pdf(pdf_path)
@@ -501,6 +525,82 @@ def main():
     check(A, "Revoked link blocked", anon.get(f"{BASE}/api/passport/public/{token}").status_code == 410)
     check(A, "Unknown token 404", anon.get(f"{BASE}/api/passport/public/{'x' * 43}").status_code == 404)
 
+    # ── Recruiter portal ─────────────────────────────────────────────────
+    A = "Recruiter Portal"
+    rec = requests.Session()
+    org_name = f"E2E Check Org {tag}"
+    r = rec.post(f"{BASE}/api/auth/register_recruiter", json={
+        "name": "E2E Recruiter", "email": f"e2e_r_{tag}@example.com", "password": "e2e-password-123",
+        "role": "admin", "organisation": {"name": org_name, "website": "https://example.com"}})
+    check(A, "Register recruiter (role fixed)", r.status_code == 201 and js(r)["student"]["role"] == "recruiter",
+          f"HTTP {r.status_code}")
+    check(A, "Recruiter blocked from student API", rec.get(f"{BASE}/api/student/skills").status_code == 403)
+    check(A, "Recruiter blocked from passport owner API", rec.get(f"{BASE}/api/passport/me").status_code == 403)
+    check(A, "Student blocked from recruiter API", s.get(f"{BASE}/api/recruiter/me").status_code == 403)
+    me = js(rec.get(f"{BASE}/api/recruiter/me"))
+    check(A, "Organisation starts unverified", me.get("organisation", {}).get("verification_status") == "unverified")
+    r = rec.post(f"{BASE}/api/recruiter/jobs", json={
+        "title": f"E2E Data Engineer {tag}", "description": "Build data pipelines with Python and SQL on cloud tooling.",
+        "location": "Bengaluru, Karnataka", "work_arrangement": "Hybrid", "job_type": "Full-time",
+        "required_skills": ["Python", "SQL", "Kubernetes"], "preferred_skills": ["Docker"]})
+    job = js(r).get("job", {})
+    check(A, "Create job draft", r.status_code == 201 and job.get("status") == "draft")
+    check(A, "Draft hidden from students", s.get(f"{BASE}/api/student/jobs/{job.get('id')}").status_code == 404)
+    check(A, "Publish blocked until verified", rec.post(f"{BASE}/api/recruiter/jobs/{job.get('id')}/publish").status_code == 403)
+    check(A, "Search blocked until verified", rec.get(f"{BASE}/api/recruiter/candidates/search?skills=python").status_code == 403)
+    r = rec.post(f"{BASE}/api/recruiter/organisation/verification", json={"registration_id": "E2E-TEST"})
+    check(A, "Request verification", r.status_code == 200 and js(r)["organisation"]["verification_status"] == "pending")
+    if admin_ok:
+        r = adm.post(f"{BASE}/api/recruiter/admin/organisations/{me['organisation']['id']}/review",
+                     json={"decision": "verified", "note": "e2e"})
+        check(A, "Admin verifies organisation", r.status_code == 200)
+        r = rec.post(f"{BASE}/api/recruiter/jobs/{job['id']}/publish")
+        check(A, "Publish job", r.status_code == 200 and js(r)["job"]["status"] == "active")
+        lst = js(s.get(f"{BASE}/api/student/jobs", params={"origin": "employer", "query": tag}))["jobs"]
+        check(A, "Student sees employer job", [j["id"] for j in lst] == [job["id"]]
+              and lst[0]["accepts_in_app_applications"] and lst[0]["match_score"] is not None)
+        check(A, "Apply needs consent", s.post(f"{BASE}/api/student/jobs/{job['id']}/apply",
+                                               json={"contact_email": "e2e@example.com"}).status_code == 400)
+        r = s.post(f"{BASE}/api/student/jobs/{job['id']}/apply", json={
+            "share_consent": True, "contact_email": "e2e.apply@example.com",
+            "share_visibility": {"sections": {"skills": True, "projects": True, "assessments": True},
+                                 "skill_filter": "all"}})
+        app_id = js(r).get("application", {}).get("id")
+        check(A, "Apply with consent", r.status_code == 201 and js(r)["application"]["stage"] == "new")
+        appl = js(rec.get(f"{BASE}/api/recruiter/jobs/{job['id']}/applicants"))["applicants"]
+        ok = check(A, "Applicant listed with report", len(appl) == 1 and appl[0]["report"] is not None)
+        if ok:
+            ref = appl[0]["candidate_ref"]
+            r = rec.get(f"{BASE}/api/recruiter/candidates/{ref}", params={"job_id": job["id"]})
+            prof = js(r)
+            check(A, "Candidate profile + match report", r.status_code == 200 and prof["report"]["summary"]["required_total"] == 3,
+                  f"missing={prof.get('report', {}).get('summary', {}).get('missing_mandatory')}")
+            check(A, "Only shared sections, no account email",
+                  set(prof["passport"]["sections"]) == {"skills", "projects", "assessments"} and email_a not in r.text)
+            check(A, "Other user's ref is not accessible", rec.get(f"{BASE}/api/recruiter/candidates/x{ref[1:]}").status_code == 404)
+            r = rec.post(f"{BASE}/api/recruiter/applications/{app_id}/stage", json={"stage": "shortlisted", "message": "e2e"})
+            check(A, "Move to shortlisted", r.status_code == 200)
+            upd = js(s.get(f"{BASE}/api/candidate/updates"))
+            check(A, "Student sees stage update", upd["application_updates"][0]["to_stage"] == "shortlisted")
+            acc = js(s.get(f"{BASE}/api/candidate/access"))
+            check(A, "Student sees who viewed profile", acc["access_log"][0]["organisation"] == org_name)
+            r = rec.post(f"{BASE}/api/recruiter/candidates/{ref}/notes", json={"body": "e2e internal"})
+            check(A, "Internal note", r.status_code == 201 and "e2e internal" not in json.dumps(js(s.get(f"{BASE}/api/candidate/updates"))))
+            r = s.put(f"{BASE}/api/candidate/discovery", json={
+                "is_discoverable": True, "consent": True,
+                "visibility": {"sections": {"skills": True, "profile": True}, "skill_filter": "all"}})
+            check(A, "Opt in to employer search", r.status_code == 200)
+            res = js(rec.get(f"{BASE}/api/recruiter/candidates/search", params={"skills": "python"}))
+            check(A, "Search finds opted-in student", any(c["candidate_ref"] == ref for c in res.get("candidates", [])))
+            s.put(f"{BASE}/api/candidate/discovery", json={"is_discoverable": False})
+            check(A, "Withdraw application", s.post(f"{BASE}/api/student/jobs/{job['id']}/withdraw").status_code == 200)
+            check(A, "Access ends after withdraw + opt-out", rec.get(f"{BASE}/api/recruiter/candidates/{ref}").status_code == 404)
+    for path in ("/recruiter", "/recruiter/register", "/employer-access"):
+        r = requests.get(f"{FRONT}{path}")
+        check(A, f"Frontend serves {path}", r.status_code == 200 and '<div id="root">' in r.text, warn=True)
+    r = rec.delete(f"{BASE}/api/student/account/delete", json={"confirmation": "DELETE_MY_ACCOUNT"})
+    check(A, "Delete recruiter account", r.status_code == 200)
+
     # ── Account export / delete (cleanup) ────────────────────────────────
     A = "Account"
     ex = js(s.get(f"{BASE}/api/student/account/export"))
@@ -516,6 +616,7 @@ def main():
     check(A, "Deleted account cannot log in", requests.post(f"{BASE}/api/auth/login", json={
         "email": email_a, "password": "e2e-password-123"}).status_code == 401)
     s.post(f"{BASE}/api/auth/logout")
+    _remove_e2e_organisation(org_name)
 
     # ── summary ──────────────────────────────────────────────────────────
     n = {k: sum(1 for r in RESULTS if r[2] == k) for k in ("PASS", "WARN", "FAIL")}

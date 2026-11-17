@@ -30,6 +30,45 @@ export function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Recruiter accounts have their own portal (the API refuses student endpoints to them too)
+  if ((user.role || '').toLowerCase() === 'recruiter') {
+    return <Navigate to="/recruiter" replace />;
+  }
+
+  return children;
+}
+
+/**
+ * Route guard for the Recruiter Portal (role == 'recruiter'). Mirrors the server-side
+ * check in routes/recruiter.py; hiding pages here is convenience, not security.
+ */
+export function RecruiterRoute({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const location = useLocation();
+
+  useEffect(() => {
+    authService.getCurrentUser()
+      .then((data) => setUser(data))
+      .catch(() => setUser(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-base-950 flex items-center justify-center text-white/40 font-mono text-xs">
+        <div className="inline-block w-6 h-6 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin mr-3" />
+        Verifying session...
+      </div>
+    );
+  }
+  if (!user) {
+    return <Navigate to="/login?portal=recruiter" state={{ from: location }} replace />;
+  }
+  const role = (user.role || 'student').toLowerCase();
+  if (role !== 'recruiter') {
+    return <Navigate to={role === 'admin' ? '/admin' : '/dashboard'} replace />;
+  }
   return children;
 }
 

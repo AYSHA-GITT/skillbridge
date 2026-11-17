@@ -27,7 +27,9 @@ from utils.job_discovery import normalizer as N
 from utils.job_discovery import sync_service as S
 
 UTC = timezone.utc
-T0 = datetime(2026, 11, 12, 8, 0, tzinfo=UTC)
+# Relative to the real clock: search filters such as "posted within 3 days" compare
+# against datetime.now(), so a fixed date made test_filters fail once it aged out.
+T0 = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
 LONG_DESC = ("We are hiring. Requirements: strong Python and SQL skills, experience with Flask and Git. "
              "Nice to have: Docker and AWS. Work on real products with a friendly team.")
 

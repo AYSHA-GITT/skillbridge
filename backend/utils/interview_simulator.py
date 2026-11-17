@@ -63,7 +63,7 @@ def start_interview_session(
 
     if job_id:
         job = JobListing.query.get(job_id)
-        if job:
+        if job and not (job.organisation_id and job.status == 'draft'):  # unpublished employer drafts stay private
             job_title = job.title
             company_name = job.company
             req_skills = job.get_required_skills() or ["Python", "SQL"]

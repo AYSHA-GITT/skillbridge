@@ -38,6 +38,19 @@ from utils.career_assistant import ask_career_assistant
 
 student_bp = Blueprint('student', __name__)
 
+# Endpoints a recruiter account may still call (deleting their own account)
+_RECRUITER_ALLOWED = {'student.delete_student_account'}
+
+
+@student_bp.before_request
+def _block_recruiters():
+    """Recruiter accounts share the users table but must never act as students:
+    they would otherwise get student data APIs (resume, quiz, jobs tracker...)."""
+    if current_user.is_authenticated and getattr(current_user, 'is_recruiter', False) \
+            and request.endpoint not in _RECRUITER_ALLOWED:
+        return jsonify({'error': 'Access denied: recruiter accounts use the Recruiter Portal.'}), 403
+
+
 ALLOWED_EXTENSIONS = {'pdf', 'docx'}
 UPLOAD_FOLDER = os.path.join('uploads', 'resumes')
 
@@ -1479,6 +1492,7 @@ def get_jobs():
         page=page,
         student=current_user,
         min_match=_float('min_match'),
+        origin=(request.args.get('origin') or '').lower() or None,   # employer | external
         return_meta=True,
     )
     jobs = result['jobs']
@@ -1517,11 +1531,18 @@ def get_jobs():
     }), 200
 
 
+def _hidden_from_students(job):
+    """Employer jobs that were never published are private to the employer."""
+    return job is None or bool(getattr(job, 'organisation_id', None) and job.status == 'draft')
+
+
 @student_bp.route('/jobs/<int:job_id>', methods=['GET'])
 @login_required
 def get_job_detail(job_id):
     from utils.job_discovery import job_discovery_service
-    from models import SavedJob
+    from models import SavedJob, JobListing
+    if _hidden_from_students(db.session.get(JobListing, job_id)):
+        return jsonify({'error': 'Job listing not found'}), 404
     job = job_discovery_service.get_job_by_id(job_id)
     if not job:
         return jsonify({'error': 'Job listing not found'}), 404
@@ -1778,9 +1799,31 @@ def apply_to_job(job_id=None):
     if not target_job_id:
         return jsonify({'error': 'job_id is required'}), 400
 
-    job = JobListing.query.get(target_job_id)
-    if not job:
+    try:
+        job = db.session.get(JobListing, int(target_job_id))
+    except (TypeError, ValueError):
+        job = None
+    if _hidden_from_students(job):
         return jsonify({'error': 'Job listing not found'}), 404
+    target_job_id = job.id
+
+    # Employer-posted jobs take real applications: the student explicitly chooses
+    # what the employer may see (consent is recorded with the application).
+    share = None
+    if job.organisation_id:
+        from utils.skill_passport import normalize_visibility
+        if job.status != 'active':
+            return jsonify({'error': 'This job is no longer accepting applications'}), 400
+        if job.deadline:
+            dl = job.deadline if job.deadline.tzinfo else job.deadline.replace(tzinfo=timezone.utc)
+            if dl < datetime.now(timezone.utc):
+                return jsonify({'error': 'The application deadline has passed'}), 400
+        if data.get('share_consent') is not True:
+            return jsonify({'error': 'Please confirm that you agree to share the selected parts of your '
+                                     'Skill Passport with this employer'}), 400
+        share = normalize_visibility(data.get('share_visibility'))
+        if not any(share['sections'].values()):
+            return jsonify({'error': 'Select at least one Skill Passport section to share'}), 400
 
     # Check if already applied
     existing = JobApplication.query.filter_by(
@@ -1802,9 +1845,16 @@ def apply_to_job(job_id=None):
         if latest_resume:
             resume_id = latest_resume.id
 
-    cover_note = (data.get('cover_note') or '').strip()
-    contact_email = (data.get('contact_email') or current_user.email).strip()
-    portfolio_url = (data.get('portfolio_url') or '').strip()
+    cover_note = (data.get('cover_note') or '').strip()[:4000]
+    contact_email = (data.get('contact_email') or current_user.email).strip()[:100]
+    portfolio_url = (data.get('portfolio_url') or '').strip()[:300]
+    if share is not None:
+        import re as _re
+        from utils.skill_passport import is_safe_url
+        if not _re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', contact_email):
+            return jsonify({'error': 'Please enter a valid contact email'}), 400
+        if portfolio_url and not is_safe_url(portfolio_url):
+            return jsonify({'error': 'Portfolio link must be a full http(s) link'}), 400
 
     # Calculate deterministic match score at time of application
     try:
@@ -1826,7 +1876,30 @@ def apply_to_job(job_id=None):
         match_score=match_score
     )
     db.session.add(new_app)
+    if share is not None:
+        import json as _json
+        from utils.recruiting import move_stage
+        new_app.share_consent_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        new_app.share_visibility = _json.dumps(share)
+        new_app.share_readiness = bool(data.get('share_readiness'))
+        db.session.flush()
+        move_stage(new_app, 'new', job.organisation_id, current_user.id)
+        # An invitation to this job is now answered
+        from models import JobInvitation
+        JobInvitation.query.filter_by(job_id=job.id, student_id=current_user.id) \
+            .update({'seen_at': datetime.now(timezone.utc).replace(tzinfo=None)}, synchronize_session=False)
     db.session.commit()
+    if share is not None:
+        from utils.audit import audit
+        audit('candidate.applied', actor_id=current_user.id, target=f'application:{new_app.id}',
+              details={'organisation_id': job.organisation_id, 'job_id': job.id,
+                       'shared_sections': [k for k, v in share['sections'].items() if v]})
+        return jsonify({
+            'message': f'Application sent to {job.company}. They can now see the parts of your Skill Passport '
+                       f'you selected, and you will see their updates here.',
+            'status': 'applied',
+            'application': new_app.to_dict()
+        }), 201
 
     return jsonify({
         'message': f'Application for {job.title} at {job.company} submitted successfully!',
@@ -1867,8 +1940,15 @@ def withdraw_application(job_id=None):
     if not app_record:
         return jsonify({'error': 'Application record not found'}), 404
 
+    in_app = bool(app_record.share_consent_at)
+    org_id = app_record.job.organisation_id if app_record.job else None
     db.session.delete(app_record)
     db.session.commit()
+    if in_app:
+        # Withdrawing also ends the employer's access to what was shared with it
+        from utils.audit import audit
+        audit('candidate.application_withdrawn', actor_id=current_user.id, target=f'job:{target_job_id}',
+              details={'organisation_id': org_id})
 
     return jsonify({
         'message': 'Application withdrawn successfully',
@@ -1885,8 +1965,8 @@ def withdraw_application(job_id=None):
 def get_job_match_breakdown(job_id):
     from models import JobListing
     from utils.job_matcher import evaluate_job_match
-    job = JobListing.query.get(job_id)
-    if not job:
+    job = db.session.get(JobListing, job_id)
+    if _hidden_from_students(job):
         return jsonify({'error': 'Job not found'}), 404
 
     evaluation = evaluate_job_match(current_user, job)
@@ -2136,6 +2216,19 @@ def export_student_data():
             'evidence': [e.to_dict() for e in current_user.passport_evidence],
             # share tokens are stored only as hashes and are never exported
             'share_links': [s.to_dict() for s in current_user.passport_shares],
+        },
+        'employer_access': {
+            'visible_to_verified_employers': bool(current_user.discovery_setting
+                                                  and current_user.discovery_setting.is_discoverable),
+            'profile_views': [{'organisation': l.organisation.name if l.organisation else None,
+                               'basis': l.basis, 'job_id': l.job_id,
+                               'at': l.created_at.isoformat() if l.created_at else None}
+                              for l in current_user.recruiter_access_logs],
+            'application_updates': [dict(e.to_dict(), application_id=a.id)
+                                    for a in current_user.applications for e in a.events],
+            'invitations': [{'job_id': i.job_id, 'message': i.message,
+                             'created_at': i.created_at.isoformat() if i.created_at else None}
+                            for i in current_user.job_invitations],
         },
         'exported_at': datetime.now(timezone.utc).isoformat(),
         'data_sovereignty_notice': 'This export includes all profile and learning artifacts stored under your account.'

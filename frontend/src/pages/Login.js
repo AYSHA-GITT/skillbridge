@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { TbSparkles, TbBuildingCommunity, TbArrowRight } from 'react-icons/tb';
+import { TbSparkles, TbBuildingCommunity, TbArrowRight, TbBriefcase2 } from 'react-icons/tb';
 
 export default function Login() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialPortal = searchParams.get('portal') === 'admin' ? 'admin' : 'student';
+  const PORTALS = ['student', 'recruiter', 'admin'];
+  const initialPortal = PORTALS.includes(searchParams.get('portal')) ? searchParams.get('portal') : 'student';
 
   const [portal, setPortal] = useState(initialPortal);
   const [form, setForm] = useState({ email: '', password: '' });
@@ -15,7 +16,7 @@ export default function Login() {
 
   useEffect(() => {
     const p = searchParams.get('portal');
-    if (p === 'admin' || p === 'student') {
+    if (p === 'admin' || p === 'student' || p === 'recruiter') {
       setPortal(p);
     }
   }, [searchParams]);
@@ -44,7 +45,9 @@ export default function Login() {
       const user = res.data.student;
       const userRole = (user?.role || 'student').toLowerCase();
 
-      if (portal === 'admin') {
+      if (portal === 'recruiter') {
+        navigate('/recruiter');
+      } else if (portal === 'admin') {
         if (userRole === 'admin') {
           navigate('/admin');
         } else {
@@ -68,6 +71,7 @@ export default function Login() {
   };
 
   const isAdminPortal = portal === 'admin';
+  const isRecruiterPortal = portal === 'recruiter';
 
   return (
     <div className={`min-h-screen flex items-center justify-center px-4 transition-colors duration-300 ${isAdminPortal ? 'bg-[#070b14]' : 'bg-base-950'}`}>
@@ -82,12 +86,23 @@ export default function Login() {
             type="button"
             onClick={() => handlePortalSwitch('student')}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
-              !isAdminPortal
+              portal === 'student'
                 ? 'bg-accent-500/20 text-accent-300 border border-accent-400/40 shadow-sm'
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>🎓 Student Portal</span>
+            <span>🎓 Student</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handlePortalSwitch('recruiter')}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 transition-all ${
+              isRecruiterPortal
+                ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <span>💼 Recruiter</span>
           </button>
           <button
             type="button"
@@ -98,7 +113,7 @@ export default function Login() {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            <span>🏛 Institution Portal</span>
+            <span>🏛 Institution</span>
           </button>
         </div>
 
@@ -110,7 +125,7 @@ export default function Login() {
                 ? 'bg-gradient-to-tr from-cyan-600 to-blue-700 text-white'
                 : 'bg-gradient-to-br from-accent-400 to-teal-600 text-base-950'
             }`}>
-              {isAdminPortal ? <TbBuildingCommunity className="w-4 h-4" /> : <TbSparkles className="w-4 h-4" />}
+              {isAdminPortal ? <TbBuildingCommunity className="w-4 h-4" /> : isRecruiterPortal ? <TbBriefcase2 className="w-4 h-4" /> : <TbSparkles className="w-4 h-4" />}
             </div>
             <span className="font-heading font-bold text-lg text-white">
               SkillBridge
@@ -118,12 +133,14 @@ export default function Login() {
           </div>
 
           <h1 className="font-heading text-2xl font-bold text-white tracking-tight">
-            {isAdminPortal ? 'Institutional Sign In' : 'Student Sign In'}
+            {isAdminPortal ? 'Institutional Sign In' : isRecruiterPortal ? 'Recruiter Sign In' : 'Student Sign In'}
           </h1>
           <p className="text-white/50 text-xs mt-1">
             {isAdminPortal
               ? 'Access consortium analytics & federated learning orchestration'
-              : 'Continue to your skills, verification, and career roadmaps'}
+              : isRecruiterPortal
+                ? 'Post jobs and find candidates through verified, consented skill evidence'
+                : 'Continue to your skills, verification, and career roadmaps'}
           </p>
         </div>
 
@@ -184,13 +201,20 @@ export default function Login() {
                 : 'btn-primary shadow-glow'
             } disabled:opacity-40`}
           >
-            <span>{loading ? 'Authenticating...' : isAdminPortal ? 'Sign In to Institution Portal' : 'Sign In to Student Portal'}</span>
+            <span>{loading ? 'Authenticating...' : isAdminPortal ? 'Sign In to Institution Portal' : isRecruiterPortal ? 'Sign In to Recruiter Portal' : 'Sign In to Student Portal'}</span>
             <TbArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         <div className="mt-6 pt-5 border-t border-slate-800 text-center text-xs">
-          {!isAdminPortal ? (
+          {isRecruiterPortal ? (
+            <p className="text-white/40">
+              Hiring?{' '}
+              <Link to="/recruiter/register" className="text-indigo-300 hover:text-indigo-200 font-medium">
+                Create a recruiter account
+              </Link>
+            </p>
+          ) : !isAdminPortal ? (
             <p className="text-white/40">
               Don't have a student account?{' '}
               <Link to="/register" className="text-accent-400 hover:text-accent-300 font-medium">

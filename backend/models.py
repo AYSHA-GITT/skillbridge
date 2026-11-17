@@ -64,6 +64,17 @@ class Student(BaseModel, UserMixin):
                                        cascade='all, delete-orphan')
     passport_evidence = db.relationship('PassportEvidence', lazy=True, cascade='all, delete-orphan')
     passport_shares = db.relationship('PassportShare', lazy=True, cascade='all, delete-orphan')
+    # Recruiter portal: a recruiter is a row in this table with role='recruiter'
+    recruiter_profile = db.relationship('RecruiterProfile', uselist=False, lazy=True,
+                                        cascade='all, delete-orphan')
+    # Recruiter portal: records about a student as a candidate (all removed with the account)
+    discovery_setting = db.relationship('CandidateDiscoverySetting', uselist=False, lazy=True,
+                                        cascade='all, delete-orphan')
+    recruiter_access_logs = db.relationship('RecruiterAccessLog', lazy=True, cascade='all, delete-orphan')
+    shortlist_entries = db.relationship('ShortlistEntry', lazy=True, cascade='all, delete-orphan')
+    job_invitations = db.relationship('JobInvitation', lazy=True, cascade='all, delete-orphan')
+    recruitment_notes = db.relationship('RecruitmentNote', lazy=True, cascade='all, delete-orphan',
+                                        overlaps='notes')
 
 
     def set_password(self, password):
@@ -75,6 +86,10 @@ class Student(BaseModel, UserMixin):
     @property
     def is_admin(self):
         return (self.role or '').lower() == 'admin'
+
+    @property
+    def is_recruiter(self):
+        return (self.role or '').lower() == 'recruiter'
 
     def to_dict(self):
         return {
@@ -410,6 +425,14 @@ class JobListing(BaseModel):
     expiry_reason = db.Column(db.String(200))
     times_seen = db.Column(db.Integer, default=1)
 
+    # Employer-posted jobs (recruiter portal). NULL for listings aggregated from
+    # external providers. Employer jobs use source_provider='employer' and live in
+    # this same table, so search, matching, alerts, saved jobs and applications
+    # all work on them unchanged.
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=True, index=True)
+    posted_by = db.Column(db.Integer)            # recruiter's user id (no FK: survives deletion)
+
+    organisation = db.relationship('Organisation', lazy=True)
     saved_by = db.relationship('SavedJob', back_populates='job', lazy=True, cascade='all, delete-orphan')
     applications = db.relationship('JobApplication', back_populates='job', lazy=True, cascade='all, delete-orphan')
 
@@ -427,8 +450,11 @@ class JobListing(BaseModel):
         posted_days = (now - posted).days if posted else None
         if self.is_sample or self.status == 'sample':
             verification = 'sample'
-        elif self.status == 'expired':
+        elif self.status in ('expired', 'closed'):
             verification = 'expired'
+        elif self.organisation_id:
+            # posted and kept open by the employer on SkillBridge itself
+            verification = 'employer_posted'
         elif verified and (now - verified).total_seconds() <= 26 * 3600:
             verification = 'verified'
         elif verified:
@@ -513,6 +539,11 @@ class JobListing(BaseModel):
             'expired_at': self.expired_at.isoformat() if self.expired_at else None,
             'expiry_reason': self.expiry_reason,
             'freshness': self.freshness(),
+            'is_employer_posted': bool(self.organisation_id),
+            # Employer jobs take real applications inside SkillBridge; aggregated
+            # listings are only tracked here and applied to on the source site.
+            'accepts_in_app_applications': bool(self.organisation_id) and (self.status or 'active') == 'active',
+            'employer': self.organisation.public_dict() if self.organisation_id and self.organisation else None,
         }
 
 
@@ -569,8 +600,27 @@ class JobApplication(BaseModel):
     portfolio_url = db.Column(db.String(300), nullable=True)
     match_score = db.Column(db.Float, default=0.0)
 
+    # Applications to employer-posted jobs (recruiter portal). All NULL for
+    # applications the student only tracks for an external listing.
+    stage = db.Column(db.String(30))                 # see utils.recruiting.PIPELINE_STAGES
+    stage_updated_at = db.Column(db.DateTime)
+    share_consent_at = db.Column(db.DateTime)        # when the student agreed to share with the employer
+    share_visibility = db.Column(db.Text)            # JSON: passport sections + skill filter shared
+    share_readiness = db.Column(db.Boolean, default=False)
+
     job = db.relationship('JobListing', back_populates='applications', foreign_keys=[job_id])
     resume = db.relationship('Resume', foreign_keys=[resume_id])
+    events = db.relationship('ApplicationEvent', lazy=True, cascade='all, delete-orphan',
+                             order_by='ApplicationEvent.id.asc()')
+    notes = db.relationship('RecruitmentNote', lazy=True, cascade='all, delete-orphan',
+                            overlaps='recruitment_notes')
+
+    def get_share_visibility(self):
+        try:
+            data = json.loads(self.share_visibility) if self.share_visibility else {}
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
 
     def to_dict(self):
         job_data = None
@@ -596,6 +646,9 @@ class JobApplication(BaseModel):
             'contact_email': self.contact_email,
             'portfolio_url': self.portfolio_url,
             'match_score': self.match_score,
+            'is_in_app': bool(self.share_consent_at),
+            'stage': self.stage,
+            'stage_updated_at': self.stage_updated_at.isoformat() if self.stage_updated_at else None,
             'job': job_data
         }
 
@@ -1094,4 +1147,243 @@ class PassportAccessLog(BaseModel):
             'user_agent': self.user_agent,
             'accessed_at': _iso(self.accessed_at),
         }
-
+
+
+
+# ─────────────────────────────────────────
+# RECRUITER PORTAL
+# Employer jobs are JobListing rows and applications are JobApplication rows;
+# the tables below hold only what did not exist yet: organisations, recruiter
+# profiles, consent for candidate discovery, the hiring workflow and the log of
+# recruiter access that students can inspect.
+# ─────────────────────────────────────────
+class Organisation(BaseModel):
+    """An employer. 'verified' is only ever set by an administrator review."""
+    __tablename__ = 'organisations'
+
+    VERIFICATION_STATUSES = ('unverified', 'pending', 'verified', 'rejected')
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False, index=True)
+    industry = db.Column(db.String(120))
+    website = db.Column(db.String(300))
+    contact_email = db.Column(db.String(120))
+    contact_phone = db.Column(db.String(40))
+    location = db.Column(db.String(200))
+    size = db.Column(db.String(40))
+    description = db.Column(db.Text)
+    verification_status = db.Column(db.String(20), default='unverified', nullable=False, index=True)
+    verification_details = db.Column(db.Text)       # JSON submitted by the recruiter (claims, not facts)
+    verification_requested_at = db.Column(db.DateTime)
+    verified_at = db.Column(db.DateTime)
+    verified_by = db.Column(db.Integer)             # admin user id (no FK: survives deletion)
+    verification_note = db.Column(db.String(500))
+    created_by = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=utc_now)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+    @property
+    def is_verified(self):
+        return self.verification_status == 'verified'
+
+    def get_verification_details(self):
+        try:
+            data = json.loads(self.verification_details) if self.verification_details else {}
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def public_dict(self):
+        """What students see about an employer."""
+        return {
+            'name': self.name,
+            'industry': self.industry or '',
+            'website': self.website or '',
+            'location': self.location or '',
+            'description': self.description or '',
+            'verification_status': self.verification_status,
+            'is_verified': self.is_verified,
+        }
+
+    def to_dict(self):
+        d = self.public_dict()
+        d.update({
+            'id': self.id,
+            'contact_email': self.contact_email or '',
+            'contact_phone': self.contact_phone or '',
+            'size': self.size or '',
+            'verification_details': self.get_verification_details(),
+            'verification_requested_at': _iso(self.verification_requested_at),
+            'verified_at': _iso(self.verified_at),
+            'verification_note': self.verification_note,
+            'created_at': _iso(self.created_at),
+            'updated_at': _iso(self.updated_at),
+        })
+        return d
+
+
+class RecruiterProfile(BaseModel):
+    """Links a recruiter account (students row with role='recruiter') to its organisation."""
+    __tablename__ = 'recruiter_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, unique=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    job_title = db.Column(db.String(120))
+    phone = db.Column(db.String(40))
+    org_role = db.Column(db.String(20), default='owner')
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    organisation = db.relationship('Organisation', lazy=True)
+    user = db.relationship('Student', lazy=True, foreign_keys=[user_id], overlaps='recruiter_profile')
+
+    def to_dict(self):
+        return {
+            'job_title': self.job_title or '',
+            'phone': self.phone or '',
+            'org_role': self.org_role or 'owner',
+            'created_at': _iso(self.created_at),
+        }
+
+
+class CandidateDiscoverySetting(BaseModel):
+    """
+    A student's recruiter-facing settings: the opt-in to appear in candidate search
+    for verified organisations, what that search may show, and the opaque reference
+    recruiters use for the student (so recruiter URLs never contain database ids).
+    A row is created on first need with is_discoverable=False.
+    """
+    __tablename__ = 'candidate_discovery_settings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, unique=True)
+    candidate_ref = db.Column(db.String(32), unique=True, nullable=False, index=True)
+    is_discoverable = db.Column(db.Boolean, default=False, nullable=False)
+    visibility = db.Column(db.Text, default='{}')   # JSON: passport sections + skill filter
+    share_readiness = db.Column(db.Boolean, default=False)
+    consent_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime, default=utc_now, onupdate=utc_now)
+
+    def get_visibility(self):
+        try:
+            data = json.loads(self.visibility) if self.visibility else {}
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+
+class RecruiterAccessLog(BaseModel):
+    """Every time a recruiter opens a candidate's profile. Shown to the student."""
+    __tablename__ = 'recruiter_access_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    recruiter_id = db.Column(db.Integer)            # no FK: entries survive recruiter deletion
+    job_id = db.Column(db.Integer)                  # job the profile was opened for, if any
+    basis = db.Column(db.String(20), nullable=False)   # application | discovery
+    action = db.Column(db.String(30), nullable=False, default='profile_view')
+    created_at = db.Column(db.DateTime, default=utc_now, index=True)
+
+    organisation = db.relationship('Organisation', lazy=True)
+
+
+class ApplicationEvent(BaseModel):
+    """Stage change on an application to an employer job; the student sees these."""
+    __tablename__ = 'application_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('job_applications.id'), nullable=False, index=True)
+    organisation_id = db.Column(db.Integer, nullable=False)
+    actor_id = db.Column(db.Integer)
+    from_stage = db.Column(db.String(30))
+    to_stage = db.Column(db.String(30), nullable=False)
+    message = db.Column(db.String(500))             # optional message written for the candidate
+    seen_by_student = db.Column(db.Boolean, default=False, nullable=False)
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'from_stage': self.from_stage,
+            'to_stage': self.to_stage,
+            'message': self.message or '',
+            'seen': bool(self.seen_by_student),
+            'created_at': _iso(self.created_at),
+        }
+
+
+class RecruitmentNote(BaseModel):
+    """Internal recruiter note or interview outcome. Never shown to the student."""
+    __tablename__ = 'recruitment_notes'
+
+    KINDS = ('note', 'interview')
+    OUTCOMES = ('pending', 'passed', 'failed', 'no_show')
+
+    id = db.Column(db.Integer, primary_key=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('job_applications.id'), nullable=True, index=True)
+    author_id = db.Column(db.Integer)
+    kind = db.Column(db.String(20), nullable=False, default='note')
+    interview_round = db.Column(db.String(80))
+    outcome = db.Column(db.String(20))
+    body = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'application_id': self.application_id,
+            'kind': self.kind,
+            'interview_round': self.interview_round or '',
+            'outcome': self.outcome,
+            'body': self.body or '',
+            'author_id': self.author_id,
+            'created_at': _iso(self.created_at),
+        }
+
+
+class CandidateShortlist(BaseModel):
+    __tablename__ = 'candidate_shortlists'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(300))
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=True)
+    created_by = db.Column(db.Integer)
+    created_at = db.Column(db.DateTime, default=utc_now)
+
+    entries = db.relationship('ShortlistEntry', lazy=True, cascade='all, delete-orphan',
+                              order_by='ShortlistEntry.id.desc()')
+
+
+class ShortlistEntry(BaseModel):
+    __tablename__ = 'shortlist_entries'
+    __table_args__ = (db.UniqueConstraint('shortlist_id', 'student_id', name='uq_shortlist_student'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    shortlist_id = db.Column(db.Integer, db.ForeignKey('candidate_shortlists.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    added_by = db.Column(db.Integer)
+    note = db.Column(db.String(500))
+    added_at = db.Column(db.DateTime, default=utc_now)
+
+
+class JobInvitation(BaseModel):
+    """A recruiter inviting a discovered candidate to apply for one of their jobs."""
+    __tablename__ = 'job_invitations'
+    __table_args__ = (db.UniqueConstraint('job_id', 'student_id', name='uq_invitation_job_student'),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=False, index=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    invited_by = db.Column(db.Integer)
+    message = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=utc_now)
+    seen_at = db.Column(db.DateTime)
+
+    job = db.relationship('JobListing', lazy=True)
+    organisation = db.relationship('Organisation', lazy=True)

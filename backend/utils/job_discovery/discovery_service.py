@@ -78,6 +78,7 @@ class JobDiscoveryService:
         page: int = 1,
         student=None,
         min_match: Optional[float] = None,
+        origin: Optional[str] = None,
         return_meta: bool = False,
     ):
         from utils.job_discovery.location_prioritizer import get_location_rank
@@ -91,6 +92,13 @@ class JobDiscoveryService:
             q = q.filter(or_(JobListing.is_sample.is_(False), JobListing.is_sample.is_(None)))
             statuses = ["active"] + (["stale"] if include_stale else []) + (["expired"] if include_expired else [])
             q = q.filter(or_(JobListing.status.in_(statuses), JobListing.status.is_(None)))
+
+        # Employer-posted (on SkillBridge) vs aggregated from external sources.
+        # Unpublished drafts and closed employer jobs never match the status filter above.
+        if origin == "employer":
+            q = q.filter(JobListing.organisation_id.isnot(None))
+        elif origin == "external":
+            q = q.filter(JobListing.organisation_id.is_(None))
 
         if query and query.strip():
             for term in query.strip().split()[:6]:
@@ -196,7 +204,8 @@ class JobDiscoveryService:
 
     # ── Saved jobs ────────────────────────────────────────────────────────
     def save_job_for_student(self, student_id: int, job_id: int, notes: Optional[str] = None) -> Dict[str, Any]:
-        if db.session.get(JobListing, job_id) is None:
+        job = db.session.get(JobListing, job_id)
+        if job is None or (job.organisation_id and job.status == "draft"):
             return {"status": "not_found"}
         existing = SavedJob.query.filter_by(student_id=student_id, job_id=job_id).first()
         if existing:

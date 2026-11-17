@@ -27,7 +27,17 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import SkillPassport from './pages/SkillPassport';
 import PublicPassport from './pages/PublicPassport';
-import { ProtectedRoute, AdminRoute } from './components/RouteGuards';
+import EmployerAccess from './pages/EmployerAccess';
+import RecruiterRegister from './pages/recruiter/RecruiterRegister';
+import RecruiterDashboard from './pages/recruiter/RecruiterDashboard';
+import RecruiterOrganisation from './pages/recruiter/RecruiterOrganisation';
+import RecruiterJobs from './pages/recruiter/RecruiterJobs';
+import RecruiterJobDetail from './pages/recruiter/RecruiterJobDetail';
+import RecruiterCandidates from './pages/recruiter/RecruiterCandidates';
+import RecruiterCandidateProfile from './pages/recruiter/RecruiterCandidateProfile';
+import RecruiterPipeline from './pages/recruiter/RecruiterPipeline';
+import RecruiterShortlists from './pages/recruiter/RecruiterShortlists';
+import { ProtectedRoute, AdminRoute, RecruiterRoute } from './components/RouteGuards';
 
 function App() {
 
@@ -44,6 +54,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         {/* Recruiter view of a shared Skill Passport (token-gated, no login) */}
         <Route path="/passport/:token" element={<PublicPassport />} />
+        <Route path="/recruiter/register" element={<RecruiterRegister />} />
 
         {/* ============================================================ */}
         {/* PROTECTED STUDENT PORTAL ROUTES */}
@@ -117,6 +128,14 @@ function App() {
           element={
             <ProtectedRoute>
               <SkillPassport />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/employer-access"
+          element={
+            <ProtectedRoute>
+              <EmployerAccess />
             </ProtectedRoute>
           }
         />
@@ -239,6 +258,18 @@ function App() {
             </AdminRoute>
           }
         />
+
+        {/* ============================================================ */}
+        {/* RECRUITER PORTAL (RECRUITER ROLE REQUIRED; ENFORCED BY THE API) */}
+        {/* ============================================================ */}
+        <Route path="/recruiter" element={<RecruiterRoute><RecruiterDashboard /></RecruiterRoute>} />
+        <Route path="/recruiter/organisation" element={<RecruiterRoute><RecruiterOrganisation /></RecruiterRoute>} />
+        <Route path="/recruiter/jobs" element={<RecruiterRoute><RecruiterJobs /></RecruiterRoute>} />
+        <Route path="/recruiter/jobs/:id" element={<RecruiterRoute><RecruiterJobDetail /></RecruiterRoute>} />
+        <Route path="/recruiter/candidates" element={<RecruiterRoute><RecruiterCandidates /></RecruiterRoute>} />
+        <Route path="/recruiter/candidates/:ref" element={<RecruiterRoute><RecruiterCandidateProfile /></RecruiterRoute>} />
+        <Route path="/recruiter/pipeline" element={<RecruiterRoute><RecruiterPipeline /></RecruiterRoute>} />
+        <Route path="/recruiter/shortlists" element={<RecruiterRoute><RecruiterShortlists /></RecruiterRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

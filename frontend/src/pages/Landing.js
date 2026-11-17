@@ -34,6 +34,12 @@ export default function Landing() {
               <span>🎓 Student Sign In</span>
             </Link>
             <Link
+              to="/login?portal=recruiter"
+              className="text-xs sm:text-sm font-medium text-indigo-300 hover:text-indigo-200 transition-colors flex items-center space-x-1"
+            >
+              <span>💼 Recruiters</span>
+            </Link>
+            <Link
               to="/login?portal=admin"
               className="text-xs sm:text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors flex items-center space-x-1"
             >
