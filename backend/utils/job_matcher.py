@@ -5,13 +5,17 @@ Score = 100 x SkillFit x ExperienceFit x LocationFit
 
 SkillFit  = sum(weight x credit) / sum(weight)
             weight: required skill = 3, preferred skill = 1
-            credit (how strongly the student demonstrates the skill):
-              quiz-verified, best score >= 70%   1.00
-              quiz-verified, 40-69%              0.60
-              quiz-verified, < 40%               0.20
+            credit (how strongly the student demonstrates the skill), from the
+            Skill Passport status - see skill_credit() and
+            utils.skill_passport.skill_verification_states():
+              verified (latest quiz >= 70% or reviewer-accepted evidence)  1.00
+              quiz taken, below the pass mark, latest score 40-69%        0.60
+              quiz taken, below the pass mark, latest score < 40%         0.20
+              evidence pending review / submitted  0.60 / 0.55 (or the resume credit if higher)
               resume only, used in projects/work 0.70
               resume only, other sections        0.55
               resume only, skills list only      0.40
+              self-declared only                 0.30
               missing but transferable skill     0.25  (required skills only)
               missing                            0.00
 ExperienceFit  1.00 if the job's minimum years <= student's years (+0.5),
@@ -29,7 +33,7 @@ What the score deliberately does NOT do (unlike the previous version):
 """
 from typing import Any, Dict, List, Optional, Set
 
-from models import Skill, SkillVerification, JobListing
+from models import JobListing
 from utils.skill_taxonomy import normalize_skill_name
 
 # Knowledge graph of transferable skill affinities (student skill -> skills it helps with)
@@ -81,6 +85,30 @@ def _quiz_credit(pct: Optional[float]) -> float:
     return 0.2
 
 
+# Credit for a skill by its passport status (shared with the recruiter compatibility
+# report in utils.recruiting, so students and employers see the same weighting).
+STATUS_CREDIT = {"verified": 1.0, "pending_verification": 0.6, "evidence_submitted": 0.55,
+                 "self_declared": 0.3}
+# Statuses that rest only on the student's own word or a resume mention
+CLAIM_ONLY_STATUSES = {"ai_extracted", "self_declared", "resume_only"}
+
+
+def skill_credit(status: Optional[str], latest_score: Optional[float] = None,
+                 resume_strength: Optional[str] = None) -> float:
+    if status == "verified":
+        return 1.0
+    if status == "assessment_completed":
+        # a below-pass-mark attempt is direct evidence and replaces the resume claim
+        return _quiz_credit(latest_score) if latest_score is not None else EVIDENCE_CREDIT[None]
+    if status == "ai_extracted":
+        return EVIDENCE_CREDIT.get(resume_strength, EVIDENCE_CREDIT[None])
+    credit = STATUS_CREDIT.get(status, STATUS_CREDIT["self_declared"])
+    if resume_strength is not None:
+        # submitting evidence must never lower the credit a strong resume mention already earns
+        credit = max(credit, EVIDENCE_CREDIT.get(resume_strength, EVIDENCE_CREDIT[None]))
+    return credit
+
+
 # ──────────────────────────────────────────────────────────────────────────
 # Student profile
 # ──────────────────────────────────────────────────────────────────────────
@@ -109,18 +137,17 @@ def build_student_profile(student: Any = None, user_skills: Optional[List[Any]] 
                 skills[_normalize_skill(item)] = {"credit": EVIDENCE_CREDIT[None], "status": "resume_only",
                                                   "evidence_strength": None}
     elif student is not None and hasattr(student, "id"):
-        best_quiz: Dict[int, float] = {}
-        for v in SkillVerification.query.filter_by(student_id=student.id).all():
-            best_quiz[v.skill_id] = max(best_quiz.get(v.skill_id, 0.0), v.quiz_score_percent or 0.0)
-        for s in Skill.query.filter_by(student_id=student.id).all():
-            name = _normalize_skill(s.skill_name)
-            if s.id in best_quiz:
-                entry = {"credit": _quiz_credit(best_quiz[s.id]), "status": "verified",
-                         "quiz_score": best_quiz[s.id]}
-            else:
-                entry = {"credit": EVIDENCE_CREDIT.get(s.evidence_strength, 0.4), "status": "resume_only",
-                         "evidence_strength": s.evidence_strength,
-                         "extraction_confidence": s.extraction_confidence}
+        # Same verification rule as the Skill Passport (latest attempt >= pass mark,
+        # or reviewer-accepted evidence); a failed attempt is not "verified".
+        from utils.skill_passport import skill_verification_states
+        for st in skill_verification_states(student.id).values():
+            name = _normalize_skill(st["skill_name"])
+            if not name:
+                continue
+            entry = {"credit": skill_credit(st["status"], st["latest_score"], st["resume_evidence_strength"]),
+                     "status": st["status"], "quiz_score": st["latest_score"],
+                     "evidence_strength": st["resume_evidence_strength"],
+                     "extraction_confidence": st["extraction_confidence"]}
             if name not in skills or entry["credit"] > skills[name]["credit"]:
                 skills[name] = entry
         pref = getattr(student, "job_preference", None)
@@ -260,9 +287,13 @@ def evaluate_job_match(
         if info:
             (matched_verified if info["status"] == "verified" else matched_unverified).append(skill)
             req_points += info["credit"]
-            if info["status"] == "resume_only":
+            if info["status"] in CLAIM_ONLY_STATUSES:
                 uncertain.append({"skill": skill, "evidence_strength": info.get("evidence_strength"),
                                   "reason": "Claimed on resume but not quiz-verified; take the skill quiz to confirm it."})
+            elif info["status"] == "assessment_completed":
+                uncertain.append({"skill": skill, "evidence_strength": info.get("evidence_strength"),
+                                  "reason": f"Latest quiz score {info.get('quiz_score') or 0:g}% is below the 70% "
+                                            "pass mark; retake the quiz to verify it."})
             continue
         missing_mandatory.append(skill)
         bridge = next((u for u in have if skill in TRANSFERABLE_MAP.get(u, [])), None)
@@ -301,10 +332,14 @@ def evaluate_job_match(
                        "Read the full description on the source site.")
     else:
         if matched_verified:
-            reasons.append(f"You have quiz-verified {len(matched_verified)} of {len(required)} required skills: "
+            reasons.append(f"You have verified {len(matched_verified)} of {len(required)} required skills: "
                            f"{', '.join(matched_verified)}.")
-        if matched_unverified:
-            reasons.append(f"Your resume shows {', '.join(matched_unverified)} (not yet quiz-verified).")
+        retake = [m for m in matched_unverified if have[m]["status"] == "assessment_completed"]
+        claimed = [m for m in matched_unverified if m not in retake]
+        if claimed:
+            reasons.append(f"Your profile shows {', '.join(claimed)} (not yet verified).")
+        if retake:
+            reasons.append(f"You took the quiz for {', '.join(retake)} but scored below the pass mark.")
         if missing_mandatory:
             reasons.append(f"Missing required skills: {', '.join(missing_mandatory)}.")
         if matched_preferred:
@@ -351,7 +386,11 @@ def evaluate_job_match(
     if missing_mandatory:
         steps.append(f"Learn '{missing_mandatory[0]}' first - it is a required skill for this role.")
     if matched_unverified:
-        steps.append(f"Take the verification quiz for '{matched_unverified[0]}' to turn a resume claim into a verified skill.")
+        first = matched_unverified[0]
+        if have[first]["status"] == "assessment_completed":
+            steps.append(f"Retake the quiz for '{first}' - you need 70% to verify it.")
+        else:
+            steps.append(f"Take the verification quiz for '{first}' to turn a resume claim into a verified skill.")
     if overall is not None and overall >= 70:
         steps.append("Your profile aligns well - tailor your resume to this posting before applying.")
 

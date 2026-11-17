@@ -25,6 +25,7 @@ from utils.question_bank_manager import ensure_minimum_questions
 from utils.roadmap_generator import ensure_roadmap_template
 from utils.progress_tracker import record_student_snapshot, get_progress_timeline
 from utils.badge_checker import get_student_badges
+from utils.skill_passport import PASS_THRESHOLD, skill_verification_states, verified_skill_names
 from ml.salary_model import salary_predictor
 from ml.readiness_model import readiness_scorer
 from ml.skill_gap_model import skill_gap_model
@@ -601,20 +602,10 @@ def analyze_skill_gap_endpoint():
             'error': 'Please set your target career first'
         }), 400
 
-    # Get only VERIFIED skills — a skill counts only if the student
-    # passed its quiz, not just because it was extracted from resume
-    verifications = SkillVerification.query.filter_by(
-        student_id=current_user.id
-    ).all()
-
-    verified_skill_ids = [v.skill_id for v in verifications]
-    verified_skills = Skill.query.filter(
-        Skill.id.in_(verified_skill_ids)
-    ).all()
-
-    verified_skill_names = [s.skill_name for s in verified_skills]
-
-    result = analyze_skill_gap(verified_skill_names, current_user.target_career)
+    # Only VERIFIED skills count (Skill Passport rule): passed the latest quiz or
+    # had evidence accepted by a reviewer - not merely extracted from a resume,
+    # and not a quiz attempt below the pass mark.
+    result = analyze_skill_gap(verified_skill_names(current_user.id), current_user.target_career)
 
     if result is None:
         return jsonify({
@@ -845,10 +836,9 @@ def get_readiness_breakdown():
     """
     career = current_user.target_career or 'Software Engineer'
     verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    # A skill counts as verified only under the Skill Passport rule (passed latest quiz
+    # or reviewer-accepted evidence); every attempt still feeds the average quiz score.
+    verified_skills = verified_skill_names(current_user.id)
 
     gap_data = skill_gap_model.evaluate_gaps(verified_skills, career)
     readiness_data = readiness_scorer.calculate_readiness(gap_data, verifications)
@@ -881,11 +871,7 @@ def simulate_salary_endpoint():
     """
     Predicts base expected compensation and simulates boost from acquiring additional skills.
     """
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     data = request.get_json() or {}
     additional_skills = data.get('additional_skills', [])
@@ -914,11 +900,7 @@ def get_career_insights():
     """
     Returns benchmark requirements, market demand, and student match rate across popular careers.
     """
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     popular_roles = ['Software Engineer', 'Data Scientist', 'Web Developer', 'Cloud Engineer', 'AI Engineer']
     insights = []
@@ -975,7 +957,7 @@ def get_student_assessments():
                 'score_percent': v.quiz_score_percent,
                 'verification_score': v.verification_score,
                 'verified_on': v.verified_on.isoformat(),
-                'passed': (v.quiz_score_percent or 0) >= 60.0
+                'passed': (v.quiz_score_percent or 0) >= PASS_THRESHOLD
             })
         else:
             available.append({
@@ -997,11 +979,7 @@ def get_career_recommendations():
     Returns ranked career recommendations based strictly on verified skills,
     along with transparent explainability metrics for each career.
     """
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
     recommendations = get_all_career_recommendations(
         verified_skills, current_user.target_career
     )
@@ -1020,11 +998,7 @@ def get_single_career_recommendation(career_name):
     """
     Returns deep explainability and match analysis for a specified career.
     """
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
     result = evaluate_career_match(verified_skills, career_name)
     if not result:
         return jsonify({'error': f'Career "{career_name}" not found or requirements unavailable'}), 404
@@ -1042,11 +1016,7 @@ def compare_careers_endpoint():
     if not career_names or not isinstance(career_names, list):
         return jsonify({'error': 'Please provide a list of careers to compare'}), 400
 
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     comparison = compare_career_tracks(verified_skills, career_names[:4])
     return jsonify({'comparison': comparison}), 200
@@ -1057,29 +1027,37 @@ def compare_careers_endpoint():
 def get_verified_skill_profile():
     """
     Returns structured 4-tier skill profile:
-    1. Verified (passed quiz >= 70%)
-    2. Needs Improvement (quiz taken < 70%)
+    1. Verified (latest quiz >= 70%, or evidence accepted by a reviewer - the
+       Skill Passport rule, see utils.skill_passport.skill_verification_states)
+    2. Needs Improvement (latest quiz < 70%)
     3. Needs Verification (resume-detected, not yet tested)
     4. Target Gaps (skills needed for target career but missing)
     """
-    skills = Skill.query.filter_by(student_id=current_user.id).all()
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    v_map = {v.skill_id: v for v in verifications}
+    states = skill_verification_states(current_user.id)
 
     verified_list = []
     needs_improvement_list = []
     needs_verification_list = []
-    seen_names = set()
 
-    for s in skills:
-        clean_name = s.skill_name.lower().strip()
-        if clean_name in seen_names:
-            continue
-        seen_names.add(clean_name)
-
-        if s.id in v_map:
-            v = v_map[s.id]
-            is_passed = (v.quiz_score_percent or 0) >= 70.0
+    for st in states.values():
+        s = db.session.get(Skill, st['skill_id'])
+        v = st['latest_attempt']
+        if st['verified'] and not v:
+            # verified through reviewed evidence, no quiz taken
+            verified_list.append({
+                'skill_id': s.id,
+                'skill_name': s.skill_name,
+                'proficiency': s.proficiency or 'Not assessed',
+                'resume_detected': True,
+                'quiz_score_percent': None,
+                'quiz_correct_count': None,
+                'quiz_question_count': None,
+                'verified_on': st['last_verified_at'].isoformat() if st['last_verified_at'] else None,
+                'verified_via': st['verified_via'],
+                'status': 'VERIFIED'
+            })
+        elif v:
+            is_passed = st['verified']
             item = {
                 'skill_id': s.id,
                 'skill_name': s.skill_name,
@@ -1089,6 +1067,7 @@ def get_verified_skill_profile():
                 'quiz_correct_count': v.quiz_correct_count,
                 'quiz_question_count': v.quiz_question_count,
                 'verified_on': v.verified_on.isoformat() if v.verified_on else None,
+                'verified_via': st['verified_via'],
                 'status': 'VERIFIED' if is_passed else 'NEEDS_IMPROVEMENT'
             }
             if is_passed:
@@ -1128,7 +1107,7 @@ def get_verified_skill_profile():
         'needs_verification': needs_verification_list,
         'target_career_gaps': target_career_gaps,
         'summary': {
-            'total_detected': len(skills),
+            'total_detected': len(states),
             'verified_count': len(verified_list),
             'needs_improvement_count': len(needs_improvement_list),
             'needs_verification_count': len(needs_verification_list)
@@ -1188,11 +1167,7 @@ def ask_assistant_endpoint():
     if not question:
         return jsonify({'error': 'Please provide a question'}), 400
 
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
     gaps = SkillGap.query.filter_by(student_id=current_user.id).all()
     missing_skills = [g.missing_skill for g in gaps if g.missing_skill]
 
@@ -1282,11 +1257,7 @@ def rag_match_job_endpoint():
         return jsonify({'error': 'Please provide a job description to match against'}), 400
 
     # Retrieve candidate verified skills
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     # Retrieve candidate resume text if available
     resume_text = ""
@@ -1326,11 +1297,7 @@ def rag_explain_gap_endpoint():
     data = request.get_json(silent=True) or {}
     career_name = data.get('career') or current_user.target_career or 'Software Engineer'
 
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     try:
         from rag.rag_pipeline import get_rag_pipeline
@@ -2166,11 +2133,7 @@ def simulate_career_paths_endpoint():
     if not career_names or not isinstance(career_names, list):
         return jsonify({'error': 'career_names list is required'}), 400
 
-    verifications = SkillVerification.query.filter_by(student_id=current_user.id).all()
-    verified_ids = [v.skill_id for v in verifications]
-    verified_skills = [
-        s.skill_name for s in Skill.query.filter(Skill.id.in_(verified_ids)).all()
-    ]
+    verified_skills = verified_skill_names(current_user.id)
 
     simulation = simulate_multi_career_paths(
         verified_skills=verified_skills,

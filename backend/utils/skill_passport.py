@@ -295,6 +295,51 @@ def skill_status(skill, latest_attempt, evidence_items):
     return status, verified_via, last_verified, signals
 
 
+def skill_verification_states(student_id):
+    """Passport status of every skill a student holds, keyed by lower-cased name.
+
+    This is the single definition of "verified" for the whole app (job matching,
+    career recommendations, skill gaps, badges, assessments): the same rule the
+    passport and the recruiter report use, so every page agrees. A failed quiz
+    attempt is 'assessment_completed', never 'verified'.
+    """
+    skills_rows = Skill.query.filter_by(student_id=student_id).order_by(Skill.id.asc()).all()
+    if not skills_rows:
+        return {}
+    ev_by_skill = {}
+    for e in PassportEvidence.query.filter_by(student_id=student_id).all():
+        for sk in e.skills:
+            ev_by_skill.setdefault(sk.skill_name.lower().strip(), []).append(e)
+    latest_by_id, latest_by_name = _latest_verifications(student_id, skills_rows)
+
+    states = {}
+    for s in skills_rows:
+        key = s.skill_name.lower().strip()
+        if not key or key in states:
+            continue
+        attempt = latest_by_id.get(s.id) or latest_by_name.get(key)
+        status, via, last_verified, signals = skill_status(s, attempt, ev_by_skill.get(key, []))
+        states[key] = {
+            'skill_id': s.id,
+            'skill_name': s.skill_name,
+            'status': status,
+            'verified': status == 'verified',
+            'verified_via': via,
+            'last_verified_at': last_verified,
+            'latest_score': attempt.quiz_score_percent if attempt else None,
+            'latest_attempt': attempt,
+            # resume support only counts when the skill was actually found in a resume
+            'resume_evidence_strength': s.evidence_strength if 'ai_extracted' in signals else None,
+            'extraction_confidence': s.extraction_confidence,
+        }
+    return states
+
+
+def verified_skill_names(student_id):
+    """Display names of the skills that are verified under the passport rule."""
+    return [st['skill_name'] for st in skill_verification_states(student_id).values() if st['verified']]
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Passport builder
 # ─────────────────────────────────────────────────────────────────────────

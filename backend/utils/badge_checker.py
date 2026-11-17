@@ -12,6 +12,9 @@ def get_student_badges(student_id):
 
     resumes_count = Resume.query.filter_by(student_id=student_id).count()
     verifications_count = SkillVerification.query.filter_by(student_id=student_id).count()
+    # distinct skills verified under the Skill Passport rule (not quiz attempts)
+    from utils.skill_passport import verified_skill_names
+    verified_skills_count = len(verified_skill_names(student_id))
     completed_roadmap_count = StudyPlan.query.filter_by(student_id=student_id, is_completed=True).count()
     readiness = student.readiness_score or 0.0
 
@@ -48,9 +51,9 @@ def get_student_badges(student_id):
             'category': 'Verification',
             'description': 'Successfully verified 3 or more technical skills.',
             'icon': 'TbAward',
-            'unlocked': verifications_count >= 3,
-            'progress': min(100, int((verifications_count / 3) * 100)),
-            'unlocked_at': 'Recently' if verifications_count >= 3 else None
+            'unlocked': verified_skills_count >= 3,
+            'progress': min(100, int((verified_skills_count / 3) * 100)),
+            'unlocked_at': 'Recently' if verified_skills_count >= 3 else None
         },
         {
             'id': 'high_performer',

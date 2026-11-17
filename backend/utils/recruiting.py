@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Optional
 from extensions import db
 from models import (CandidateDiscoverySetting, JobApplication, JobListing, Student, ApplicationEvent,
                     Organisation)
-from utils.job_matcher import EVIDENCE_CREDIT, PREFERRED_WEIGHT, REQUIRED_WEIGHT, _quiz_credit
+from utils.job_matcher import PREFERRED_WEIGHT, REQUIRED_WEIGHT, skill_credit
 from utils.skill_passport import KIND_SECTION, build_public_passport, normalize_visibility
 from utils.skill_taxonomy import normalize_skill_name
 
@@ -59,10 +59,6 @@ STAGE_STUDENT_MESSAGES = {
 EMPLOYER_PROVIDER = 'employer'
 EMPLOYER_SOURCE_LABEL = 'Employer (posted on SkillBridge)'
 
-# Credit for a shared skill, by passport status (mirrors utils.job_matcher's scale:
-# verified > assessed/reviewed evidence > resume claims > self-declared).
-STATUS_CREDIT = {'verified': 1.0, 'pending_verification': 0.6, 'evidence_submitted': 0.55,
-                 'self_declared': 0.3}
 PROFICIENCY_ORDER = {'beginner': 1, 'intermediate': 2, 'advanced': 3}
 
 
@@ -152,14 +148,10 @@ def candidate_passport(student: Student, access: Dict[str, Any]) -> Dict[str, An
 
 # ── Explainable compatibility report ───────────────────────────────────────
 def _skill_credit(s: Dict[str, Any]) -> float:
-    status = s.get('status')
-    if status == 'assessment_completed':
-        a = s.get('assessment')
-        return _quiz_credit(a.get('score_percent')) if a else 0.4
-    if status == 'ai_extracted':
-        strength = (s.get('resume_evidence') or {}).get('evidence_strength')
-        return EVIDENCE_CREDIT.get(strength, 0.4)
-    return STATUS_CREDIT.get(status, 0.3)
+    # Same credit scale the student's own job match uses (utils.job_matcher.skill_credit)
+    a = s.get('assessment') or {}
+    return skill_credit(s.get('status'), a.get('score_percent'),
+                        (s.get('resume_evidence') or {}).get('evidence_strength'))
 
 
 def _norm_list(values) -> List[str]:
