@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
+import { apiErrorMessage } from '../utils/apiErrors';
 import { TbSparkles, TbBuildingCommunity, TbArrowRight, TbBriefcase2 } from 'react-icons/tb';
 
 export default function Login() {
@@ -62,9 +63,7 @@ export default function Login() {
         }
       }
     } catch (err) {
-      setError(
-        err.response?.data?.error || 'Authentication failed. Please verify your credentials.'
-      );
+      setError(apiErrorMessage(err, 'Authentication failed. Please verify your credentials.'));
     } finally {
       setLoading(false);
     }

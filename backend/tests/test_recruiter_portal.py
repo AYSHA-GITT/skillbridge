@@ -126,6 +126,74 @@ class RegistrationAndRolesTests(RecruiterBase):
             'name': 'X', 'email': 'new@x.com', 'password': PW, 'organisation': {'name': 'Y', 'website': 'javascript:alert(1)'}})
         self.assertEqual(res.status_code, 400, body)
 
+    # ── Regression: the registration form (frontend RecruiterRegister.js) ──────
+    @staticmethod
+    def form_payload(email, website='', **org):
+        """Exactly what the form sends: every field present, optional ones as empty strings."""
+        return {'name': 'Priya Nair', 'email': email, 'password': 'a-strong-pass', 'job_title': '',
+                'organisation': {'name': org.get('name', 'Nair Analytics'), 'industry': '', 'website': website,
+                                 'contact_email': org.get('contact_email', ''), 'location': ''}}
+
+    def test_form_registration_with_personal_email_and_no_website(self):
+        c = app.test_client()
+        res, body = _api(c, 'post', '/api/auth/register_recruiter',
+                         json=self.form_payload('Priya.Nair@Gmail.com'))
+        self.assertEqual(res.status_code, 201, body)
+        self.assertEqual(body['organisation']['verification_status'], 'unverified')
+        self.assertEqual(body['organisation']['website'], '')
+        self.assertEqual(body['student']['email'], 'priya.nair@gmail.com')
+        self.assertNotIn('password', json.dumps(body).lower().replace('password_', ''))
+        # logged in straight away, so the redirect to /recruiter/organisation works
+        res, me = _api(c, 'get', '/api/recruiter/me')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(me['can_publish_jobs'])
+
+    def test_pending_verification_does_not_block_sign_in(self):
+        c = app.test_client()
+        self.assertEqual(c.post('/api/auth/register_recruiter',
+                                json=self.form_payload('lead@nair.example.com')).status_code, 201)
+        # Website is optional at sign-up but required (with proof) before verification can be requested
+        res, body = _api(c, 'post', '/api/recruiter/organisation/verification', json={'registration_id': 'U12345'})
+        self.assertEqual(res.status_code, 400)
+        self.assertIn('website', body['error'].lower())
+        self.assertEqual(c.put('/api/recruiter/organisation', json={'website': 'https://nair.example.com'}).status_code, 200)
+        res, body = _api(c, 'post', '/api/recruiter/organisation/verification', json={'registration_id': 'U12345'})
+        self.assertEqual(res.status_code, 200, body)
+        self.assertEqual(body['organisation']['verification_status'], 'pending')
+        c.post('/api/auth/logout')
+        res, body = _api(c, 'post', '/api/auth/login', json={
+            'email': 'lead@nair.example.com', 'password': 'a-strong-pass', 'portal': 'recruiter'})
+        self.assertEqual(res.status_code, 200, body)
+        res, me = _api(c, 'get', '/api/recruiter/me')
+        self.assertEqual(me['organisation']['verification_status'], 'pending')
+        # still gated until an administrator approves
+        self.assertFalse(me['can_publish_jobs'])
+        self.assertEqual(c.get('/api/recruiter/candidates/search?skills=python').status_code, 403)
+
+    def test_form_errors_are_specific_json_and_create_nothing(self):
+        with app.app_context():
+            before = (Organisation.query.count(), Student.query.count())
+        cases = [
+            (self.form_payload('new1@nair.example.com', website='nair.com'), 400, 'https'),
+            (self.form_payload('ASHA@TEST.COM'), 409, 'already exists'),          # case-insensitive duplicate
+            (self.form_payload('not-an-email'), 400, 'valid email'),
+            ({**self.form_payload('new2@nair.example.com'), 'password': 'short'}, 400, 'at least 8'),
+            (self.form_payload('new3@nair.example.com', name=''), 400, 'organisation name'),
+            (self.form_payload('new4@nair.example.com', contact_email='hr@'), 400, 'contact email'),
+        ]
+        c = app.test_client()
+        for payload, status, phrase in cases:
+            res = c.post('/api/auth/register_recruiter', json=payload,
+                         headers={'Origin': 'http://localhost:3000'})
+            body = res.get_json(silent=True)
+            self.assertEqual(res.status_code, status, (payload['email'], body))
+            self.assertIsInstance(body, dict, 'error responses must be JSON so the form can show them')
+            self.assertIn(phrase, body['error'].lower())
+            # the browser can read the message only if CORS headers are on error responses too
+            self.assertEqual(res.headers.get('Access-Control-Allow-Origin'), 'http://localhost:3000')
+        with app.app_context():
+            self.assertEqual((Organisation.query.count(), Student.query.count()), before)
+
     def test_role_separation_is_enforced_server_side(self):
         # recruiters cannot use student or passport-owner APIs
         for url in ('/api/student/skills', '/api/student/jobs', '/api/passport/me'):

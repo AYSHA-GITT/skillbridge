@@ -1,4 +1,5 @@
 import api from './api';
+import { apiErrorMessage } from '../utils/apiErrors';
 
 const d = (p) => p.then((r) => r.data);
 
@@ -57,6 +58,7 @@ export const candidateService = {
   readinessPreview: () => d(api.get('/candidate/readiness_preview'))
 };
 
-export const errorText = (e, fallback = 'Something went wrong.') => e?.response?.data?.error || fallback;
+// Server message first; otherwise says whether the server was unreachable, rate-limited or failed
+export const errorText = (e, fallback = 'Something went wrong.') => apiErrorMessage(e, fallback);
 
 export default recruiterService;

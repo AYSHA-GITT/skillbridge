@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { TbBriefcase2 } from 'react-icons/tb';
 import recruiterService, { errorText } from '../../services/recruiterService';
+import { websiteError } from '../../utils/apiErrors';
 
 export default function RecruiterRegister() {
   const navigate = useNavigate();
@@ -10,12 +11,20 @@ export default function RecruiterRegister() {
     org_name: '', industry: '', website: '', contact_email: '', location: ''
   });
   const [error, setError] = useState('');
+  const [emailTaken, setEmailTaken] = useState(false);
   const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    setEmailTaken(false);
+    // Same rule the server applies; checked here so the person gets the message before submitting
+    const siteErr = websiteError(form.website);
+    if (siteErr) {
+      setError(siteErr);
+      return;
+    }
     setLoading(true);
     try {
       await recruiterService.register({
@@ -27,7 +36,8 @@ export default function RecruiterRegister() {
       });
       navigate('/recruiter/organisation?welcome=1');
     } catch (err) {
-      setError(errorText(err, 'Registration failed'));
+      setEmailTaken(err?.response?.status === 409);
+      setError(errorText(err, 'Registration failed. Please check the form and try again.'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +58,12 @@ export default function RecruiterRegister() {
         </p>
 
         {error && (
-          <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>
+          <div role="alert" className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+            {error}
+            {emailTaken && (
+              <> <Link to="/login?portal=recruiter" className="underline text-red-300 hover:text-red-200">Sign in instead</Link></>
+            )}
+          </div>
         )}
 
         <form onSubmit={submit} className="space-y-5">
@@ -57,20 +72,26 @@ export default function RecruiterRegister() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input className="input-field text-sm" placeholder="Full name" value={form.name} onChange={set('name')} required maxLength={100} />
               <input className="input-field text-sm" placeholder="Your job title (e.g. Talent Acquisition Lead)" value={form.job_title} onChange={set('job_title')} maxLength={120} />
-              <input type="email" className="input-field text-sm" placeholder="Work email" value={form.email} onChange={set('email')} required />
+              <input type="email" className="input-field text-sm" placeholder="Email (work email preferred)" value={form.email} onChange={set('email')} required />
               <input type="password" className="input-field text-sm" placeholder="Password (8+ characters)" value={form.password} onChange={set('password')} required minLength={8} />
             </div>
-            <p className="text-[11px] text-white/40">Use your company email: a matching website domain helps verification.</p>
+            <p className="text-[11px] text-white/40">
+              Any email works. A company email whose domain matches your website makes verification quicker.
+            </p>
           </fieldset>
           <fieldset className="space-y-3">
             <legend className="text-[11px] font-mono uppercase tracking-wider text-white/40 mb-2">Organisation</legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <input className="input-field text-sm" placeholder="Organisation name" value={form.org_name} onChange={set('org_name')} required maxLength={200} />
               <input className="input-field text-sm" placeholder="Industry" value={form.industry} onChange={set('industry')} maxLength={120} />
-              <input className="input-field text-sm" placeholder="Website (https://...)" value={form.website} onChange={set('website')} maxLength={300} />
-              <input type="email" className="input-field text-sm" placeholder="Hiring contact email" value={form.contact_email} onChange={set('contact_email')} maxLength={120} />
+              <input className="input-field text-sm" placeholder="Website, optional (https://...)" value={form.website} onChange={set('website')} maxLength={300} />
+              <input type="email" className="input-field text-sm" placeholder="Hiring contact email (optional)" value={form.contact_email} onChange={set('contact_email')} maxLength={120} />
               <input className="input-field text-sm sm:col-span-2" placeholder="Location (e.g. Bengaluru, Karnataka)" value={form.location} onChange={set('location')} maxLength={200} />
             </div>
+            <p className="text-[11px] text-white/40">
+              Website is optional now, but you will need it (plus a registration number, LinkedIn page or proof
+              link) before you can request verification.
+            </p>
           </fieldset>
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Creating account...' : 'Create recruiter account'}
