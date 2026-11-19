@@ -14,6 +14,9 @@ Flask CLI commands.
                                          reports (and with --apply removes) unverified skills that
                                          the corrected extractor no longer finds (e.g. false 'c', 'r',
                                          'java' produced by the old substring matcher)
+    flask --app app users make-admin EMAIL
+    flask --app app users test-email EMAIL
+                                         check the MAIL_* settings used for password-reset e-mails
 """
 import json
 
@@ -67,6 +70,22 @@ def users_make_admin(email):
     db.session.commit()
     audit("users.make_admin", actor_id=None, target=f"student:{s.id}", details={"via": "cli"})
     click.echo(f"{s.email} is now an admin.")
+
+
+@users_cli.command("test-email")
+@click.argument("to_email")
+def users_test_email(to_email):
+    """Send a test e-mail with the MAIL_* settings (checks password-reset delivery)."""
+    from utils.password_reset import mail_configured, send_email
+    if not mail_configured():
+        raise click.ClickException("E-mail is not configured: set MAIL_SERVER, MAIL_PORT, "
+                                   "MAIL_USERNAME, MAIL_PASSWORD and MAIL_FROM.")
+    sent, reason = send_email(to_email, "SkillBridge e-mail test",
+                              "This is a test message from SkillBridge. Password reset e-mails will be "
+                              "delivered with these settings.")
+    if not sent:
+        raise click.ClickException(f"Sending failed: {reason}")
+    click.echo(f"Test e-mail sent to {to_email}. Check the inbox and the spam folder.")
 
 
 @jobs_cli.command("sync")

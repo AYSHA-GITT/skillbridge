@@ -1,16 +1,12 @@
 import os
 import secrets
-import smtplib
-from typing import Any
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timezone, timedelta
 from werkzeug.utils import secure_filename
 from flask import Blueprint, request, jsonify, send_from_directory, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from models import Student, PasswordResetToken
 from utils.rate_limit import hit, blocked_for, too_many, rate_limited
+from utils import password_reset as pr
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,84 +19,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-def send_password_reset_email(to_email: str, reset_url: str):
-    mail_server = (os.environ.get('MAIL_SERVER') or '').strip()
-    mail_port = int(os.environ.get('MAIL_PORT', 587))
-    mail_username = (os.environ.get('MAIL_USERNAME') or '').strip()
-    mail_password = (os.environ.get('MAIL_PASSWORD') or '').strip()
-    mail_use_tls = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('true', '1')
-    mail_from = (os.environ.get('MAIL_FROM') or mail_username or 'noreply@skillbridge.edu').strip()
-
-    if not mail_server or not mail_username or not mail_password:
-        print(f"\n=======================================================")
-        print(f"[DEVELOPMENT MODE] Password Reset Requested")
-        print(f"Recipient: {to_email}")
-        print(f"Reset Link: {reset_url}")
-        print(f"=======================================================\n")
-        return False, "Email service not configured. Reset link logged to console."
-
-    try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'SkillBridge - Password Reset Request'
-        msg['From'] = mail_from
-        msg['To'] = to_email
-
-        text_content = f"""Hello,
-
-We received a request to reset your password for your SkillBridge account.
-Please visit the following link to choose a new password:
-
-{reset_url}
-
-This link is valid for 1 hour. If you did not request this, you can safely ignore this email.
-
-Best regards,
-The SkillBridge Team
-"""
-        html_content = f"""
-<!DOCTYPE html>
-<html>
-<body style="font-family: Arial, sans-serif; background-color: #0b0f19; color: #ffffff; padding: 30px;">
-  <div style="max-width: 540px; margin: 0 auto; background: #131b2e; border: 1px solid #1e293b; border-radius: 16px; padding: 32px;">
-    <h2 style="color: #2dd4bf; margin-top: 0;">SkillBridge</h2>
-    <h3 style="color: #f1f5f9; margin-bottom: 12px;">Password Reset Request</h3>
-    <p style="color: #94a3b8; font-size: 14px; line-height: 1.6;">
-      We received a request to reset the password associated with your email address. Click the button below to set a new password:
-    </p>
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="{reset_url}" style="background-color: #0d9488; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
-        Reset My Password
-      </a>
-    </div>
-    <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-      Or copy and paste this link into your browser:<br>
-      <a href="{reset_url}" style="color: #2dd4bf;">{reset_url}</a>
-    </p>
-    <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
-    <p style="color: #64748b; font-size: 11px;">
-      This password reset link is time-limited and expires in 1 hour.<br>
-      If you did not request a password reset, no action is needed.
-    </p>
-  </div>
-</body>
-</html>
-"""
-        msg.attach(MIMEText(text_content, 'plain'))
-        msg.attach(MIMEText(html_content, 'html'))
-
-        with smtplib.SMTP(mail_server, mail_port, timeout=10) as server:
-            if mail_use_tls:
-                server.starttls()
-            if mail_username and mail_password:
-                server.login(mail_username, mail_password)
-            server.send_message(msg)
-
-        return True, "Email sent successfully"
-    except Exception as e:
-        print(f"[EMAIL ERROR] Failed to send email to {to_email}: {e}")
-        return False, str(e)
 
 
 @auth_bp.route('/register', methods=['POST'])
@@ -380,115 +298,131 @@ def change_password():
     if not student.check_password(current_password):
         return jsonify({'error': 'Current password is incorrect'}), 401
 
-    if len(new_password) < 8:
-        return jsonify({'error': 'New password must be at least 8 characters long'}), 400
-
-    if new_password != confirm_password:
-        return jsonify({'error': 'New password and confirmation do not match'}), 400
+    problem = pr.password_problem(new_password, confirm_password)
+    if problem:
+        return jsonify({'error': problem}), 400
 
     student.set_password(new_password)
+    PasswordResetToken.query.filter_by(student_id=student.id, used=False).update({'used': True})
     db.session.commit()
+    # The session identifier includes a password fingerprint (Student.get_id), so every
+    # other session is now signed out; refresh this one so the user stays signed in.
+    login_user(student)
 
     return jsonify({'message': 'Password changed successfully'}), 200
 
 
+# Limits: per client IP for every reset endpoint, and per e-mail address for new links.
+FORGOT_IP_LIMIT, FORGOT_IP_WINDOW = 5, 15 * 60
+FORGOT_EMAIL_LIMIT, FORGOT_EMAIL_WINDOW = 3, 60 * 60
+TOKEN_IP_LIMIT, TOKEN_IP_WINDOW = 20, 15 * 60
+GENERIC_RESET_MESSAGE = ('If an account exists for this email address, we have sent it a password '
+                         'reset link. The link expires in 60 minutes.')
+INVALID_LINK_MESSAGE = ('This password reset link is invalid, has expired or has already been used. '
+                        'Request a new link to continue.')
+
+
+def _usable_token(raw_token):
+    """Returns the PasswordResetToken row for a valid, unused, unexpired token, else None."""
+    if not isinstance(raw_token, str) or not (20 <= len(raw_token) <= 128):
+        return None
+    record = PasswordResetToken.query.filter_by(token=pr.hash_token(raw_token)).first()
+    if not record or record.used:
+        return None
+    if pr.utc_aware(record.expires_at) <= pr.now_utc():
+        return None
+    student = db.session.get(Student, record.student_id)
+    if not student or student.is_active is False:
+        return None
+    return record
+
+
 @auth_bp.route('/forgot_password', methods=['POST'])
+@rate_limited('forgot_password', FORGOT_IP_LIMIT, FORGOT_IP_WINDOW)
 def forgot_password():
     data = request.get_json(silent=True) or {}
-    email = (data.get('email') or '').strip().lower()
+    email = str(data.get('email') or '').strip().lower()
 
-    if not email:
-        return jsonify({'error': 'Email address is required'}), 400
+    if not email or '@' not in email or len(email) > 254:
+        return jsonify({'error': 'Please enter a valid email address'}), 400
+
+    # Same response, status and (because mail is sent in the background) timing whether or
+    # not the address has an account, so the form cannot be used to discover accounts.
+    response = jsonify({'message': GENERIC_RESET_MESSAGE})
+
+    # Per-address limit: stops someone flooding a user's inbox. Over the limit, nothing is
+    # sent but the response is unchanged.
+    if hit(f'forgot_password_email:{email}', FORGOT_EMAIL_LIMIT, FORGOT_EMAIL_WINDOW):
+        return response, 200
 
     student = Student.query.filter(db.func.lower(Student.email) == email).first()
-
-    generic_msg = 'If an account exists with this email, a password reset link has been sent.'
-    dev_info = None
-
-    if student:
-        # Invalidate existing unused tokens
+    if student and student.is_active is not False:
+        # Only the newest link works.
         PasswordResetToken.query.filter_by(student_id=student.id, used=False).update({'used': True})
-
-        token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-        reset_token = PasswordResetToken(
+        raw_token, token_hash = pr.new_token()
+        db.session.add(PasswordResetToken(
             student_id=student.id,
-            token=token,
-            expires_at=expires_at,
-            used=False
-        )
-        db.session.add(reset_token)
+            token=token_hash,
+            expires_at=pr.now_utc() + pr.RESET_TOKEN_TTL,
+            used=False,
+        ))
         db.session.commit()
+        # Delivered only to the address stored on the account, never the one typed in.
+        pr.deliver_in_background(current_app._get_current_object(), student.email, raw_token)
 
-        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
-        reset_url = f"{frontend_url}/reset-password?token={token}"
-
-        sent, msg = send_password_reset_email(student.email, reset_url)
-        if not sent:
-            dev_info = {
-                'dev_reset_link': reset_url,
-                'note': 'SMTP not configured in local environment; link generated for testing.'
-            }
-
-    resp: dict[str, Any] = {'message': generic_msg}
-    if dev_info:
-        resp['dev_info'] = dev_info
-
-    return jsonify(resp), 200
+    return response, 200
 
 
-@auth_bp.route('/verify_reset_token/<token>', methods=['GET'])
-def verify_reset_token(token):
-    token_record = PasswordResetToken.query.filter_by(token=token).first()
-    if not token_record or token_record.used:
-        return jsonify({'valid': False, 'error': 'Invalid or already used password reset link'}), 400
-
-    expires = token_record.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if expires < datetime.now(timezone.utc):
-        return jsonify({'valid': False, 'error': 'This password reset link has expired'}), 400
-
-    student = db.session.get(Student, token_record.student_id)
-    return jsonify({
-        'valid': True,
-        'email': student.email if student else ''
-    }), 200
+@auth_bp.route('/verify_reset_token', methods=['POST'])
+@rate_limited('reset_token', TOKEN_IP_LIMIT, TOKEN_IP_WINDOW)
+def verify_reset_token():
+    """Lets the reset page show "link expired" before the user types a password.
+    POST with the token in the body, so it never appears in a URL or access log."""
+    data = request.get_json(silent=True) or {}
+    record = _usable_token(data.get('token'))
+    if not record:
+        return jsonify({'valid': False, 'error': INVALID_LINK_MESSAGE}), 400
+    student = db.session.get(Student, record.student_id)
+    return jsonify({'valid': True, 'email': pr.mask_email(student.email)}), 200
 
 
 @auth_bp.route('/reset_password', methods=['POST'])
+@rate_limited('reset_token', TOKEN_IP_LIMIT, TOKEN_IP_WINDOW)
 def reset_password():
     data = request.get_json(silent=True) or {}
-    token = (data.get('token') or '').strip()
+    raw_token = data.get('token')
     new_password = data.get('new_password')
     confirm_password = data.get('confirm_password')
 
-    if not token:
-        return jsonify({'error': 'Reset token is required'}), 400
-    if not new_password or not confirm_password:
-        return jsonify({'error': 'New password and confirmation are required'}), 400
-    if len(new_password) < 8:
-        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
-    if new_password != confirm_password:
-        return jsonify({'error': 'Passwords do not match'}), 400
+    if not raw_token or not isinstance(raw_token, str):
+        return jsonify({'error': INVALID_LINK_MESSAGE, 'code': 'invalid_token'}), 400
+    problem = pr.password_problem(new_password, confirm_password)
+    if problem:
+        return jsonify({'error': problem}), 400
 
-    token_record = PasswordResetToken.query.filter_by(token=token).first()
-    if not token_record or token_record.used:
-        return jsonify({'error': 'Invalid or already used reset token'}), 400
+    record = _usable_token(raw_token.strip())
+    if not record:
+        return jsonify({'error': INVALID_LINK_MESSAGE, 'code': 'invalid_token'}), 400
 
-    expires = token_record.expires_at
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    if expires < datetime.now(timezone.utc):
-        return jsonify({'error': 'Reset token has expired'}), 400
+    # Consume the token atomically: if two requests race, only one UPDATE matches.
+    consumed = PasswordResetToken.query.filter_by(id=record.id, used=False) \
+        .update({'used': True}, synchronize_session=False)
+    if consumed != 1:
+        db.session.rollback()
+        return jsonify({'error': INVALID_LINK_MESSAGE, 'code': 'invalid_token'}), 400
 
-    student = db.session.get(Student, token_record.student_id)
-    if not student:
-        return jsonify({'error': 'Student account not found'}), 404
-
+    student = db.session.get(Student, record.student_id)
     student.set_password(new_password)
-    token_record.used = True
+    # Any other outstanding links for this account stop working too.
+    PasswordResetToken.query.filter_by(student_id=student.id, used=False) \
+        .update({'used': True}, synchronize_session=False)
     db.session.commit()
 
-    return jsonify({'message': 'Password has been reset successfully! You can now log in.'}), 200
+    # Changing the password changes Student.get_id(), which signs out every existing
+    # session of this account (student, recruiter or admin).
+    if current_user.is_authenticated:
+        logout_user()
+    current_app.logger.info('Password reset completed for account %s', student.id)
+    return jsonify({'message': 'Your password has been changed. Sign in with your new password. '
+                               'Any other signed-in sessions have been signed out.'}), 200
 

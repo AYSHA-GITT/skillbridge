@@ -83,6 +83,19 @@ class Student(BaseModel, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def session_fingerprint(self):
+        """Short keyed digest of the password hash. It changes whenever the password
+        changes, so sessions created before a reset or change stop working."""
+        import hashlib
+        import hmac
+        from flask import current_app
+        key = (current_app.config.get('SECRET_KEY') or '').encode('utf-8')
+        return hmac.new(key, (self.password_hash or '').encode('utf-8'), hashlib.sha256).hexdigest()[:20]
+
+    def get_id(self):
+        # Flask-Login stores this in the session cookie; load_user (app.py) checks both parts.
+        return f"{self.id}:{self.session_fingerprint()}"
+
     @property
     def is_admin(self):
         return (self.role or '').lower() == 'admin'

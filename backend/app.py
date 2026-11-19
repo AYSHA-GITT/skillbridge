@@ -43,6 +43,12 @@ if os.getenv('SKILLBRIDGE_ENV', '').lower() == 'production':
         PREFERRED_URL_SCHEME='https',
     )
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 1800}
+    from utils.password_reset import mail_configured
+    if not mail_configured():
+        import logging
+        logging.getLogger('skillbridge').error(
+            'E-mail is not configured (MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD/MAIL_FROM): '
+            'password reset links cannot be delivered. Check with: flask users test-email <address>')
 
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'resumes')
 app.config['AVATAR_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'avatars')
@@ -58,9 +64,20 @@ with app.app_context():
     db.create_all()
 
 @login_manager.user_loader
-def load_user(student_id):
+def load_user(session_id):
+    # session_id is "<id>:<password fingerprint>" (Student.get_id). A session created before
+    # the password was reset or changed no longer matches, so it is signed out.
+    import hmac
     from models import Student
-    return db.session.get(Student, int(student_id))
+    user_id, _, fingerprint = str(session_id).partition(':')
+    if not user_id.isdigit() or not fingerprint:
+        return None
+    user = db.session.get(Student, int(user_id))
+    if not user or user.is_active is False:
+        return None
+    if not hmac.compare_digest(user.session_fingerprint(), fingerprint):
+        return None
+    return user
 
 @login_manager.unauthorized_handler
 def unauthorized():

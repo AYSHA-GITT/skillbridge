@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import authService from '../services/authService';
+import { apiErrorMessage } from '../utils/apiErrors';
+import { readResetToken, hasMalformedToken, scrubTokenFromUrl } from '../utils/resetToken';
 import {
   TbSparkles,
   TbLock,
@@ -14,8 +16,10 @@ import {
 
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const location = useLocation();
+  // Read once on first render; the token is then removed from the address bar.
+  const [token] = useState(() => readResetToken(location.hash, location.search));
+  const [malformed] = useState(() => hasMalformedToken(location.hash, location.search));
 
   const [verifying, setVerifying] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
@@ -33,10 +37,14 @@ export default function ResetPassword() {
   const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
+    scrubTokenFromUrl();
     if (!token) {
+      // Opening this page without a valid link never shows the password form.
       setVerifying(false);
       setTokenValid(false);
-      setVerifyError('No password reset token was provided in the URL.');
+      setVerifyError(malformed
+        ? 'This password reset link is incomplete or has been changed. Copy the whole link from the email, or request a new one.'
+        : 'To set a new password, open the link from your password reset email. If you no longer have it, request a new link.');
       return;
     }
 
@@ -47,15 +55,13 @@ export default function ResetPassword() {
       })
       .catch((err) => {
         setTokenValid(false);
-        setVerifyError(
-          err.response?.data?.error ||
-          'This password reset link is invalid, expired, or has already been used.'
-        );
+        setVerifyError(apiErrorMessage(err,
+          'This password reset link is invalid, has expired or has already been used. Request a new link to continue.'));
       })
       .finally(() => {
         setVerifying(false);
       });
-  }, [token]);
+  }, [token, malformed]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -63,6 +69,10 @@ export default function ResetPassword() {
 
     if (form.new_password.length < 8) {
       setSubmitError('New password must be at least 8 characters long.');
+      return;
+    }
+    if (form.new_password.length > 128) {
+      setSubmitError('New password must be at most 128 characters long.');
       return;
     }
     if (form.new_password !== form.confirm_password) {
@@ -78,9 +88,13 @@ export default function ResetPassword() {
         navigate('/login');
       }, 3500);
     } catch (err) {
-      setSubmitError(
-        err.response?.data?.error || 'Failed to reset password. Please request a new link.'
-      );
+      if (err.response?.data?.code === 'invalid_token') {
+        // Expired or used while the page was open: show the "request a new link" screen.
+        setTokenValid(false);
+        setVerifyError(err.response.data.error);
+      } else {
+        setSubmitError(apiErrorMessage(err, 'Failed to reset password. Please try again.'));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +129,7 @@ export default function ResetPassword() {
             <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs space-y-2">
               <div className="flex items-center space-x-2 font-semibold">
                 <TbAlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>Invalid or Expired Link</span>
+                <span>This link can't be used</span>
               </div>
               <p className="text-white/70 leading-relaxed">
                 {verifyError}
@@ -141,7 +155,7 @@ export default function ResetPassword() {
                 <span>Password Reset Successful!</span>
               </div>
               <p className="text-white/80">
-                Your password has been securely updated. Redirecting you to the sign-in page...
+                Your password has been changed and any other signed-in sessions were signed out. Redirecting you to the sign-in page...
               </p>
             </div>
             <Link
@@ -235,7 +249,7 @@ export default function ResetPassword() {
               disabled={submitting}
               className="w-full py-3 rounded-xl font-semibold text-xs btn-primary shadow-glow transition-all flex items-center justify-center space-x-2 disabled:opacity-40"
             >
-              <span>{submitting ? 'Updating Password...' : 'Save New Password & Sign In'}</span>
+              <span>{submitting ? 'Saving...' : 'Save New Password'}</span>
             </button>
 
             <div className="text-center pt-2">

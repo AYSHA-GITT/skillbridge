@@ -56,7 +56,8 @@ export const authService = {
   },
 
   verifyResetToken: async (token) => {
-    const response = await api.get(`/auth/verify_reset_token/${token}`);
+    // POST so the token never appears in a URL (and so never in server access logs).
+    const response = await api.post('/auth/verify_reset_token', { token });
     return response.data;
   },
 

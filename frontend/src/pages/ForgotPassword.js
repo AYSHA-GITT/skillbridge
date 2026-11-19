@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import authService from '../services/authService';
-import { TbSparkles, TbMail, TbArrowLeft, TbCheck, TbAlertCircle, TbExternalLink } from 'react-icons/tb';
+import { TbSparkles, TbMail, TbArrowLeft, TbCheck, TbAlertCircle } from 'react-icons/tb';
+import { apiErrorMessage } from '../utils/apiErrors';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -9,7 +10,6 @@ export default function ForgotPassword() {
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [devInfo, setDevInfo] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -20,12 +20,10 @@ export default function ForgotPassword() {
     try {
       const res = await authService.forgotPassword(email);
       setSubmitted(true);
-      setMessage(res.message || 'If an account exists with this email, a password reset link has been sent.');
-      if (res.dev_info) {
-        setDevInfo(res.dev_info);
-      }
+      // The server answers the same way whether or not the address has an account.
+      setMessage(res.message || 'If an account exists for this email address, we have sent it a password reset link.');
     } catch (err) {
-      setError(err.response?.data?.error || 'Unable to process request. Please try again.');
+      setError(apiErrorMessage(err, 'Unable to process the request. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -46,7 +44,7 @@ export default function ForgotPassword() {
             Reset Password
           </h1>
           <p className="text-white/50 text-xs mt-1">
-            Enter the email address registered with your student account to receive a secure reset link.
+            Enter the email address you registered with (student, recruiter or administrator account). We will email you a link to choose a new password.
           </p>
         </div>
 
@@ -62,34 +60,23 @@ export default function ForgotPassword() {
             <div className="p-4 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs space-y-2">
               <div className="flex items-center space-x-2 font-semibold text-teal-200">
                 <TbCheck className="w-4 h-4 text-emerald-400" />
-                <span>Instructions Dispatched</span>
+                <span>Check your email</span>
               </div>
               <p className="text-white/80 leading-relaxed">
                 {message}
               </p>
               <p className="text-[11px] text-white/50">
-                Please check your inbox and spam folder. The password reset link will expire in 1 hour.
+                Look in your inbox and spam folder. The link works once and expires in 60 minutes. Only the newest link you request will work.
               </p>
             </div>
 
-            {devInfo?.dev_reset_link && (
-              <div className="p-3.5 rounded-xl bg-base-900 border border-accent-500/30 text-xs space-y-2">
-                <div className="flex items-center justify-between text-accent-300 font-medium text-[11px]">
-                  <span>Local Development Reset Link</span>
-                  <span className="text-[10px] font-mono bg-accent-500/20 px-1.5 py-0.5 rounded">DEV MODE</span>
-                </div>
-                <p className="text-[11px] text-white/60">
-                  {devInfo.note}
-                </p>
-                <a
-                  href={devInfo.dev_reset_link}
-                  className="inline-flex items-center space-x-1.5 text-xs text-accent-400 hover:text-accent-300 font-semibold underline underline-offset-2 break-all"
-                >
-                  <span>Open Password Reset Screen</span>
-                  <TbExternalLink className="w-3.5 h-3.5 flex-shrink-0" />
-                </a>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={() => { setSubmitted(false); setMessage(''); }}
+              className="w-full py-2.5 rounded-xl text-white/60 hover:text-white text-xs font-semibold transition-colors"
+            >
+              Didn't get it? Send another link
+            </button>
 
             <div className="pt-2">
               <Link
@@ -126,7 +113,7 @@ export default function ForgotPassword() {
               disabled={loading}
               className="w-full py-3 rounded-xl font-semibold text-xs btn-primary shadow-glow transition-all flex items-center justify-center space-x-2 disabled:opacity-40"
             >
-              <span>{loading ? 'Generating Reset Link...' : 'Send Password Reset Link'}</span>
+              <span>{loading ? 'Sending...' : 'Send Password Reset Link'}</span>
             </button>
 
             <div className="pt-2 text-center">
