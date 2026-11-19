@@ -54,7 +54,7 @@ The system is checked by 182 isolated backend unit tests, 9 frontend unit tests 
 19. [Limitations & Threats to Validity](#19-limitations--threats-to-validity)
 20. [Future Scope](#20-future-scope)
 21. [Citation](#21-citation)
-22. [License & Acknowledgments](#22-license--acknowledgments)
+22. [Acknowledgments](#22-acknowledgments)
 
 ---
 
@@ -692,8 +692,6 @@ A. Daniya et al., "SkillBridge: A Privacy-Preserving Federated Intelligence and 
 
 ---
 
-## 22. License & Acknowledgments
+## 22. Acknowledgments
 
-Released under the **MIT License**.
-
-**Acknowledgments:** the [Flower](https://flower.ai/) federated learning framework; [Google AI Studio](https://ai.google.dev/) for the Gemini models; the sentence-transformers, scikit-learn, NumPy, pandas, pdfplumber, PyMuPDF and ReportLab projects; and the Greenhouse, Lever, Adzuna, Jooble and Arbeitnow public job APIs.
+This project builds on the [Flower](https://flower.ai/) federated learning framework; [Google AI Studio](https://ai.google.dev/) for the Gemini models; the sentence-transformers, scikit-learn, NumPy, pandas, pdfplumber, PyMuPDF and ReportLab projects; and the Greenhouse, Lever, Adzuna, Jooble and Arbeitnow public job APIs.
