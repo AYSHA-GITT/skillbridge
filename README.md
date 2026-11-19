@@ -1,654 +1,699 @@
-# 🚀 SkillBridge: Privacy-Preserving Career Intelligence & Skill Gap Analysis
 # 🎓 SkillBridge: A Privacy-Preserving Federated Intelligence and Adaptive Verification Framework for Career Gap Remediation
 
 [![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg?logo=python&logoColor=white)](https://python.org)
-[![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
 [![Flask](https://img.shields.io/badge/Flask-3.1-black.svg?logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Gemini AI](https://img.shields.io/badge/Google%20GenAI-Gemini%203.6%20Flash-orange.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![Federated Learning](https://img.shields.io/badge/Federated%20Learning-Flower%20%7C%20FedAvg-green.svg)](https://flower.ai/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Python: 3.11 | 3.12](https://img.shields.io/badge/Python-3.11%20%7C%203.12-blue.svg?logo=python&logoColor=white)](https://python.org)
-[![React: 19.0](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react&logoColor=black)](https://react.dev)
-[![Federated Learning: Flower](https://img.shields.io/badge/Federated%20Learning-Flower%20%7C%20FedAvg-green.svg?logo=flower&logoColor=white)](https://flower.ai/)
-[![LLM Engine](https://img.shields.io/badge/Generative%20AI-Google%20Gemini%20Flash-orange.svg?logo=google&logoColor=white)](https://ai.google.dev/)
-[![ATS Compatibility](https://img.shields.io/badge/ATS%20Engine-Deterministic%20STAR%2FXYZ-blueviolet.svg)](#-deterministic-ats-studio--resume-optimizer)
-[![Validation Suite](https://img.shields.io/badge/Test%20Suite-34%2F34%20Passed%20(100%25)-brightgreen.svg)](#-experimental-validation--empirical-results)
+[![Gemini](https://img.shields.io/badge/LLM-Google%20Gemini%20Flash-orange.svg?logo=google&logoColor=white)](https://ai.google.dev/)
+[![Federated Learning](https://img.shields.io/badge/Federated%20Learning-Flower%20%7C%20FedAvg%20(simulation)-green.svg)](https://flower.ai/)
+[![Backend tests](https://img.shields.io/badge/Backend%20unit%20tests-182%20passing-brightgreen.svg)](#9-experimental-validation--results)
+[![E2E](https://img.shields.io/badge/Live%20E2E%20checks-176%20pass%20%2F%200%20fail-brightgreen.svg)](#9-experimental-validation--results)
 
-> **A decentralized, AI-driven career development platform that bridges the gap between student competencies and industry requirements through adaptive verification, predictive salary modeling, and privacy-preserving federated intelligence.**
+> **SkillBridge turns what a student *claims* on a resume into what they can *show*.** Resume skills stay unverified until the student passes an assessment or a reviewer accepts their evidence. The result is a shareable **Verified Skill Passport**. Students use it to find skill gaps, plan learning, match against live Indian job listings, and apply to verified employers, who see only the parts of the profile the student chose to share.
+
 ---
 
 ## 📄 Abstract
 
-Contemporary digital recruitment and career mentoring ecosystems suffer from three fundamental deficiencies: **(1) resume keyword inflation and hallucination**, where candidates self-report unverified competencies that bypass keyword-based Applicant Tracking Systems (ATS); **(2) fragmented career remediation**, where skill assessment, curriculum sequencing, and market incentive projections remain disconnected; and **(3) severe institutional data silos**, where higher education institutions cannot pool placement statistics, academic performance, and hiring trends due to privacy regulations such as the Family Educational Rights and Privacy Act (FERPA) and General Data Protection Regulation (GDPR).
+Campus recruitment and early-career hiring have three structural problems. **(1) Unverified self-reporting:** resumes list skills that keyword-based Applicant Tracking Systems (ATS) accept at face value. **(2) Fragmented preparation:** skill assessment, learning plans, job search and salary information sit in separate tools with no feedback loop between them. **(3) Privacy and consent:** candidate data is usually exposed to employers wholesale, and institutions cannot pool placement data under regulations such as GDPR and FERPA.
 
-This paper introduces **SkillBridge**, a decentralized, privacy-preserving career intelligence and adaptive skill gap remediation framework. SkillBridge couples an **active verification loop**—employing contextual resume parsing, multi-tier evidence weighting, and Large Language Model (LLM)-driven adaptive question generation—with **multi-tenant Retrieval-Augmented Generation (RAG)** and **transferable skill ontology mapping**. SkillBridge also includes a **federated-learning simulation** (FedAvg over four synthetic partitions with update clipping and Gaussian noise; no formal differential-privacy guarantee is claimed) and a **live job discovery pipeline** that refreshes listings from authorized job APIs every two hours and scores them against each student's verified skills with an explainable formula. Retrieval for the career assistant was selected by measurement: pretrained MiniLM embeddings reach Recall@1 0.852 on an author-written 27-query test set versus 0.519 for the previous hashed engine.
+**SkillBridge** is a full-stack platform (React 19 + Flask, 35 relational tables, 150+ REST routes) that addresses these problems with one shared definition of *verified*. A section-aware, taxonomy-based resume parser extracts skills with evidence strength (*applied*, *supporting*, *listed only*). Skills become **verified** only through a difficulty-mixed assessment (pass mark 70%, drawn from 233 hand-reviewed questions plus validated LLM-generated ones) or reviewer-accepted evidence. The same six-level status model drives career readiness, skill-gap analysis, explainable job matching, badges, the Skill Passport and the employer-side compatibility report, so students and employers see identical per-skill credit.
 
-> **Keywords**: Federated Learning, Differential Privacy, Skill Gap Analysis, Natural Language Processing, Adaptive Testing, Retrieval-Augmented Generation (RAG), Career Informatics.
+The platform also includes:
+- a **live job discovery pipeline** that refreshes Indian listings from public company career boards (Greenhouse, Lever), Adzuna, Jooble and Arbeitnow every two hours, under a database lease, with evidence-based expiry;
+- a **Recruiter Portal** with admin-verified organisations, consent-scoped candidate profiles, opaque candidate references, a hiring pipeline and access logs that students can see;
+- a **retrieval-augmented career assistant** whose retriever was chosen by measurement (MiniLM Recall@1 = 0.852 vs 0.519 for the previous hashed engine on a 27-query test set);
+- an **illustrative salary estimator** (Ridge regression, evaluated against a mean baseline);
+- a **federated-learning simulation** (FedAvg over four synthetic partitions with update clipping and Gaussian noise; no formal differential-privacy guarantee is claimed).
+
+The system is checked by 182 isolated backend unit tests, 9 frontend unit tests and a 176-check live end-to-end script.
+
+> **Keywords:** Skill Verification, Skill Passport, Explainable Job Matching, Consent-Based Data Sharing, Applicant Tracking Systems, Retrieval-Augmented Generation (RAG), Adaptive Assessment, Federated Learning, Career Informatics, Responsible AI.
 
 ---
 
 ## 📌 Table of Contents
-- [Problem Statement](#-problem-statement)
-- [What Makes SkillBridge Different?](#-what-makes-skillbridge-different)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Technology Stack](#-technology-stack)
-- [Project Directory Structure](#-project-directory-structure)
-- [Installation & Local Setup](#-installation--local-setup)
-- [Environment Configuration](#-environment-configuration)
-- [REST API Reference](#-rest-api-reference)
-- [Future Scope (Phase 2)](#-future-scope-phase-2)
 
-1. [Research Motivation & Problem Formulation](#-research-motivation--problem-formulation)
-2. [Scientific Contributions](#-scientific-contributions)
-3. [System Architecture & Workflow](#-system-architecture--workflow)
-4. [Methodology & Mathematical Formulation](#-methodology--mathematical-formulation)
-   - [4.1 Context-Aware Resume Parsing & Confidence Heuristics](#41-context-aware-resume-parsing--confidence-heuristics)
-   - [4.2 Adaptive AI Verification Engine](#42-adaptive-ai-verification-engine)
-   - [4.3 Multi-Dimensional Career Readiness Formulation](#43-multi-dimensional-career-readiness-formulation)
-   - [4.4 Federated Learning (simulation)](#44-federated-learning-simulation)
-   - [4.5 Deterministic Subword Vector Store & Multi-Tenant RAG](#45-deterministic-subword-vector-store--multi-tenant-rag)
-   - [4.6 Predictive Compensation Modeling & ROI Simulation](#46-predictive-compensation-modeling--roi-simulation)
-   - [4.7 Transferable Skill Knowledge Graph & Match Decomposition](#47-transferable-skill-knowledge-graph--match-decomposition)
-5. [Core Modules & Implementation Details](#-core-modules--implementation-details)
-   - [Deterministic ATS Studio & Anti-Hallucination Optimizer](#deterministic-ats-studio--anti-hallucination-optimizer)
-   - [AI Behavioral & Technical Mock Interview Simulator](#ai-behavioral--technical-mock-interview-simulator)
-   - [Personalized Day-by-Day Learning Roadmap Engine](#personalized-day-by-day-learning-roadmap-engine)
-   - [Regional Opportunity Matching & Prioritization](#regional-opportunity-matching--prioritization)
-6. [Experimental Validation & Empirical Results](#-experimental-validation--empirical-results)
-7. [Technology Stack](#-technology-stack)
-8. [Project Structure](#-project-structure)
-9. [Reproducibility & Installation Guide](#-reproducibility--installation-guide)
-10. [RESTful API Specification](#-restful-api-specification)
-11. [Data Privacy, Security & Ethical Compliance](#-data-privacy-security--ethical-compliance)
-12. [Citation & Academic Reference](#-citation--academic-reference)
-13. [License & Acknowledgments](#-license--acknowledgments)
+1. [Problem Statement & Motivation](#1-problem-statement--motivation)
+2. [Objectives](#2-objectives)
+3. [Contributions](#3-contributions)
+4. [How SkillBridge Differs from Existing Platforms](#4-how-skillbridge-differs-from-existing-platforms)
+5. [Features by User Role](#5-features-by-user-role)
+6. [System Architecture & Workflow](#6-system-architecture--workflow)
+7. [Methodology & Mathematical Formulation](#7-methodology--mathematical-formulation)
+8. [Data Model](#8-data-model)
+9. [Experimental Validation & Results](#9-experimental-validation--results)
+10. [Development Timeline & Change History](#10-development-timeline--change-history)
+11. [Corrections Made for Scientific Integrity](#11-corrections-made-for-scientific-integrity)
+12. [Technology Stack](#12-technology-stack)
+13. [Project Structure](#13-project-structure)
+14. [Installation & Reproducibility](#14-installation--reproducibility)
+15. [Environment Configuration](#15-environment-configuration)
+16. [Live Job Discovery & Two-Hour Synchronization](#16-live-job-discovery--two-hour-synchronization)
+17. [REST API Reference](#17-rest-api-reference)
+18. [Privacy, Security & Ethics](#18-privacy-security--ethics)
+19. [Limitations & Threats to Validity](#19-limitations--threats-to-validity)
+20. [Future Scope](#20-future-scope)
+21. [Citation](#21-citation)
+22. [License & Acknowledgments](#22-license--acknowledgments)
 
 ---
 
-## ⚠️ Problem Statement
-## 🔬 Research Motivation & Problem Formulation
+## 1. Problem Statement & Motivation
 
-1. **Resume Keyword Inflation**: Traditional applicant tracking systems (ATS) and hiring platforms rely on *self-reported* keywords or unverified online certificates. Anyone can write "Python" or "Machine Learning" on a resume without true competency.
-2. **Fragmented Career Preparation**: Students navigate disconnected tools—resumes on Word, testing on HackerRank, courses on YouTube/Coursera, and salary guesses on Glassdoor—without an integrated feedback loop.
-3. **Data Sovereignty & Privacy Concerns**: Universities and training institutions cannot easily share student placement records and academic benchmarks due to strict privacy regulations (GDPR, FERPA), preventing cross-institutional collaborative intelligence.
-Modern workforce analytics and collegiate recruitment pipelines encounter critical structural bottlenecks:
-
----
 ```
 ┌────────────────────────────────────────────────────────────────────────────────┐
-│                          CURRENT WORKFORCE BOTTLENECK                          │
-├────────────────────────┬─────────────────────────────┬─────────────────────────┤
-│ Keyword Inflation      │ Disconnected Remediation    │ Institutional Silos     │
-│ ──────────────────     │ ────────────────────────    │ ───────────────────     │
-│ 78% of resumes contain │ Students navigate separate  │ FERPA & GDPR prohibit   │
-│ exaggerated skills;    │ platforms for ATS, quizzes, │ cross-campus sharing of │
-│ static keyword parsers │ roadmaps, and salary data   │ student performance and │
-│ reward deception.      │ without feedback loops.     │ placement outcomes.     │
-└────────────────────────┴─────────────────────────────┴─────────────────────────┘
+│                        EARLY-CAREER HIRING BOTTLENECKS                         │
+├──────────────────────────┬──────────────────────────┬──────────────────────────┤
+│ Unverified claims        │ Fragmented preparation   │ Privacy & consent        │
+│ ───────────────────      │ ──────────────────────   │ ─────────────────        │
+│ Resumes list skills that │ Resumes, quizzes, course │ Employers usually get    │
+│ keyword ATS accept as-is;│ plans, job boards and    │ the whole profile; the   │
+│ a "Python" claim and a   │ salary data live in      │ student cannot see or    │
+│ Python skill look alike. │ separate tools.          │ limit who looked at it.  │
+└──────────────────────────┴──────────────────────────┴──────────────────────────┘
 ```
 
-## 💡 What Makes SkillBridge Different?
-Formally, let a student's self-reported profile be represented by $\mathcal{P}_s = \{s_1, s_2, \dots, s_n\}$ and the true industrial competency profile for career $C$ be defined as $\mathcal{T}_C = \{k_1, k_2, \dots, k_m\}$. Traditional ATS models evaluate candidate suitability solely through set intersection:
+Let a student's self-reported skill set be $\mathcal{P}_s = \{s_1, \dots, s_n\}$ and a role's requirements $\mathcal{T}_C = \{k_1, \dots, k_m\}$. A keyword ATS scores suitability by set overlap:
 
-| Feature | Existing Platforms (LinkedIn, Coursera, ATS) | SkillBridge |
-| :--- | :--- | :--- |
-| **Skill Validation** | Self-reported keywords or passive video completion certificates | **Active Verification Loop**: Only skills verified via dynamic AI quizzes count toward career readiness. |
-| **Data Privacy** | Centralized database storing raw student resumes and sensitive grades | **Account-scoped access + export/delete**: resumes are stored server-side and visible only to the owner's account; the federated module is a simulation on synthetic data. |
-| **Curriculum Planning** | Generic, static 40-hour course recommendations | **Dynamic Day-by-Day AI Roadmaps** with exact time allocations and curated free resources. |
-| **Financial Motivation** | Vague suggestions ("Cloud is in demand") | **Quantifiable ML Salary Boost**: Simulates exact projected LPA increase from target skill acquisitions. |
 $$\text{Suitability}_{\text{naive}} = \frac{|\mathcal{P}_s \cap \mathcal{T}_C|}{|\mathcal{T}_C|}$$
 
-This naïve metric is highly susceptible to adversarial keyword stuffing and provides zero verification of operational proficiency. Furthermore, universities $\mathcal{U}_1, \mathcal{U}_2, \dots, \mathcal{U}_K$ possess local datasets $\mathcal{D}_1, \mathcal{D}_2, \dots, \mathcal{D}_K$ of student placement success factors. Centralizing $\bigcup_{k=1}^K \mathcal{D}_k$ into a central server breaches student privacy laws.
-
-**SkillBridge resolves this tripartite dilemma** by replacing passive keyword scanning with an active, adaptive verification loop, and replacing central data warehousing with localized federated training backed by differential privacy.
+This score treats every claim as equally true, so it rewards keyword stuffing and tells neither the student nor the employer which skills have been demonstrated. SkillBridge replaces the binary "skill present" with a **graded, evidence-backed credit** $c(s) \in [0,1]$ (Section 7.5). Every number it shows comes with the reasons behind it.
 
 ---
 
-## ✨ Key Features
-## 💡 Scientific Contributions
+## 2. Objectives
 
-- 📄 **Intelligent Resume Parsing**: Automatically extracts technical skills, years of experience, and contact info from PDF and DOCX files using **PyMuPDF**, **pdfplumber**, and natural language processing.
-- ⚡ **AI Resume Optimizer & ATS Studio**: Side-by-side interactive workspace providing deterministic ATS job-match scoring in Python, STAR/XYZ bullet rewrites, anti-hallucination verification prompts, and downloadable ATS-ready PDF and DOCX documents without altering original files.
-- 🧠 **Adaptive AI Verification Engine**: Powered by **Google Gemini 3.6 Flash**. Generates on-the-fly technical MCQs tailored to candidate confidence levels and caches permanent questions in a local SQLite question bank.
-- 🎯 **Target Career Gap Analysis**: Computes real-time coverage scores against curated and dynamically generated industry roles (*Data Analyst, Data Scientist, Software Engineer, Full Stack Developer, DevOps Engineer*).
-- 🗺️ **Personalized Daily Roadmap**: Day-by-day learning schedule targeting only the missing skills, complete with descriptions, study hour estimations, and direct YouTube search links.
-- 💰 **ML Salary Predictor & Boost Simulator**: Uses **Scikit-Learn / XGBoost** to predict current market compensation and calculate return on investment (ROI) for learning new technologies (e.g., adding Docker + AWS).
-- 🏆 **Gamified Progress Tracking**: Dynamic readiness gauges (0–100%), historical snapshot timelines, and automated milestone badges (*Profile Kickoff, High Ready, Quiz Master*).
-- 🛡️ **Privacy-Preserving Federated Learning**: Implements multi-node institutional training rounds (*Alpha, Beta, Gamma, Delta*) using **Flower (`flwr`)** client code and **Federated Averaging (FedAvg)** with update clipping and Gaussian noise (simulation on synthetic data; no formal DP guarantee).
-- 📊 **Administrative Oversight Portal**: High-level platform analytics tracking institution-wide readiness averages, common skill gaps, and round-by-round federated training performance.
-1. **Active Verification Closed-Loop**: An end-to-end framework where parsed skills remain unverified candidates until validated through generative, difficulty-calibrated assessment quizzes, completely neutralizing ATS keyword gaming.
-2. **Privacy-Preserving Institutional Federated Averaging**: A distributed learning architecture utilizing Flower (`flwr`) wherein multiple simulated higher-education institutions train global career success models locally, transmitting only $L_2$-norm clipped weights with Gaussian noise perturbation ($\epsilon \le 0.95, \delta = 10^{-5}$).
-3. **Multi-Dimensional Career Readiness Metric**: A deterministic, mathematically explainable formulation factoring required core coverage, empirical quiz mastery, and supplementary capabilities into a single bounded score $\mathcal{R} \in [0, 100]\%$.
-4. **Deterministic AST/RAG Infrastructure**: An in-memory, deterministic dense subword embedding hash engine ($d=128$) enforcing strict multi-tenant isolation, paired with an anti-hallucination resume optimizer that enforces STAR/XYZ metrics without synthetic fact fabrication.
-5. **Transferable Skill Affinity Knowledge Graph**: An ontological mapping linking foundational competencies to domain ecosystems, enabling accurate transferability evaluation and realistic learning-time remediation projections.
+1. Extract skills from resumes accurately, with the evidence and the section each one came from.
+2. Separate *claimed* from *demonstrated* skills using assessments and reviewed evidence, under **one** rule used everywhere in the system.
+3. Turn skill gaps against a target career into an ordered, day-by-day learning plan.
+4. Match students to **real, current** job listings with an explainable score, without inventing data.
+5. Let students share a verified profile with employers **on their own terms** (sections, expiry, revocation, visible access log).
+6. Give administrators oversight: job-sync health, organisation verification, evidence review and audit logs.
+7. Report every metric honestly, with the method used to produce it and its limitations.
 
 ---
 
-## 🏛️ System Architecture
-## 🏛️ System Architecture & Workflow
+## 3. Contributions
 
-SkillBridge is organized into four interconnected functional layers: Client Presentation, Backend Orchestration, Distributed AI & Privacy, and Persistence.
+1. **Unified verification model.** A six-level skill status (*self-declared → AI-extracted → evidence submitted → pending verification → assessment completed → verified*) is computed in one function (`utils/skill_passport.py: skill_verification_states`). Matching, readiness, careers, badges, the passport and the recruiter report all use it. Before this was unified, "verified" had four different meanings in the codebase; a failed quiz could count as a verified skill.
+2. **Evidence-aware resume parsing.** A shared skill taxonomy (~120 canonical skills with aliases) matches on token boundaries and handles ambiguous names (C, R, Go, "excel" used as a verb). Each skill gets an extraction confidence, an evidence strength and evidence snippets.
+3. **Integrity-hardened assessments.** Quiz length depends on evidence strength. Questions are mixed across Easy/Medium/Hard, options are shuffled per student, every answer must belong to the skill, at least 5 questions are required, unvalidated fallback questions are never stored, and the 233-question curated bank keeps verification working without any LLM.
+4. **Verified Skill Passport.** A consent-based portable profile with share links (SHA-256-hashed tokens, per-section visibility, expiry, revocation, access history), a QR code and a PDF export. The public view never includes email, phone, resume text, files or internal IDs.
+5. **Consent-based Recruiter Portal.** Organisations are verified by an admin before they can post jobs or search candidates. Candidates are addressed by opaque references, employers see only shared passport sections, students see every employer access, and search is opt-in. The compatibility report uses the same credit function as the student-side matcher, and a student can preview the exact employer view before applying.
+6. **Explainable job matching on live data.** A multiplicative score (skill × experience × location fit) with per-skill reasons. A posting with no recognisable skills gets *no* score instead of an invented one.
+7. **Reliable two-hour job synchronization.** A DB-persisted schedule, a lease against overlapping runs, per-provider budgets and retries, scheduler heartbeats, de-duplication and evidence-based expiry. Listings are archived, never deleted.
+8. **Measured component choices.** The RAG retriever and the salary model were chosen by reproducible comparisons against baselines (Section 9.3). Earlier unsupported figures were withdrawn (Section 11).
+
+---
+
+## 4. How SkillBridge Differs from Existing Platforms
+
+| Aspect | Typical platforms (job boards, ATS, MOOCs) | SkillBridge |
+| :--- | :--- | :--- |
+| **Skill validation** | Self-reported keywords or course-completion certificates | Six-level status; only a passed assessment (≥ 70%) or reviewer-accepted evidence counts as *verified* |
+| **Match explanation** | Opaque "% match" | Per-skill credit, matched / missing required skills, experience and location notes, limitations |
+| **Candidate data sharing** | Whole profile visible to any recruiter | Student chooses sections and skill filter; links expire and can be revoked; access log visible to the student |
+| **Employer trust** | Anyone can post jobs | Organisations verified by an admin before posting or searching |
+| **Job data** | Mixed with sponsored or demo listings | Real providers only, freshness labels, provenance, honest salary labels |
+| **Learning plan** | Generic course lists | Day-by-day roadmap ordered by required gaps, with time estimates and resources |
+| **Salary information** | Unlabelled estimates | Labelled *illustrative estimate* with a disclaimer and an extrapolation flag |
+
+---
+
+## 5. Features by User Role
+
+### 👩‍🎓 Students
+- **Resume upload & parsing** (PDF/DOCX): section detection, taxonomy-based skill extraction with evidence snippets.
+- **Skill verification quizzes**: adaptive length, mixed difficulty, per-student option shuffling, answer review and short AI explanations after submission.
+- **Verified Skill Profile & Skill Passport**: overview, skills & verification status, projects/certificates/experience/practical challenges as evidence (one-click import from the parsed resume), share links, QR code, PDF.
+- **Career analysis**: target career, skill-gap analysis, career readiness breakdown, AI career recommendations, side-by-side career comparison, path simulation.
+- **Learning roadmap & study plan**: day-by-day schedule for missing skills, progress checkpoints.
+- **Live jobs & internships**: filters, sorting, saved jobs, applications with status tracking, job preferences, in-app alerts, explainable match with the Skill Passport status of each skill and a Verify / Retake-quiz link.
+- **Apply to employers on SkillBridge**: explicit sharing consent and a **"How this employer will see you"** preview of the exact compatibility report.
+- **Employer Access page**: which organisations viewed the profile and when, opt-in discovery settings, application stage updates.
+- **ATS Resume Studio**: deterministic ATS score, STAR/XYZ bullet rewriting without invented metrics, live editing, PDF/DOCX export.
+- **Mock interview simulator** (5 categories, voice input), **salary boost simulator**, **badges**, **progress timeline**, **RAG career assistant**.
+- **Account**: profile and photo, password change/reset, data export, permanent deletion (including resume and evidence files).
+
+### 🏢 Recruiters
+- Registration with an organisation, then **admin verification** (website and email-domain signal) before publishing jobs or searching candidates.
+- Job posts (draft / publish / close) shown to students with match scores.
+- Applicants and best-match lists per job, each with a **compatibility report** built only from shared data.
+- Opt-in candidate search with filters, candidate profiles by opaque reference, internal notes, shortlists and invitations.
+- **Hiring pipeline**: *new → under review → shortlisted → assessment → interview → selected / not selected / on hold*; every stage change notifies the student.
+
+### 🛡️ Administrators
+- Platform statistics and student roster.
+- **Job Synchronization** dashboard: provider health, schedule, scheduler liveness, run history, manual sync.
+- **Organisation review** and **evidence review** queues.
+- Federated-learning centre (simulation): nodes, rounds, trigger a round.
+- Audit log and system health.
+
+---
+
+## 6. System Architecture & Workflow
 
 ```mermaid
 flowchart TD
-    subgraph Client["Frontend Layer (React 19 + Tailwind CSS)"]
-        UI["Student & Admin Dashboard"]
-        QuizUI["Adaptive Quiz Interface"]
-        RoadmapUI["Day-by-Day Roadmap View"]
-        SimUI["Salary Boost Simulator"]
-    subgraph Client["Client Presentation Layer (React 19 + Tailwind CSS)"]
-        UI["Student & Admin Dashboards"]
-        QuizUI["Adaptive Assessment Engine"]
-        RoadmapUI["Day-by-Day Learning Roadmap"]
-        SalaryUI["ROI & Salary Boost Simulator"]
-        ATSStudio["Anti-Hallucination ATS Studio"]
-        FedVizUI["Decentralized FL Visualizer"]
+    subgraph Client["Presentation layer: React 19 + Tailwind CSS"]
+        SUI["Student app: dashboard, quizzes, passport, jobs, roadmap, ATS studio"]
+        RUI["Recruiter portal: jobs, candidates, pipeline, shortlists"]
+        AUI["Admin console: job sync, org and evidence review, FL centre"]
+        PUB["Public passport page"]
     end
 
-    subgraph Backend["Backend Layer (Flask REST API)"]
-        Auth["Flask-Login & Session Manager"]
-        Parser["Resume Parsing (PyMuPDF / pdfplumber)"]
-        GapEngine["Skill Gap & Readiness Scorer"]
-        SalaryEngine["ML Salary Engine (Scikit-Learn / XGBoost)"]
+    subgraph API["Application layer: Flask blueprints"]
+        AUTH["/api/auth: sessions, RBAC, rate limits"]
+        STU["/api/student"]
+        PAS["/api/passport"]
+        REC["/api/recruiter and /api/candidate"]
+        ADM["/api/admin"]
     end
 
-    subgraph Intelligence["Distributed AI & Privacy Layer"]
-        GenAI["Google Gemini 3.6 Flash (Adaptive MCQs & Roadmaps)"]
-        RAGEngine["Multi-Tenant Local Vector Store (128-d Embeddings)"]
-        FLServer["Flower FedAvg Server (Aggregator + L2 Clip + Noise)"]
-        subgraph Nodes["Decentralized Institution Nodes"]
-            NodeA["Simulated Partition A (Partition 1: n=180)"]
-            NodeB["Simulated Partition B (Partition 2: n=140)"]
-            NodeC["Simulated Partition C (Partition 3: n=160)"]
-            NodeD["Simulated Partition D (Partition 4: n=125)"]
-        end
+    subgraph Core["Domain services"]
+        PARSE["Resume parser + skill taxonomy"]
+        VER["Skill verification states: single rule"]
+        MATCH["Job matcher + compatibility report"]
+        READY["Readiness, skill gap, roadmap"]
+        RAG["RAG assistant: MiniLM retrieval"]
+        SAL["Salary estimate: Ridge"]
+        FL["FedAvg simulation: Flower"]
+        LLM["LLM providers: Gemini, with fallbacks"]
     end
 
-    subgraph Storage["Persistence & Storage Layer"]
-        DB[("Relational DB (PostgreSQL / SQLite)")]
-        DocStore[("ATS Optimized Document Store (PDF/DOCX)")]
+    subgraph Jobs["Job discovery"]
+        PROV["Greenhouse, Lever, Adzuna, Jooble, Arbeitnow"]
+        SYNC["Sync service: lease, normalize, dedup, expiry"]
+        SCHED["Scheduler: worker, thread or cron"]
     end
 
-    UI -->|Session Authenticated REST| Auth
-    UI -->|Resume Upload (PDF/DOCX)| Parser
-    Parser -->|Confidence-Scored Skills| DB
-    QuizUI <-->|Fetch / Verify Assessments| GenAI
-    GenAI --> DB
-    GapModel <--> DB
-    ReadinessModel <--> DB
-    SalaryUI <--> SalaryModel
-    ATSStudio <--> DocStore
-    RAGEngine <--> UI
-    Nodes <-->|Locally Trained Weights (dp-noise)| FLServer
-    FLServer -->|Global Aggregated Weights| DB
+    DB[("SQLite or PostgreSQL: 35 tables")]
+    FILES[("Resume and evidence files")]
+
+    SUI --> AUTH
+    SUI --> STU
+    SUI --> PAS
+    RUI --> REC
+    AUI --> ADM
+    PUB --> PAS
+    STU --> PARSE
+    STU --> READY
+    STU --> MATCH
+    STU --> RAG
+    STU --> SAL
+    PAS --> VER
+    REC --> MATCH
+    MATCH --> VER
+    READY --> VER
+    STU --> LLM
+    ADM --> FL
+    ADM --> SYNC
+    SCHED --> SYNC
+    SYNC --> PROV
+    SYNC --> DB
+    VER --> DB
+    PARSE --> FILES
+    PAS --> FILES
+```
+
+### End-to-end student workflow
+
+```
+Upload resume ─► Parse sections ─► Extract skills (AI-extracted, with evidence strength)
+      │
+      ▼
+Take quiz / attach evidence ─► Status: assessment completed │ pending review │ VERIFIED
+      │
+      ├─► Readiness score, skill gap ─► Day-by-day roadmap ─► retake quiz ─┐
+      │                                                                  │
+      ├─► Live job search ─► explainable match ─► save / apply           │
+      │                                                                  │
+      └─► Skill Passport ─► share link / PDF / apply to verified employer│
+                               │                                         │
+                               ▼                                         │
+               Employer sees only the shared sections ─► pipeline stages ◄┘
+                               │
+                               ▼
+                 Student sees the access log and stage updates
 ```
 
 ---
 
-## 📐 Methodology & Mathematical Formulation
+## 7. Methodology & Mathematical Formulation
 
-### 4.1 Resume Parsing & Evidence-Based Skill Extraction
+### 7.1 Resume parsing & evidence-based skill extraction
 
-Resumes are split into canonical sections (skills, experience, projects, education, certifications, achievements, summary) using a header vocabulary that recognises common variants ("Technical Skills", "Academic Projects", "Internships", ...).
+Resumes (PDF via pdfplumber/PyMuPDF, DOCX via python-docx) are split into canonical sections (skills, experience, projects, education, certifications, achievements, summary) using a header vocabulary that recognises common variants ("Technical Skills", "Academic Projects", "Internships", …).
 
-Skills are matched with a **shared skill taxonomy** (`backend/utils/skill_taxonomy.py`, ~120 canonical skills with aliases) on token boundaries, never raw substrings. Ambiguous names (C, R, Go) are only accepted in explicit forms ("C programming", "Golang") or as standalone list items. The same taxonomy is used for job descriptions, so resume skills and job requirements are compared under identical names.
-
-For every skill three *different* quantities are reported:
+Skills are matched against a **shared skill taxonomy** (`backend/utils/skill_taxonomy.py`, ~120 canonical skills with aliases) on token boundaries, never raw substrings. Ambiguous names (C, R, Go) are accepted only in explicit forms ("C programming", "Golang") or as standalone list items. "Excel at …" is not read as the Excel skill. Job descriptions use the same taxonomy, so resume skills and job requirements are compared under identical names.
 
 | Quantity | Meaning | Source |
 |---|---|---|
 | `extraction_confidence` | How certain we are the text refers to the skill (1.0 unambiguous, 0.7 list-context names). Rule-based, **not a probability**. | taxonomy match |
 | `evidence_strength` | `applied` (used in experience/projects), `supporting` (certifications/education/summary), `listed_only` (skills list only) | section analysis |
-| verified proficiency | Only established by passing the skill quiz | `SkillVerification` |
+| verification status | Six-level status (7.3) | assessments + reviewed evidence |
 
-Each extracted skill carries evidence snippets and a plain-language explanation.
+### 7.2 Skill assessment
 
-> **Fixed defect:** the previous substring matcher reported `java` for every "JavaScript" resume and `c`/`r` for nearly every resume. Run `flask --app app skills reextract` (dry run) to list affected unverified skills and add `--apply` to remove them.
+Quiz length depends on evidence strength (applied: 5, supporting: 6, listed only: 8 questions). Questions are drawn round-robin across Easy/Medium/Hard from the question bank: 233 hand-reviewed questions for 42 skills (`data/curated_questions.py`), plus LLM-generated questions that pass validation before they are stored. Options are shuffled per student. A submission must answer every question, and every question must belong to that skill.
 
-### 4.2 Skill Verification
+$$\mathcal{V}(s) = 0.25 \cdot E(s) + 0.75 \cdot Q(s), \qquad E(s) \in \{1.0,\ 0.7,\ 0.4\}$$
 
-Quiz length depends on evidence strength (applied: 5, supporting: 6, listed only: 8 questions) and questions are drawn round-robin across Easy/Medium/Hard. A submission must answer the whole quiz with questions belonging to that skill. The verification score is
+where $Q(s)$ is the fraction of correct answers. After submission the student sees which answers were wrong, the correct options and a short (≤ 60-word) explanation.
 
-$$\mathcal{V}(s) = 0.25 \cdot E(s) + 0.75 \cdot Q(s)$$
+### 7.3 Unified verification states
 
-where $Q(s)$ is the fraction of correct answers and $E(s) \in \{1.0, 0.7, 0.4\}$ the evidence weight. After submission students see which answers were wrong and the correct option.
+For each skill $s$, with $a_s$ its **latest** assessment score and $\mathcal{E}_s$ its linked evidence:
 
-### 4.3 Career Readiness
+| Status | Condition (strongest first) |
+|---|---|
+| `verified` | $a_s \ge 70\%$ **or** an evidence item for $s$ accepted by an administrator |
+| `assessment_completed` | assessment taken, $a_s < 70\%$ |
+| `pending_verification` | evidence submitted for review |
+| `evidence_submitted` | project / certificate / experience / practical challenge linked, not yet submitted |
+| `ai_extracted` | found in the resume only |
+| `self_declared` | added by the student only |
+
+A resume mention or an uploaded certificate **never** verifies a skill on its own, and editing reviewed evidence resets its review. $\text{Verified}(u) = \{ s : \text{status}(s) = \texttt{verified} \}$ is the only set used for readiness, skill gap, career recommendations, comparisons, RAG answers and badges.
+
+### 7.4 Career readiness
 
 $$\mathcal{R} = 100 \cdot \left( 0.50 \cdot C_{\text{req}} + 0.30 \cdot \bar{S}_{\text{quiz}} + 0.20 \cdot C_{\text{nth}} \right)$$
 
-where $C_{\text{req}}, C_{\text{nth}}$ are the shares of required / nice-to-have career skills the student has verified and $\bar{S}_{\text{quiz}}$ is the mean quiz score. The weights are design choices, not fitted parameters.
+$C_{\text{req}}$ and $C_{\text{nth}}$ are the shares of required and nice-to-have skills for the target career that are in $\text{Verified}(u)$, and $\bar{S}_{\text{quiz}}$ is the mean quiz score. Career requirements were reviewed against ~480 current Indian tech postings. Per-skill demand weights are recomputed from current postings after each sync, with equal weights when there are fewer than 20 postings. The 0.50/0.30/0.20 weights are design choices, not fitted parameters.
 
-### 4.4 Federated Learning (simulation)
+### 7.5 Per-skill credit (shared by students and employers)
 
-The federated module is a **simulation**: four partitions of *synthetic* data (uniform random features with a heuristic label). No real institution or student data participates. Each round every client starts from the stored global model and trains locally (SGD logistic regression); the server then:
+| Status / evidence | Credit $c(s)$ |
+|---|---|
+| Verified | 1.00 |
+| Assessment below pass mark: score 40–69% / < 40% | 0.60 / 0.20 |
+| Pending review | 0.60 |
+| Evidence submitted | 0.55 (never below its resume credit) |
+| Resume only: applied / supporting / listed only | 0.70 / 0.55 / 0.40 |
+| Self-declared | 0.30 |
+| Missing but transferable (required skills only, student-side matcher) | 0.25 |
+| Missing / not shared | 0 |
 
-1. L2-clips each client **update** $\Delta_k = w^k - w$ to norm $C = 1.0$,
-2. averages the clipped updates with sample weights,
-3. adds Gaussian noise $\mathcal{N}(0, (z \cdot C / K)^2)$ with noise multiplier $z = 0.5$,
-4. evaluates the new global model on a fixed held-out synthetic test set (400 samples).
+`utils/job_matcher.skill_credit` implements this table. The recruiter compatibility report imports the same function, so a student and an employer always see the same credit for the same skill.
 
-**No privacy accountant is implemented, so no $(\epsilon, \delta)$ guarantee is claimed.** (The previous version reported $\epsilon_t = 0.75 + 0.05t$ from a fixed formula and a global accuracy of $\max(0.72, \text{acc} + 0.015t)$; both were removed.)
-
-### 4.5 Retrieval-Augmented Career Assistant
-
-The assistant retrieves from an in-memory store with **strict tenant isolation** (a private chunk is only searchable by its owner). Retrieval uses pretrained `all-MiniLM-L6-v2` sentence embeddings, falling back to a hashed word/trigram projection when the model is unavailable. The choice is based on the evaluation below (MiniLM Recall@1 0.852 vs 0.519 for the hashed engine). A calibrated similarity threshold (0.20) plus a relative cutoff (best - 0.15) means off-topic questions retrieve nothing and the model is told when evidence is insufficient.
-
-### 4.6 Salary Estimate
-
-A Ridge regression ($\alpha = 1$) over experience, skill count and four domain indicators, trained on `data/salary_data.csv`: **24 rows of undocumented origin that appear hand-constructed**. Outputs are labelled *illustrative estimates* (INR per year) with a disclaimer and an extrapolation flag; they are not market salaries. Salaries on job cards come from providers and are labelled *Advertised by employer* or *Estimated by provider*.
-
-### 4.7 Explainable Job Matching
+### 7.6 Explainable job matching (student side)
 
 $$\text{Score} = 100 \times \text{SkillFit} \times \text{ExperienceFit} \times \text{LocationFit}$$
 
 $$\text{SkillFit} = \frac{3\sum_{s \in \text{req}} c(s) + \sum_{s \in \text{pref}} c(s)}{3|\text{req}| + |\text{pref}|}$$
 
-Credit $c(s)$: quiz-verified >= 70% gives 1.0, 40-69% gives 0.6, below 40% gives 0.2; resume-only applied 0.7, supporting 0.55, listed only 0.4; missing but transferable (required only) 0.25; missing 0. Experience fit is 1.0 / 0.8 / 0.55 depending on the gap to the posting's minimum years; location fit is 1.0 / 0.9 (open to relocation) / 0.75 against saved preferences. A matching job *title* adds nothing, there are no free points, and a posting with no recognisable skills gets **no score** ("insufficient data") instead of an invented one. Every score comes with reasons (matched / missing required skills, experience and location notes).
+Experience fit is 1.0 / 0.8 / 0.55 depending on the gap to the posting's minimum years. Location fit is 1.0 / 0.9 (open to relocation) / 0.75 against saved preferences. A matching job title adds nothing and there are no free points. A posting with no recognisable skills gets **no score** ("insufficient data"). Every score lists matched and missing required skills, each skill's passport status with a Verify / Retake-quiz link, and experience and location notes.
+
+### 7.7 Employer compatibility report (recruiter side)
+
+The report is computed **only from the consent-scoped passport** the student shared:
+
+$$\text{Fit} = 100 \cdot \frac{3\sum_{\text{req}} c(s) + \sum_{\text{pref}} c(s)}{3|\text{req}| + |\text{pref}|}$$
+
+Labels: *Strong* ≥ 70, *Moderate* ≥ 45, *Developing* ≥ 25, otherwise *Low*. If the skills section is not shared, or the job lists no recognisable skills, no score is produced. Experience and education are **listed for the recruiter's judgement, not scored**. Name, college, location, gender and age are never part of the score. The report also lists relevant projects and assessments, skills that need verification, and explicit limitations. Students can generate the identical report read-only before applying (`POST /api/student/jobs/<id>/employer_preview`).
+
+### 7.8 Secure sharing
+
+- Share tokens are random and stored only as **SHA-256 hashes**. Links carry section visibility, a skill filter (all / with evidence / verified only), an expiry and a revocation flag.
+- Each public view is logged with a hashed viewer fingerprint. The owner sees the access history.
+- Evidence uploads are restricted to PDF/PNG/JPEG and checked by file signature (magic bytes), not only by extension.
+- Public passport endpoints are rate-limited (60 views/min, 20 PDFs/min per client).
+
+### 7.9 Retrieval-augmented career assistant
+
+An in-memory store with **strict tenant isolation**: a private chunk is searchable only by its owner. Retrieval uses pretrained `all-MiniLM-L6-v2` sentence embeddings and falls back to a hashed word/trigram projection when the model is unavailable. A similarity threshold (0.20) plus a relative cutoff (best − 0.15) means off-topic questions retrieve nothing, and the LLM is told when the evidence is insufficient. The retriever was selected by the evaluation in Section 9.3.
+
+### 7.10 Salary estimate
+
+Ridge regression ($\alpha = 1$) over experience, skill count and four domain indicators, trained on `data/salary_data.csv`: **24 rows of undocumented origin that appear hand-constructed**. Outputs are labelled *illustrative estimates* (INR per year) with a disclaimer and an extrapolation flag. Salaries on job cards come from providers and are labelled *Advertised by employer* or *Estimated by provider*.
+
+### 7.11 Federated learning (simulation)
+
+Four partitions of **synthetic** data (uniform random features, heuristic label); no real institution or student data takes part. Each round, every client starts from the global model and trains locally (SGD logistic regression). The server then:
+
+1. L2-clips each client update $\Delta_k = w^k - w$ to norm $C = 1.0$,
+2. averages the clipped updates, weighted by sample counts,
+3. adds Gaussian noise $\mathcal{N}(0, (z \cdot C / K)^2)$ with noise multiplier $z = 0.5$,
+4. evaluates the new global model on a fixed held-out synthetic test set (400 samples).
+
+**No privacy accountant is implemented, so no $(\epsilon, \delta)$ guarantee is claimed.**
 
 ---
 
-## 💻 Core Modules & Implementation Details
+## 8. Data Model
 
-### Deterministic ATS Studio & Anti-Hallucination Optimizer
-- **Deterministic Job-Match Scoring**: Weighted coverage computed via Python algorithms (55% Core, 25% Preferred, 20% Formatting). Zero hallucinated metrics.
-- **STAR/XYZ Impact Bullet Rewriting**: Automatically identifies passive phrases (*"responsible for"*, *"worked on"*) and transforms them into strong action verbs (*"architected"*, *"engineered"*).
-- **Anti-Hallucination Guardrails**: When quantifiable metrics are missing, the AI is constrained from inventing fake figures. It inserts explicit user prompts: `[Quantify impact: e.g., improved throughput by X% or supported N daily queries]`.
-- **Side-by-Side Live Workspace**: Preserves original source documents unchanged while providing interactive live editing of summary, bullets, and skills.
-- **Multi-Format ATS Export**: Direct generation of ATS-compliant PDF (`reportlab`) and Word documents (`python-docx`).
+35 SQLAlchemy models (SQLite in development, PostgreSQL supported), managed by idempotent Alembic migrations (`backend/migrations/versions`, 8 revisions).
 
-### AI Behavioral & Technical Mock Interview Simulator
-- Simulates realistic 5-category interview assessments:
-  1. *Technical Fundamentals*
-  2. *System Scenario & Architecture*
-  3. *Hands-on Implementation*
-  4. *Project & Experience Deep-Dive*
-  5. *Behavioral & Engineering Collaboration*
-- Evaluates candidate responses across conceptual accuracy, completeness, and clarity with fine-grained feedback detailing missed points and reference sample answers.
-
-### Personalized Day-by-Day Learning Roadmap Engine
-- Converts identified skill gaps into sequenced learning schedules.
-- High-importance gaps trigger intensive 7-day deep-dives; medium-importance gaps trigger 4-day accelerators.
-- Integrates topic descriptions, estimated completion hours, and automated educational video queries.
-
-### Live Job Discovery (two-hour refresh)
-- Jobs and internships are fetched from **company career boards** via the official Greenhouse and Lever APIs (India; free, no key), **Adzuna** and **Jooble** (India; free credentials required) and **Arbeitnow** (remote roles; no key) by a scheduled backend process. See "Live Job Discovery & Two-Hour Synchronization" below.
-- Listings are normalized, de-duplicated, tracked for freshness and archived when expired; demo listings are never mixed into results.
-- Filters: job vs internship, fresher/entry level, experience, location, work mode, salary, employment type, skill, company, date posted, career category. Sorting: relevance (India first), most recent, best skill match, salary.
-- Personalized in-app job alerts with frequency control; each job is alerted at most once.
+| Domain | Tables |
+|---|---|
+| Identity & accounts | `Student` (role: student / recruiter / admin), `PasswordResetToken`, `AuditLog` |
+| Resume & skills | `Resume`, `Skill` (source, evidence strength), `SkillVerification`, `QuestionBank` |
+| Career & learning | `SkillGap`, `StudyPlan`, `RoadmapTemplate`, `Progress` |
+| Skill Passport | `PassportProfile`, `PassportEvidence`, `PassportShare`, `PassportAccessLog` |
+| Jobs | `JobListing`, `SavedJob`, `JobApplication`, `JobPreference`, `JobAlert`, `JobAlertMatch`, `JobSyncRun`, `SchedulerLease` |
+| Recruiting | `Organisation`, `RecruiterProfile`, `CandidateDiscoverySetting`, `RecruiterAccessLog`, `ApplicationEvent`, `RecruitmentNote`, `CandidateShortlist`, `ShortlistEntry`, `JobInvitation` |
+| Interview | `InterviewSession`, `InterviewQA` |
+| Federated learning | `FLTrainingRound` |
 
 ---
 
-## 📊 Experimental Validation & Empirical Results
+## 9. Experimental Validation & Results
 
-The system was evaluated using an automated end-to-end verification harness executing 34 rigorous functional and architectural tests across all submodules.
+### 9.1 Automated test suites
 
-### 1. Subsystem Verification Matrix
+| Suite | Command | Scope | Result (2026-11-17/19) |
+|---|---|---|---|
+| Isolated backend unit/integration tests | `python -m unittest discover -s tests` | Temporary DB, fake job providers, no network: accuracy & integrity, job system, question bank, Skill Passport, Recruiter Portal, verification consistency, SQLite locking | **182 passing** |
+| Frontend unit tests | `npm test` | API error-message handling (`utils/apiErrors.js`) | **9 passing** |
+| Live end-to-end check | `python e2e_check.py` (servers running) | Every feature through the real HTTP API; creates and deletes throw-away accounts | **176 pass, 0 fail** |
+| Headless-browser walkthrough | Chrome, scripted | Student and recruiter flows through the real UI, including a real application and the employer preview | 57/59 (the 2 flags were checker artefacts) |
 
-| Test ID | Evaluated Module | Verification Scope | Status | Result / Metric |
-| :--- | :--- | :--- | :---: | :--- |
-| `TC-01` | **API Health** | HTTP lifecycle and route availability | **PASS** | Status 200 OK |
-| `TC-02` | **Student Auth** | Session-backed credential authentication | **PASS** | Session validated |
-| `TC-03` | **Session Validation** | Identity validation via `/api/auth/me` | **PASS** | Correct User ID |
-| `TC-04` | **RBAC Enforcement** | Student access denial on Admin routes | **PASS** | HTTP 403 Forbidden |
-| `TC-05` | **Admin Auth** | Administrative privilege elevation | **PASS** | Admin role verified |
-| `TC-06` | **Resume Upload** | Stream parsing of binary PDF/DOCX | **PASS** | Binary ingest OK |
-| `TC-07` | **Text Extraction** | Character sequence segmentation | **PASS** | 72+ text chars extracted |
-| `TC-08` | **Skill Extraction** | Multi-section confidence heuristic | **PASS** | 5 core skills detected |
-| `TC-09` | **Skills Inventory** | Relational persistence of student skills | **PASS** | Skills recorded |
-| `TC-10` | **Career Target** | Dynamic career track assignment | **PASS** | Target updated |
-| `TC-11` | **Gap Analysis** | Coverage and missing skill identification | **PASS** | Bounded coverage $[0, 1]$ |
-| `TC-12` | **Adaptive MCQs** | On-the-fly difficulty-calibrated quizzes | **PASS** | 5 dynamic questions |
-| `TC-13` | **Verification Scorer** | Weighted verification scoring | **PASS** | Score updated |
-| `TC-14` | **Roadmap Engine** | Dynamic day-by-day sequence generation | **PASS** | Multi-track roadmap |
-| `TC-15` | **Roadmap Retrieval**| Structured day-wise schedule retrieval | **PASS** | Active plans loaded |
-| `TC-16` | **Module Completion**| Checkpoint progression update | **PASS** | Checkpoint persisted |
-| `TC-17` | **Salary Predictor** | Ridge regression baseline & boost sim | **PASS** | Base + Boost computed |
-| `TC-18` | **Readiness Scorer** | Multi-dimensional readiness score | **PASS** | Tier assigned |
-| `TC-19` | **Progress Timeline**| Historical snapshot serialization | **PASS** | Checkpoints logged |
-| `TC-20` | **Gamified Badges** | Milestone trigger evaluation | **PASS** | Badges unlocked |
-| `TC-21` | **Skill Profile** | Verified profile aggregation | **PASS** | Verified profile OK |
-| `TC-22` | **Assessments List** | Available assessment catalogue | **PASS** | Assessments populated |
-| `TC-23` | **Career Recommender**| Multi-career track fit evaluation | **PASS** | Ranked tracks returned |
-| `TC-24` | **Track Comparison** | Side-by-side gap and fit comparison | **PASS** | Comparison matrix OK |
-| `TC-25` | **RAG Career Agent** | Multi-tenant grounded career advisory | **PASS** | Grounded citation tag |
-| `TC-26` | **Privacy Telemetry**| Privacy information endpoint | **PASS** | Endpoint responds (no epsilon is claimed) |
-| `TC-27` | **Student FL Status**| Decentralized training telemetry | **PASS** | Global accuracy logged |
-| `TC-28` | **Admin Statistics** | Aggregate platform analytics | **PASS** | Cohort metrics OK |
-| `TC-29` | **Admin Roster** | Student cohort management | **PASS** | Roster retrieved |
-| `TC-30` | **FL Node Topology** | Multi-institution client partitions | **PASS** | 4 simulated partitions |
-| `TC-31` | **FL Round History** | Distributed round logging | **PASS** | History recorded |
-| `TC-32` | **FL Round Trigger** | Distributed FedAvg execution | **PASS** | Round completed |
-| `TC-33` | **FL Telemetry** | Participating client metrics | **PASS** | Node reports verified |
-| `TC-34` | **Network Status** | Institutional cluster status | **PASS** | Cluster operational |
+Growth of the isolated suite across the project: 77 → 87 → 93 → 110 → 162 → 170 → 173 → 182 tests.
 
-**Overall Verification Result: 34 / 34 Tests Passed (100.0% Success Rate).**
+Key regression tests include: a failed quiz is never counted as verified anywhere; recruiters cannot read unshared sections or candidates who withdrew or opted out; job alerts and preferences cannot be read across accounts; a registration waits out a 6.5 s SQLite writer instead of failing; the job sync commits in chunks; migrations run on databases created by `db.create_all()`.
 
----
+### 9.2 Earlier functional harness
 
-### 2. Measured Evaluations (reproducible)
+An earlier harness (`backend/test_complete_feature_suite.py`) covered 34 subsystems (auth, RBAC, resume ingest, extraction, quizzes, gap analysis, roadmap, salary, readiness, badges, career recommender, RAG, privacy endpoint, FL nodes/rounds) and passed 34/34. It runs against the configured development database, so the isolated suite above is now the primary evidence.
 
-All numbers below were produced by scripts in this repository on 2026-11-12.
+### 9.3 Measured component evaluations (reproducible)
 
 **Retrieval** (`python -m rag.eval_retrieval`; 27 hand-written queries over 9 career documents, 9 keyword + 18 paraphrased):
 
 | Method | Recall@1 | Recall@3 | MRR | Paraphrase Recall@1 |
 |---|---|---|---|---|
-| Hashed word/trigram (previous assistant engine) | 0.519 | 0.704 | 0.655 | 0.333 |
+| Hashed word/trigram (previous engine) | 0.519 | 0.704 | 0.655 | 0.333 |
 | Hashed bag-of-words fallback | 0.444 | 0.741 | 0.628 | 0.278 |
 | BM25 | 0.556 | 0.889 | 0.742 | 0.444 |
-| **MiniLM sentence embeddings (now used)** | **0.852** | **1.000** | **0.926** | **0.778** |
+| **MiniLM sentence embeddings (deployed)** | **0.852** | **1.000** | **0.926** | **0.778** |
 | MiniLM + BM25 (RRF) | 0.852 | 1.000 | 0.926 | 0.778 |
 
-The test set is small and author-written; it shows a clear relative difference, not production accuracy.
+**Salary model** (`SalaryPredictor().evaluation()`; RepeatedKFold 5×10, seed 42, 24 rows):
 
-**Salary model** (`SalaryPredictor().evaluation()`; RepeatedKFold 5x10, seed 42, 24 rows):
-
-| Model | MAE (LPA) | RMSE | R^2 |
+| Model | MAE (LPA) | RMSE | R² |
 |---|---|---|---|
-| Predict-the-mean baseline | 3.421 | 3.990 | -1.203 |
+| Predict-the-mean baseline | 3.421 | 3.990 | −1.203 |
 | Linear regression | 0.939 | 1.134 | 0.856 |
-| **Ridge alpha=1 (deployed)** | **0.887** | **1.066** | **0.873** |
-| Ridge alpha=10 | 0.894 | 1.102 | 0.864 |
+| **Ridge α=1 (deployed)** | **0.887** | **1.066** | **0.873** |
+| Ridge α=10 | 0.894 | 1.102 | 0.864 |
 | Random forest | 1.034 | 1.318 | 0.802 |
 
-These describe fit to an illustrative 24-row table only; they say nothing about accuracy on real salaries.
+These figures describe fit to an illustrative 24-row table only, not accuracy on real salaries.
 
-**Federated simulation:** accuracy is measured on held-out synthetic data each round and stored as-is. Earlier README figures (74.2% to 92.4% "monotonic convergence", epsilon 0.80 to 1.00) came from a hard-coded accuracy floor and an epsilon formula and have been withdrawn.
+**Job data** (verified 2026-11-13): without any API keys, the company career boards provide about 500 Indian tech/data roles across 25 companies, mostly in Bengaluru, Gurugram, Hyderabad and Pune. Career requirements were checked against ~480 of these postings.
+
+**Federated simulation:** accuracy is measured on held-out synthetic data each round and stored as-is.
 
 ---
 
-## 🛠️ Technology Stack
+## 10. Development Timeline & Change History
 
-| Layer | Framework / Library | Primary Function |
+| Phase | Dates | Main changes |
+|---|---|---|
+| **1. Foundation** | Jul 16 – Sep 2, 2026 | Project setup; end-to-end skill-gap platform: resume upload & parsing, skill extraction, Gemini-generated quizzes, skill gap, readiness, roadmap, salary model, federated-learning module, full React UI; Gemini quota fallback and rate-limit handling; Data Analyst career added |
+| **2. Intelligence & UX** | Oct 6–7 | AI career recommendations and explainable comparison; 4-tier verified skill profile; federated-learning centre; floating AI assistant; progressive-disclosure UI; institutional admin portal, RBAC, route guards, privacy information |
+| **3. Platform extensions** | Oct 19 | Job discovery with India/Asia prioritisation and regional filters; explainable matching; RAG pipeline and knowledge base; multiple AI providers; mock interview simulator with voice input (STT de-duplication fix); data export/delete; job application flow and tracking; **AI Resume Optimizer / ATS Studio** with STAR rewriting, live score and PDF/DOCX export; system audit suites |
+| **4. Documentation & dependencies** | Nov 12 | Research-style README; `requirements.txt` cleaned and pinned to the working venv |
+| **5. Live jobs & integrity** | Nov 13 | Adzuna, Jooble, Arbeitnow adapters; two-hour DB-persisted sync with lease, de-duplication and expiry; job worker and CLI; alerts and preferences; shared skill taxonomy (fixes false java/c/r skills); quiz integrity rules; registration can no longer self-assign admin; measured FL accuracy, no fabricated ε; salary model evaluation; MiniLM retrieval; **free Indian jobs via Greenhouse/Lever company boards**; career data aligned with ~480 real postings; scheduler heartbeats; **233 curated quiz questions**; resume file cleanup on account deletion; profile settings, password change/reset, profile photo, post-quiz explanations |
+| **6. Verified Skill Passport** | Nov 15 | Passport (overview, skills & verification, projects & evidence, share & export); six skill statuses; resume import of evidence; share links with consent, visibility, expiry, revocation, access history, QR code and PDF; admin evidence review |
+| **7. Recruiter Portal** | Nov 17 | Organisations and recruiter accounts with admin verification; employer job posts; consent-based applications; candidate profiles by opaque reference; compatibility reports; shortlists, pipeline stages, notes, invitations; access logs visible to students; opt-in candidate search; rate limiting |
+| **8. Consistency & reliability** | Nov 17 | **One definition of "verified"** across matching, careers, skill gap, readiness, RAG and badges; clear error messages for failed registration/login (server unreachable, timeout, rate limit); SQLite "database is locked" fix (30 s busy timeout, sync commits every 50 jobs); **"How this employer will see you" preview** and actionable next steps from skill-gap and match views |
+
+---
+
+## 11. Corrections Made for Scientific Integrity
+
+Earlier versions of the project reported figures that the code did not support. They were found during review, corrected in the code, and are listed here so that any paper or report based on this project uses only valid claims.
+
+| Earlier claim / behaviour | Problem | Correction |
+|---|---|---|
+| Federated accuracy rising "monotonically" from 74.2% to 92.4% | Produced by a hard-coded floor `max(0.72, acc + 0.015t)` | Accuracy is now measured on a held-out synthetic test set |
+| Privacy budget ε = 0.80 → 1.00 (ε ≤ 0.95, δ = 10⁻⁵) | Computed by a fixed formula `0.75 + 0.05t`; no accountant exists | Removed; no (ε, δ) guarantee is claimed |
+| FL "institutions" Alpha–Delta | Synthetic partitions, not institutions | Labelled as simulated partitions |
+| Resume skills `java`, `c`, `r` on most resumes | Substring matching ("JavaScript" → java) | Token-boundary taxonomy; `flask skills reextract` cleans existing data |
+| A failed quiz counted as verified in some features | Four different "verified" rules in the code | One rule (Section 7.3) used everywhere |
+| Job cards with default skills, fake URLs, "posted now" dates | Normalizer filled in missing data | Nothing is invented; missing values stay empty |
+| Template fallback quiz questions stored in the bank | Trivially answerable | Never stored; curated bank used instead |
+| Skill demand weights from `job_skills.csv` | No documented source | File removed; weights measured from current postings |
+| Salary predictions shown as market figures | 24-row illustrative training table | Labelled illustrative, with a disclaimer and an extrapolation flag |
+| "Hashed 128-d embeddings" for the assistant | Measurably worse retrieval | Replaced by MiniLM after a measured comparison |
+
+---
+
+## 12. Technology Stack
+
+| Layer | Technology | Use |
 | :--- | :--- | :--- |
-| **Frontend UI** | React 19, React Router v7 | Modern single-page interactive application |
-| **Styling & Icons** | Tailwind CSS v3, Tabler Icons (`react-icons/tb`) | Responsive dark-mode glassmorphism styling |
-| **Data Visualization**| Chart.js, react-chartjs-2 | Radar charts, readiness gauges, salary trajectories |
-| **API Client** | Axios (Credentials-backed) | Cookie-based session communication |
-| **Backend Framework** | Flask (Blueprints architecture) | Modular RESTful API and routing |
-| **Authentication** | Flask-Login, Werkzeug Security | Secure PBKDF2 password hashing & session management |
-| **Database ORM** | Flask-SQLAlchemy, SQLAlchemy 2.0 | Relational schema modeling and query optimization |
-| **Document Parsing** | PyMuPDF (`fitz`), pdfplumber, python-docx | High-fidelity text and layout extraction |
-| **Generative AI** | Google GenAI SDK (`google-genai`), Gemini Flash | Adaptive MCQ generation and dynamic study roadmaps |
-| **Federated Learning**| Flower (`flwr`), NumPy | Distributed FedAvg and differential privacy noise |
-| **Machine Learning** | Scikit-Learn (Ridge), Pandas | Deterministic salary regression and gap computation |
-| **Vector Search / RAG**| Custom pure-NumPy dense embedding engine | Multi-tenant in-memory semantic retrieval |
-| **Document Generation**| ReportLab, python-docx | ATS-compliant PDF and DOCX dynamic compilation |
+| Frontend | React 19, React Router 7, Tailwind CSS 3, Chart.js 4, Axios, Tabler Icons | Student, recruiter, admin and public passport UIs |
+| Backend | Flask 3.1 (blueprints), Flask-Login, Flask-CORS, Werkzeug | REST API, sessions, RBAC, rate limiting |
+| Persistence | SQLAlchemy 2.0, Flask-Migrate / Alembic, SQLite / PostgreSQL (psycopg2) | 35 tables, idempotent migrations |
+| Document parsing | pdfplumber, PyMuPDF, python-docx | Resume text and section extraction |
+| Document generation | ReportLab, python-docx | ATS resumes, Skill Passport PDF |
+| Generative AI | Google GenAI SDK (Gemini Flash), optional Ollama / Grok providers | Question generation, explanations, roadmaps, interviews, assistant answers |
+| Retrieval | sentence-transformers (all-MiniLM-L6-v2), optional FAISS, BM25 baseline | Tenant-isolated RAG |
+| Machine learning | scikit-learn (Ridge), NumPy, pandas | Salary estimate, readiness, evaluation |
+| Federated learning | Flower (`flwr`), NumPy | FedAvg simulation with clipping and noise |
+| Job data | Greenhouse & Lever public APIs, Adzuna, Jooble, Arbeitnow, `requests` | Live job discovery |
+| Testing | unittest, Jest (react-scripts), live HTTP e2e script, headless Chrome | Verification |
 
 ---
 
-## 📂 Project Structure
+## 13. Project Structure
 
 ```text
 skillbridge/
 ├── backend/
-│   ├── app.py                      # Flask Application entrypoint & Blueprint registry
-│   ├── extensions.py               # Shared DB and LoginManager extensions
-│   ├── models.py                   # SQLAlchemy Database models
-│   ├── requirements.txt            # Python dependencies
-│   ├── app.py                           # Flask application entrypoint & Blueprint registry
-│   ├── extensions.py                    # Shared SQLAlchemy & LoginManager instances
-│   ├── models.py                        # Relational database models (Student, Skill, FL, RAG)
-│   ├── requirements.txt                 # Backend Python dependencies
+│   ├── app.py                      # Flask app, blueprint registry, in-process job scheduler
+│   ├── cli.py                      # flask CLI: db, users, skills, resumes, jobs commands
+│   ├── job_worker.py               # Stand-alone two-hour job sync worker
+│   ├── e2e_check.py                # Live end-to-end check (176 checks)
+│   ├── extensions.py / models.py   # SQLAlchemy, LoginManager, 35 models
 │   ├── data/
-│   │   ├── career_requirements.py  # Curated skill profiles (Data Analyst, SDE, etc.)
-│   │   └── salary_data.csv         # Baseline training data for salary models
-│   │   ├── career_requirements.py       # Curated domain skill profiles (SDE, Data Science, etc.)
-│   │   ├── skills_list.py               # Standardized technical competency taxonomy
-│   │   └── salary_data.csv              # Empirical compensation training corpus
-│   ├── federated/
-│   │   ├── client.py               # FL Node client partition logic
-│   │   └── server.py               # FedAvg simulation (clipping + noise, no DP accounting)
-│   │   ├── client.py                    # Partitioned institutional client logic
-│   │   ├── server.py                    # Decentralized aggregation & round coordinator
-│   │   └── strategy.py                  # PrivacyPreservingFedAvg with L2 clip & DP noise
-│   ├── ml/
-│   │   ├── salary_model.py         # XGBoost / Scikit-Learn salary regression
-│   │   ├── skill_gap_model.py      # Mathematical competency distance model
-│   │   └── readiness_model.py      # Weighted career readiness scorer
-│   │   ├── readiness_model.py           # Multi-dimensional career readiness scoring
-│   │   ├── salary_model.py              # Ridge regression salary predictor & boost simulator
-│   │   └── skill_gap_model.py           # Distance and time-to-remediate gap analyzer
+│   │   ├── career_requirements.py  # Career skill profiles (reviewed against real postings)
+│   │   ├── curated_questions.py    # 233 hand-reviewed quiz questions, 42 skills
+│   │   ├── skills_list.py, salary_data.csv
+│   │   └── knowledge_base/         # Career, job-description and skill docs for RAG
+│   ├── federated/                  # client.py, server.py, strategy.py (FedAvg + clip + noise)
+│   ├── ml/                         # readiness_model.py, salary_model.py, skill_gap_model.py
+│   ├── rag/                        # embedding_engine, vector_store, rag_pipeline, eval_retrieval
+│   ├── migrations/versions/        # 8 idempotent Alembic revisions
 │   ├── routes/
-│   │   ├── auth.py                      # RBAC, registration, login, session validation
-│   │   ├── student.py                   # Resume parsing, quizzes, roadmaps, job matching
-│   │   └── admin.py                     # Institutional metrics, node telemetry, FL rounds
+│   │   ├── auth.py                 # Register (student/recruiter), login, profile, password reset
+│   │   ├── student.py              # Resume, quizzes, careers, roadmap, jobs, interview, ATS studio
+│   │   ├── passport.py             # Skill Passport, evidence, shares, public view, evidence review
+│   │   ├── recruiter.py            # Recruiter portal + candidate-side (/api/candidate) endpoints
+│   │   └── admin.py                # Stats, FL, job sync, audit log, health
 │   ├── utils/
-│   │   ├── ai_providers.py              # LLM client abstractions & fallback handlers
-│   │   ├── ai_question_generator.py     # Gemini adaptive MCQ generation
-│   │   ├── badge_checker.py             # Gamification milestones & achievement unlocks
-│   │   ├── career_assistant.py          # Grounded career dialogue agent
-│   │   ├── career_recommender.py        # Multi-track career fit & trajectory comparison
-│   │   ├── career_requirements_generator.py # Dynamic career skill generation via LLM
-│   │   ├── github_api.py                # Practical repository recommendation integration
-│   │   ├── interview_simulator.py       # 5-category technical & behavioral interview engine
-│   │   ├── job_matcher.py               # Transferable skill affinity & match scoring
-│   │   ├── progress_tracker.py          # Historical checkpoint & trajectory logger
-│   │   ├── question_bank_manager.py     # Local cache & question deduplication manager
-│   │   ├── rag_engine.py                # 128-d deterministic embedding RAG orchestrator
-│   │   ├── resume_parser.py             # Binary document extraction pipeline
-│   │   ├── roadmap_generator.py         # Day-by-day dynamic study plan generator
-│   │   ├── skill_extractor.py           # Section-aware heuristic confidence extractor
-│   │   ├── skill_gap_analyzer.py        # Skill gap breakdown & prerequisite resolver
-│   │   ├── youtube_api.py               # Curated instructional media retrieval
-│   │   ├── job_discovery/               # Real-time job ingestion & regional prioritizer
-│   │   └── resume_optimizer/            # ATS Studio analyzer, STAR/XYZ enhancer & exporter
-│   ├── test_complete_feature_suite.py   # Complete 34-subsystem automated test harness
-│   └── test_rag_pipeline.py             # Vector store & tenant isolation verification
+│   │   ├── skill_taxonomy.py       # Canonical skills, aliases, token-boundary matching
+│   │   ├── skill_extractor.py, resume_parser.py, resume_files.py
+│   │   ├── skill_passport.py       # Verification states (single rule), passport, PDF, QR
+│   │   ├── job_matcher.py          # Explainable matching, shared skill_credit()
+│   │   ├── recruiting.py           # Compatibility report, candidate search, pipeline
+│   │   ├── job_discovery/          # Provider adapters, normalizer, sync service, scheduler
+│   │   ├── resume_optimizer/       # ATS analyzer, STAR enhancer, exporter
+│   │   ├── ai_providers.py, ai_question_generator.py, question_bank_manager.py
+│   │   ├── career_recommender.py, skill_gap_analyzer.py, roadmap_generator.py
+│   │   ├── interview_simulator.py, career_assistant.py, market_demand.py
+│   │   └── rate_limit.py, audit.py, job_alerts.py, badge_checker.py, progress_tracker.py
+│   └── tests/                      # Isolated suite (182 tests, temp DB, no network)
 ├── frontend/
-│   ├── package.json                     # Frontend dependencies & npm scripts
-│   ├── tailwind.config.js               # Design system & dark-mode color scheme
 │   └── src/
-│       ├── components/                  # Reusable UI widgets, badges, navigation
-│       ├── pages/                       # Dashboard, SkillGap, Roadmap, FedViz, ATSStudio
-│       └── services/                    # Axios API wrappers (authService, skillService)
-├── pyrightconfig.json                   # Python typing & workspace configuration
-└── README.md                            # Comprehensive research documentation
+│       ├── pages/                  # 29 student/admin/public pages
+│       ├── pages/recruiter/        # 9 recruiter pages
+│       ├── components/             # Layouts, route guards, MatchReport, review queues, charts
+│       ├── services/               # api, auth, student, skill, passport, recruiter services
+│       └── utils/                  # apiErrors.js (+ tests), voiceUtils.js
+├── .env.example
+└── README.md
 ```
 
 ---
 
-## 🚀 Reproducibility & Installation Guide
+## 14. Installation & Reproducibility
 
-### Prerequisites
-- **Python**: Version `3.11` or `3.12`
-- **Node.js**: Version `18.x` or higher with `npm`
-- **Git**
+**Prerequisites:** Python 3.11 or 3.12, Node.js 18+ with npm, Git.
 
-### Step 1: Clone the Repository
 ```bash
 git clone https://github.com/AYSHA-GITT/skillbridge.git
 cd skillbridge
+cp backend/.env.example backend/.env      # set at least DATABASE_URL and SECRET_KEY
 ```
 
-### Step 2: Configure Environment Variables
-Copy the documented template and fill in your own values:
-```bash
-cp backend/.env.example backend/.env
-```
-Minimum for local use: `DATABASE_URL`, `SECRET_KEY`. Job discovery works without keys through company career boards; Adzuna and Jooble credentials add wider coverage (see "Required credentials" below). A free Gemini API key can be generated via [Google AI Studio](https://aistudio.google.com/).
-
-### Step 3: Backend Setup & Database Migration
+**Backend**
 ```powershell
 python -m venv .venv
-.venv\Scripts\activate      # Windows
-# source .venv/bin/activate # macOS/Linux
-
+.venv\Scripts\activate                    # Windows  (source .venv/bin/activate on macOS/Linux)
 cd backend
 pip install -r requirements.txt
-flask --app app db upgrade                         # creates / upgrades the schema (safe to re-run)
-flask --app app users make-admin you@example.com   # optional: grant admin to an existing account
-flask --app app skills seed-questions              # curated quiz questions (also auto-seeded on first quiz)
-python app.py                                      # API at http://127.0.0.1:5000 (+ in-process job scheduler)
+flask --app app db upgrade                # create / upgrade the schema (safe to re-run)
+flask --app app skills seed-questions     # curated quiz questions (also auto-seeded on first quiz)
+flask --app app users make-admin you@example.com   # optional: grant admin
+python app.py                             # API on http://127.0.0.1:5000 + job scheduler thread
 ```
 
-### Step 4: Frontend
+**Frontend**
 ```powershell
 cd frontend
 npm install
-npm start                           # http://localhost:3000
+npm start                                 # http://localhost:3000
 ```
 
-### Step 5: Job synchronization worker
+**Tests**
 ```powershell
 cd backend
-python job_worker.py                # syncs immediately if due, then every 2 hours
+python -m unittest discover -s tests -v   # 182 isolated tests; dev data untouched
+python e2e_check.py                       # live check; needs backend and frontend running
+cd ../frontend && npm test                # frontend unit tests
+python -m rag.eval_retrieval              # (from backend/) retrieval evaluation
 ```
-`python app.py` already runs the scheduler in a background thread for local development, unless `RUN_JOB_SCHEDULER_IN_PROCESS=0` is set. **If nothing drives the schedule, no refresh happens**: the admin Job Synchronization page and the student data-source panel then show "Automatic refresh is not running" with how long the refresh is overdue. Every scheduler (worker, thread or cron `sync-if-due`) records a heartbeat; `flask --app app jobs status` shows it under `scheduler`.
+The older `backend/test_*.py` and `verify_*.py` scripts use the database configured in `.env`; back it up before running them.
 
-### Step 6: Tests
-The isolated suites (110 tests) use a temporary database and fake providers (no network, dev data untouched):
+**Maintenance commands**
 ```powershell
-cd backend
-python -m unittest discover -s tests -v
-```
-The older `test_*.py` files in `backend/` run against the database configured in `.env` (and some call the running server).
-
-End-to-end check of every feature against the running app (122 checks; creates and then deletes two throw-away accounts):
-```powershell
-cd backend
-python e2e_check.py
+flask --app app jobs status | sync | sync-if-due        # job sync and scheduler liveness
+flask --app app skills reextract [--apply]              # remove false skills from the old matcher
+flask --app app resumes prune-orphans [--apply]         # resume files no account references
 ```
 
 ---
 
-### Maintenance commands
-```powershell
-flask --app app skills seed-questions [--skill react]   # insert reviewed quiz questions missing from the bank
-flask --app app resumes prune-orphans [--apply]         # list (dry run) / delete resume files no account references
+## 15. Environment Configuration
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL`, `SECRET_KEY` | Required. SQLite path or PostgreSQL URL; session secret |
+| `FRONTEND_ORIGINS` | Allowed CORS origins |
+| `GEMINI_API_KEY` | Question generation, explanations, roadmaps, interviews (free key at Google AI Studio; free tier ≈ 20 requests/day, so curated questions cover quizzes without it) |
+| `ACTIVE_AI_PROVIDER`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `GROK_API_KEY`, `GROK_MODEL` | Optional alternative LLM providers |
+| `YOUTUBE_API_KEY`, `GITHUB_TOKEN` | Optional learning-resource and repository recommendations |
+| `JOB_PROVIDERS`, `ADZUNA_*`, `JOOBLE_*`, `ARBEITNOW_REMOTE_ONLY` | Job providers and their budgets |
+| `JOB_SYNC_INTERVAL_HOURS` (2), `JOB_SYNC_RETRY_MINUTES` (20), `JOB_SYNC_LEASE_MINUTES` (30) | Sync schedule |
+| `JOB_STALE_AFTER_HOURS`, `JOB_EXPIRE_AFTER_DAYS`, `JOB_MAX_POSTING_AGE_DAYS`, `JOB_ALERT_MAX_PER_RUN` | Freshness and alert rules |
+| `RUN_JOB_SCHEDULER_IN_PROCESS`, `JOB_SYNC_COMMIT_EVERY` (50) | Scheduler mode; sync commit chunk size |
+
+---
+
+## 16. Live Job Discovery & Two-Hour Synchronization
+
 ```
-Quiz questions: `backend/data/curated_questions.py` holds hand-reviewed questions (Easy, Medium and Hard) for every career-required skill and common nice-to-have skills, so skills can be verified even when the AI question generator is unavailable. AI-generated questions still top the bank up when a provider is configured. Deleting an account now also deletes that student's uploaded resume files.
-
----
-
-## 🔄 Live Job Discovery & Two-Hour Synchronization
-
-```
-Adzuna ---+                                                         +-- JobListing (status, freshness, salary, provenance)
-Jooble ---+--> fetch (budgeted, retried) --> normalize/validate --> upsert + dedup --+-- JobSyncRun (per-provider results, errors)
-Arbeitnow-+         ^                                                |            +-- JobAlertMatch (alerts, once per job)
-            DB lease (one run at a time)                     expiry / staleness
+Greenhouse/Lever ─┐
+Adzuna ───────────┤                                                  ┌─ JobListing (status, freshness, salary, provenance)
+Jooble ───────────┼─► fetch (budgeted, retried) ─► normalize/validate ─► upsert + dedup ─┼─ JobSyncRun (per-provider results, errors)
+Arbeitnow ────────┘          ▲                                       │            └─ JobAlertMatch (alerts, once per job)
+                   DB lease (one run at a time)              expiry / staleness
 ```
 
-**Schedule.** A run is due 2 h after the previous run started (20 min after a failed run). The schedule lives in the database (`job_sync_runs`), so it survives restarts and deploys. Every run first takes the `job_sync` database lease, so scheduled, manual and CLI runs can never overlap; a concurrent attempt is recorded as `skipped`. A crashed run's lease expires after 30 min.
+- **Schedule:** a run is due 2 h after the previous run started (20 min after a failed run). The schedule lives in the database, so it survives restarts. Every run takes the `job_sync` lease, so scheduled, manual and CLI runs never overlap; a crashed run's lease expires after 30 min. Every scheduler records a heartbeat, and the admin and student pages warn when the automatic refresh is not running.
+- **Providers:** per-run request budgets (e.g. Jooble's 100 requests/day = 8 per run × 12 runs). Searches cover target roles × Bengaluru, Mangaluru, Karnataka, Udupi, Bhatkal, India, other hubs and remote, plus students' target careers and alert roles, rotated across runs. Auth errors and HTTP 429 stop that provider for the run; timeouts and 5xx are retried with exponential backoff.
+- **Company boards** (25 companies, no key) return complete listings, so a posting that disappears is expired as *confirmed by the source*. Only India-based or APAC/anywhere-remote tech, data and analytics roles are kept.
+- **Data quality:** listings without a valid URL, title, company or meaningful description are rejected with a counted reason. Skills are split into required vs preferred from the description wording, and company boilerplate is ignored.
+- **De-duplication:** same provider ID or canonical URL means the same listing (updated). The same title + company + city from another provider is kept with attribution but flagged `duplicate_of` and hidden from search.
+- **Freshness:** *Checked < 24 h ago*, *Not re-checked recently* (absent for 72 h), *Expired / archived* (deadline passed, posted more than 60 days ago, or absent for 21 days). Absence rules apply only while the provider itself is healthy. Rows are archived, never deleted.
+- **SQLite concurrency:** a 30 s busy timeout and commits every 50 jobs keep user requests from failing while a sync writes.
 
-**Providers.** Each provider gets a per-run request budget (Jooble's free plan allows 100 requests/day, so 8 per run x 12 runs). The search plan (target roles x Bengaluru, Mangaluru, Karnataka, Udupi, Bhatkal, India, other hubs, remote, plus students' own target careers and alert roles) is sliced and rotated across runs. Auth errors and HTTP 429 stop that provider for the run; timeouts and 5xx are retried with exponential backoff. Unconfigured providers are reported as `not_configured`.
-
-**Data quality.** Listings without a valid URL, title, company or a meaningful description are rejected with a counted reason. Nothing is invented: no default skills, no fake URLs, and posting dates stay empty when the provider gives none (re-fetching never makes an old job look new). Skills are split into required vs preferred from the description wording.
-
-**Deduplication.** Same provider id or canonical URL: same listing (updated). Same title + company + city from a *different* provider: stored with attribution but flagged `duplicate_of` and hidden from search. Distinct vacancies are never merged.
-
-**Freshness.** `last_verified_at` is set only when the source returns the listing. Labels: *Checked < 24h ago*, *Not re-checked recently* (absent from searches for 72 h), *Expired / archived* (deadline passed, posted more than 60 days ago, or absent for 21 days, labelled "likely closed; not confirmed by the source"). Absence-based rules apply only while the provider itself is healthy, so outages never expire listings. Rows are archived, never deleted.
-
-### Running the scheduler in production
-Pick one (combining them is safe because of the lease):
-
-| Option | Command | When |
-|---|---|---|
-| Worker process | `python job_worker.py` | Always-on hosts, Docker, VMs, a Render/Railway background worker |
-| Platform cron | `*/15 * * * *  flask --app app jobs sync-if-due` | Hosts with cron jobs, GitHub Actions, systemd timers; exits immediately unless due |
-| In-process thread | `RUN_JOB_SCHEDULER_IN_PROCESS=1` | Local development only (web processes may sleep or scale) |
-
-Useful commands: `flask --app app jobs status` (includes scheduler liveness), `flask --app app jobs sync`.
-
-### Required credentials
-| Variable | Needed for | How to get it |
-|---|---|---|
-| `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` | Adzuna (India listings) | Register at developer.adzuna.com. Confirm India (`in`) support and the daily quota of your plan, then set `JOB_ADZUNA_MAX_REQUESTS_PER_RUN` accordingly. |
-| `JOOBLE_API_KEY`, `JOOBLE_API_HOST` | Jooble | Request a key at jooble.org/api/about. Keys are country-domain specific (a jooble.org key returns US jobs only); request one for the Indian domain. |
-| none | Company job boards (Greenhouse, Lever) | Free, no key. Official public APIs of companies' own career boards (e.g. Paytm, Meesho, CRED, Zeta, Groww, Databricks, MongoDB, Stripe, Okta). Only India-based or APAC/anywhere-remote tech, data and analytics roles are kept. Configure with `JOB_GREENHOUSE_BOARDS` / `JOB_LEVER_SITES`. |
-| none | Arbeitnow | Public API; mostly Europe-based roles, so only remote roles are kept by default. |
-
-Without any credentials the company job boards still provide Indian listings (about 500 tech/data roles across 25 companies when verified on 2026-11-13, mostly Bengaluru, Gurugram, Hyderabad and Pune). Adzuna and Jooble add broad market coverage, including smaller cities such as Mangaluru. Demo data is never substituted.
-
-**Company boards are complete listings:** each request returns every open posting of that company, so a posting that disappears is expired as *confirmed by the source*, and postings the employer still lists are never archived just for being old.
+| Production option | Command |
+|---|---|
+| Worker process | `python job_worker.py` |
+| Platform cron | `*/15 * * * *  flask --app app jobs sync-if-due` |
+| In-process thread (development) | default in `python app.py`; `RUN_JOB_SCHEDULER_IN_PROCESS=0` disables it |
 
 ---
 
-## 📡 RESTful API Specification
+## 17. REST API Reference
 
-### 1. Identity & RBAC Endpoints (`/api/auth`)
-- `POST /api/auth/register` — Registers student account with academic metadata.
-- `POST /api/auth/login` — Establishes cookie-backed authenticated session.
-- `POST /api/auth/logout` — Terminates active session.
-- `GET /api/auth/me` — Returns authenticated user profile, role, and readiness score.
+All endpoints use cookie sessions and are scoped to the logged-in account and role.
 
-### 2. Assessment & Remediation Endpoints (`/api/student`)
-- `POST /api/student/upload_resume` — Accepts multipart PDF/DOCX resume file.
-- `POST /api/student/parse_resume/<id>` — Extracts raw text and section segmentation.
-- `POST /api/student/extract_skills/<id>` — Computes multi-section confidence heuristics.
-- `GET /api/student/skills` — Returns student skills categorized by verification state.
-- `GET /api/student/get_quiz/<skill_id>` — Generates difficulty-calibrated assessment.
-- `POST /api/student/submit_quiz/<skill_id>` — Evaluates answers and updates readiness.
-- `POST /api/student/set_target_career` — Updates target professional track.
-- `POST /api/student/analyze_skill_gap` — Calculates core and optional competency gaps.
-- `POST /api/student/generate_roadmap` — Generates personalized day-by-day learning schedule.
-- `GET /api/student/get_roadmap` — Retrieves active learning roadmap with resource links.
-- `POST /api/student/simulate_salary` — Simulates incremental return on target skills.
-- `POST /api/student/ask_assistant` — Grounded Q&A via multi-tenant vector RAG engine.
-- `GET /api/student/jobs` — Search jobs. Params: `query, opportunity=job|internship, entry_level, experience_max, location, work_arrangement, salary_min, job_type, skill, company, date_posted=24h|3d|7d|30d, domain, region, sort=relevance|recent|match|salary, page, per_page`.
-- `GET /api/student/jobs/<id>/match` — Explainable fit score with reasons.
-- `GET|PUT /api/student/job_preferences` — Roles, locations, work modes, experience.
-- `GET|POST /api/student/job_alerts`, `PUT|DELETE /api/student/job_alerts/<id>` — Manage alerts.
-- `GET /api/student/job_alerts/notifications`, `POST .../notifications/read` — In-app alert matches.
+### `/api/auth`
+`POST /register`, `POST /register_recruiter`, `POST /login`, `POST /logout`, `GET /me`, `PUT /profile`, `POST /profile/photo`, `POST /change_password`, `POST /forgot_password`, `GET /verify_reset_token/<token>`, `POST /reset_password`
 
-### 3. ATS Studio & Career Optimization (`/api/student/resume_optimizer`)
-- `POST /api/student/resume_optimizer/analyze` — Computes deterministic ATS match score.
-- `POST /api/student/resume_optimizer/export_pdf` — Compiles optimized resume to PDF.
-- `POST /api/student/resume_optimizer/export_docx` — Compiles optimized resume to Word DOCX.
+### `/api/student`
+- **Resume & skills:** `POST /upload_resume`, `POST /parse_resume/<id>`, `POST /extract_skills/<id>`, `GET /skills`, `GET /verified_skill_profile`
+- **Assessment:** `GET /get_quiz/<skill_id>`, `POST /submit_quiz/<skill_id>`, `POST /quiz_explanation/<skill_id>`, `GET /assessments`
+- **Career:** `POST /set_target_career`, `POST /analyze_skill_gap`, `GET /readiness_breakdown`, `GET /career_insights`, `GET /career_recommendations`, `GET /career_recommendation/<name>`, `POST /compare_careers`, `POST /simulate_paths`, `POST /simulate_salary`
+- **Learning & progress:** `POST /generate_roadmap`, `GET /get_roadmap`, `POST /complete_roadmap_day/<plan_id>`, `GET /progress_history`, `GET /badges`
+- **Jobs:** `GET /jobs` (filters: `query, opportunity, entry_level, experience_max, location, work_arrangement, salary_min, job_type, skill, company, date_posted, domain, region, sort, page, per_page`), `GET /jobs/<id>`, `GET /jobs/<id>/match`, `POST /jobs/compare`, `POST|DELETE /jobs/save…`, `GET /jobs/saved`, `POST /jobs/<id>/apply`, `POST /jobs/<id>/employer_preview`, `POST /jobs/<id>/withdraw`, `GET /jobs/applications`, `GET|PUT /job_preferences`, `GET|POST /job_alerts`, `PUT|DELETE /job_alerts/<id>`, `GET /job_alerts/notifications`, `POST /job_alerts/notifications/read`, `GET /jobs/quality_metrics`
+- **Assistant & RAG:** `POST /ask_assistant`, `POST /rag/analyze_resume/<id>`, `POST /rag/match_job`, `POST /rag/explain_gap`, `GET /rag/catalog`
+- **Interview:** `POST /interview/start`, `POST /interview/answer`, `GET /interview/history`, `GET /interview/session/<id>`
+- **ATS Studio:** `GET /resume_optimizer/careers`, `GET /resume_optimizer/my_resumes`, `POST /resume_optimizer/analyze`, `POST /resume_optimizer/export_pdf`, `POST /resume_optimizer/export_docx`
+- **Privacy & account:** `GET /privacy_info`, `GET /federated_status`, `GET /account/export`, `DELETE /account/delete`, `GET /ai_providers`, `POST /ai_providers/select`
 
-### 4. Federated Intelligence & Administration (`/api/admin`)
-- `GET /api/admin/stats` — Platform-wide cohort averages and macro gap analytics.
-- `GET /api/admin/federated/nodes` — Lists participating institutional client nodes.
-- `GET /api/admin/federated/rounds` — Retrieves round-by-round convergence telemetry.
-- `POST /api/admin/federated/train` — Runs one simulated FedAvg round.
-- `GET /api/admin/jobs/overview` — Job counts, provider health, schedule, recent runs.
-- `POST /api/admin/jobs/sync` — Manual sync (409 if a run is in progress).
-- `GET /api/admin/jobs/runs`, `GET /api/admin/audit_logs`, `GET /api/admin/system/health`.
+### `/api/passport`
+`GET /me`, `PUT /me/profile`, `POST /me/skills`, `DELETE /me/skills/<id>`, `GET|POST /me/evidence`, `PUT|DELETE /me/evidence/<id>`, `POST /me/evidence/<id>/request_review`, `POST|GET /me/evidence/<id>/file`, `POST /me/evidence/import`, `GET /me/pdf`, `GET|POST /me/shares`, `POST /me/shares/<id>/revoke`, `GET /me/shares/<id>/access_log`, `GET /public/<token>`, `GET /public/<token>/pdf`, admin: `GET /admin/evidence`, `POST /admin/evidence/<id>/review`, `GET /admin/evidence/<id>/file`
+
+### `/api/recruiter`
+`GET /me`, `PUT /me/profile`, `PUT /organisation`, `POST /organisation/verification`, `GET /dashboard`, `GET|POST /jobs`, `GET|PUT|DELETE /jobs/<id>`, `POST /jobs/<id>/publish`, `POST /jobs/<id>/close`, `GET /jobs/<id>/applicants`, `GET /jobs/<id>/matches`, `GET /candidates/search`, `GET /candidates/<ref>`, `POST /candidates/<ref>/notes`, `DELETE /notes/<id>`, `POST /candidates/<ref>/invite`, `GET|POST /shortlists`, `GET|DELETE /shortlists/<id>`, `POST /shortlists/<id>/entries`, `DELETE /shortlists/<id>/entries/<entry_id>`, `GET /pipeline`, `POST /applications/<id>/stage`, admin: `GET /admin/organisations`, `POST /admin/organisations/<id>/review`
+
+### `/api/candidate` (student side of recruiting)
+`GET|PUT /discovery` (opt-in search), `GET /access` (who viewed my profile), `GET /updates`, `POST /updates/read`, `GET /readiness_preview`
+
+### `/api/admin`
+`GET /stats`, `GET /students`, `POST /federated/train`, `GET /federated/rounds`, `GET /federated/nodes`, `GET /federated/round/<id>`, `GET /federated/status`, `GET /jobs/overview`, `POST /jobs/sync` (409 if a run is in progress), `GET /jobs/runs`, `GET /audit_logs`, `GET /system/health`
 
 ---
 
-## 🛡️ Data Privacy, Security & Ethical Compliance
+## 18. Privacy, Security & Ethics
 
-- **Where data lives:** uploaded resumes, extracted skills and quiz results are stored on the SkillBridge server/database so they can be analysed. Students can export or permanently delete their data (`/api/student/account/export`, `/account/delete`).
-- **Access control:** every student endpoint is scoped to the logged-in account; job alerts and preferences cannot be read or changed across accounts (covered by tests). Self-registration always creates a *student*; admins are granted with `flask --app app users make-admin`.
-- **Tenant-isolated retrieval:** private documents in the assistant's store are only searchable by their owner.
-- **Secrets:** provider keys live in server-side environment variables and are never sent to the frontend or written into error messages.
-- **Audit log:** manual syncs and admin grants are recorded in `audit_logs`.
-- **Federated learning:** a simulation on synthetic data with update clipping and Gaussian noise; no formal differential-privacy guarantee is claimed.
-- **Compliance:** this project has not been audited for FERPA, GDPR or any other regulation; institutions deploying it must perform their own assessment.
+- **Consent first:** employers see only the passport sections a student shared, through opaque candidate references. Access ends when the student withdraws or opts out, and every employer access is logged and shown to the student. Candidate search is opt-in.
+- **Fairness:** the compatibility score uses skills only. Name, college, location, gender and age are not inputs. Experience and education are shown for human judgement, not scored. Every report states that it is "an explainable indicator of skill alignment, not a prediction of job performance".
+- **Trusted employers:** organisations must be verified by an administrator (website and email-domain signal) before posting jobs or searching candidates.
+- **Access control & RBAC:** student, recruiter and admin roles; self-registration can never create an admin (`flask users make-admin` grants it). Cross-account access to alerts, preferences, evidence and applications is covered by tests.
+- **Data storage:** resumes, extracted skills, quiz results and evidence files are stored on the server so they can be analysed. Students can export or permanently delete their data, and deletion also removes resume and evidence files.
+- **Share tokens:** stored only as SHA-256 hashes; links expire and can be revoked. Public views exclude contact details, resume text, files and internal IDs.
+- **Abuse protection:** rate limits on registration (10/h students, 5/h recruiters), public passports, and recruiter search and profile views. File uploads are checked by signature.
+- **Secrets:** provider keys stay in server-side environment variables and never reach the frontend or error messages.
+- **Audit log:** manual syncs, admin grants and review decisions are recorded.
+- **Federated learning:** a simulation on synthetic data; no formal differential-privacy guarantee.
+- **Compliance:** not audited for GDPR, FERPA, India's DPDP Act or any other regulation; deploying institutions must do their own assessment.
 
 ---
 
-## 📚 Citation & Academic Reference
+## 19. Limitations & Threats to Validity
 
-If you utilize SkillBridge, its algorithmic formulations, or experimental methodologies in your research, please cite this work as follows:
+- **Small evaluation sets:** the retrieval test set (27 queries) and the career documents were written by the authors. The results show a relative difference between methods, not production accuracy.
+- **Salary data:** 24 rows of undocumented, apparently hand-built data. Estimates are illustrative only.
+- **Federated learning:** synthetic data, no privacy accountant, no real multi-institution deployment.
+- **Assessment validity:** multiple-choice quizzes measure recall and understanding, not on-the-job performance. The 70% pass mark and the readiness weights are design choices that have not been calibrated against hiring outcomes.
+- **No user study yet:** usability, student outcomes and recruiter trust have not been measured with real participants.
+- **Job coverage:** without Adzuna/Jooble keys, listings come mainly from 25 large-company boards in major cities. Smaller cities (e.g. Mangaluru) need those keys.
+- **LLM dependence:** the Gemini free tier (≈ 20 requests/day) limits AI-generated questions and explanations. Curated questions keep verification working, but explanations may be unavailable.
+- **Deployment:** development uses SQLite and a single process. Production should use PostgreSQL and a separate job worker.
+
+---
+
+## 20. Future Scope
+
+- Pilot study with students and recruiters (usability, time-to-shortlist, trust in verified skills).
+- Practical coding challenges and project-based verification alongside multiple-choice quizzes.
+- Email notifications for job alerts and pipeline updates.
+- A real privacy accountant (e.g. RDP/moments accountant) and real institutional partners for federated learning.
+- Salary model trained on documented, current Indian compensation data.
+- Calibrating readiness weights and the pass mark against hiring outcomes.
+- Institution (placement cell) dashboards and multi-campus tenancy.
+- Production deployment (PostgreSQL, containerised worker, CI pipeline).
+
+---
+
+## 21. Citation
 
 ```bibtex
-@article{skillbridge2026,
-  title={SkillBridge: A Privacy-Preserving Federated Intelligence and Adaptive Verification Framework for Career Gap Remediation},
-  author={Aysha and Contributors},
-  journal={arXiv preprint / Technical Report},
-  year={2026},
-  url={https://github.com/AYSHA-GITT/skillbridge}
+@misc{skillbridge2026,
+  title  = {SkillBridge: A Privacy-Preserving Federated Intelligence and Adaptive Verification Framework for Career Gap Remediation},
+  author = {Aysha Daniya and Contributors},
+  year   = {2026},
+  howpublished = {GitHub repository},
+  url    = {https://github.com/AYSHA-GITT/skillbridge}
 }
 ```
 
 ```text
-Aysha et al., "SkillBridge: A Privacy-Preserving Federated Intelligence and Adaptive Verification Framework for Career Gap Remediation," GitHub Repository, 2026. [Online]. Available: https://github.com/AYSHA-GITT/skillbridge
+A. Daniya et al., "SkillBridge: A Privacy-Preserving Federated Intelligence and Adaptive Verification Framework for Career Gap Remediation," GitHub repository, 2026. [Online]. Available: https://github.com/AYSHA-GITT/skillbridge
 ```
 
 ---
 
-## 📄 License & Acknowledgments
+## 22. License & Acknowledgments
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for complete terms.
+Released under the **MIT License**.
 
-**Acknowledgments**:
-- The [Flower Federated Learning Framework](https://flower.ai/) for decentralized model aggregation primitives.
-- [Google AI Studio](https://ai.google.dev/) for access to the Gemini family of foundational models.
-- The open-source scientific Python community (`scikit-learn`, `numpy`, `pandas`, `PyMuPDF`).
-q
+**Acknowledgments:** the [Flower](https://flower.ai/) federated learning framework; [Google AI Studio](https://ai.google.dev/) for the Gemini models; the sentence-transformers, scikit-learn, NumPy, pandas, pdfplumber, PyMuPDF and ReportLab projects; and the Greenhouse, Lever, Adzuna, Jooble and Arbeitnow public job APIs.
