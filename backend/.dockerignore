@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+instance/
+uploads/
+cookies.txt
+*.json.bak
+data/cache/
+.cache/

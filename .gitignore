@@ -59,3 +59,6 @@ Thumbs.db
 *.swp
 *.swo
 !.env.example
+
+# Production secrets (deploy/production.env.example is the template)
+deploy/production.env

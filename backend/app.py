@@ -25,6 +25,25 @@ if (app.config['SQLALCHEMY_DATABASE_URI'] or '').startswith('sqlite'):
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 30}}
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
+# Production (SKILLBRIDGE_ENV=production): HTTPS-only cookies, real client IPs behind the
+# reverse proxy (rate limits and login lockouts are keyed on the IP), and no weak secrets.
+if os.getenv('SKILLBRIDGE_ENV', '').lower() == 'production':
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    if not app.config['SECRET_KEY'] or len(app.config['SECRET_KEY']) < 32:
+        raise RuntimeError('SECRET_KEY must be set to a random value of at least 32 characters in production.')
+    if not (app.config['SQLALCHEMY_DATABASE_URI'] or '').startswith('postgresql'):
+        raise RuntimeError('DATABASE_URL must point to PostgreSQL in production.')
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.config.update(
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE='Lax',
+        REMEMBER_COOKIE_SECURE=True,
+        REMEMBER_COOKIE_HTTPONLY=True,
+        PREFERRED_URL_SCHEME='https',
+    )
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True, 'pool_recycle': 1800}
+
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'resumes')
 app.config['AVATAR_UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads', 'avatars')
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024

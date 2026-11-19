@@ -1,0 +1,68 @@
+# SkillBridge production stack. Run from this directory:
+#   docker compose --env-file production.env up -d --build
+name: skillbridge
+
+x-backend: &backend
+  build: ../backend
+  env_file: production.env
+  environment:
+    SKILLBRIDGE_ENV: production
+    DATABASE_URL: postgresql://skillbridge:${POSTGRES_PASSWORD}@db:5432/skillbridge
+    FRONTEND_URL: https://${SITE_DOMAIN}
+    FRONTEND_ORIGINS: https://${SITE_DOMAIN}
+    RUN_JOB_SCHEDULER_IN_PROCESS: "0"
+  volumes:
+    - uploads:/app/uploads
+    - model-cache:/app/.cache
+  depends_on:
+    db:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: skillbridge
+      POSTGRES_USER: skillbridge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in production.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skillbridge -d skillbridge"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+
+  # Two-hour job sync, separate from the web process (the DB lease prevents overlapping runs).
+  worker:
+    <<: *backend
+    command: ["python", "job_worker.py"]
+    healthcheck:
+      disable: true
+
+  web:
+    build: ../frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN in production.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  model-cache:
+  caddy-data:
+  caddy-config:
