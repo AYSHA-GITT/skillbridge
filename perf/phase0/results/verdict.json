@@ -1,0 +1,17 @@
+{
+ "verdict": "FAIL",
+ "checks": [
+  [
+   "Candidate image measured",
+   false
+  ],
+  [
+   "Retrieval quality equivalent to PyTorch MiniLM",
+   false
+  ],
+  [
+   "Backend unit tests in slim image (0 run)",
+   false
+  ]
+ ]
+}
