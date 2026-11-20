@@ -1,0 +1,33 @@
+# Phase 0 candidate image for Render's free tier (build context: repository root).
+# Same base, user and gunicorn layout as backend/Dockerfile, minus PyTorch; the
+# all-MiniLM-L6-v2 ONNX model is downloaded at BUILD time so a restart on Render
+# (ephemeral disk) never has to fetch it again.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    FASTEMBED_CACHE_PATH=/app/.cache/fastembed \
+    PHASE0_VARIANT=onnx
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends libgomp1 curl \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY perf/phase0/requirements-slim.txt /tmp/requirements-slim.txt
+RUN pip install -r /tmp/requirements-slim.txt
+
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2', cache_dir='/app/.cache/fastembed')"
+
+COPY backend/ /app/
+COPY perf/phase0/onnx_shim.py perf/phase0/wsgi_phase0.py /app/phase0/
+
+RUN useradd --create-home --uid 1000 app \
+ && mkdir -p uploads/resumes uploads/avatars uploads/evidence \
+ && chown -R app:app /app
+USER app
+
+EXPOSE 5000
+CMD ["gunicorn", "wsgi_phase0:app", "--pythonpath", "/app/phase0,/app", "--bind", "0.0.0.0:5000", \
+     "--workers", "1", "--threads", "8", "--timeout", "300", "--access-logfile", "-"]

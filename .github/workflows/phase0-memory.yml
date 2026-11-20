@@ -1,0 +1,171 @@
+# Phase 0: measure SkillBridge under Render free-tier limits (512 MB, 0.1 CPU) on Linux.
+# Measurement only: nothing is deployed, no external account or secret is used, and
+# every database is a throw-away CI service container. Runs only on phase0/* branches.
+name: phase0-memory
+
+on:
+  push:
+    branches: ["phase0/**"]
+    paths-ignore: ["perf/phase0/results/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase0-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  retrieval-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install PyTorch MiniLM (current) and ONNX MiniLM (candidate)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r backend/requirements.txt fastembed==0.9.1
+      - name: Compare retrieval quality
+        env: { GEMINI_API_KEY: "", PYTHONUNBUFFERED: "1" }
+        run: |
+          mkdir -p out
+          python perf/phase0/retrieval_parity.py backend out/retrieval_parity.json
+      - uses: actions/upload-artifact@v4
+        with: { name: results-parity, path: out/ }
+
+  unit-tests-slim:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build slim image (no PyTorch, ONNX MiniLM)
+        run: docker build -f perf/phase0/Dockerfile.slim -t sb:onnx .
+      - name: Gemini stub
+        run: |
+          mkdir -p out empty
+          nohup python3 perf/phase0/gemini_stub.py 8089 empty 3001 out/gemini_stub_tests.json > /dev/null 2>&1 &
+      - name: Run the backend test suite inside the slim image
+        run: |
+          docker run --rm --network host -u root -w /app \
+            -e GEMINI_API_KEY=stub-key -e GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8089 \
+            -v "$PWD/perf/phase0:/phase0:ro" -v "$PWD/out:/out" \
+            sb:onnx python /phase0/run_tests.py /out/unit_tests.json 2>&1 | tail -40 || true
+      - uses: actions/upload-artifact@v4
+        with: { name: results-tests, path: out/ }
+
+  memory:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [onnx, torch]
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Runner tools (load driver and e2e_check only)
+        run: pip install requests reportlab python-docx
+      - name: Build the React app (served locally for e2e_check's frontend checks)
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund && CI=false npm run build
+      - name: Build image
+        run: |
+          if [ "${{ matrix.variant }}" = onnx ]; then
+            docker build -f perf/phase0/Dockerfile.slim -t sb:onnx .
+          else
+            docker build -t sb:torch backend
+          fi
+          docker image ls sb
+      - name: Environment (throw-away values)
+        run: |
+          mkdir -p out
+          {
+            echo "DATABASE_URL=postgresql://postgres:ci@127.0.0.1:5432/postgres"
+            echo "SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')"
+            echo "GEMINI_API_KEY=stub-key"
+            echo "GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8089"
+            echo "RUN_JOB_SCHEDULER_IN_PROCESS=0"
+            echo "FRONTEND_URL=http://localhost:3000"
+            echo "PHASE0_VARIANT=${{ matrix.variant }}"
+          } > ci.env
+          nohup python perf/phase0/gemini_stub.py 8089 frontend/build 3000 out/gemini_stub_${{ matrix.variant }}.json > /dev/null 2>&1 &
+      - name: Create schema and CI admin (throw-away database)
+        run: |
+          docker run --rm --network host --env-file ci.env -v "$PWD/perf/phase0:/phase0:ro" -w /app \
+            sb:${{ matrix.variant }} python /phase0/seed_ci.py
+      - name: Start the API with Render free-tier limits
+        run: |
+          echo startup > /tmp/phase
+          CID=$(docker run -d --name app --network host --memory=512m --memory-swap=512m --cpus=0.1 \
+                --env-file ci.env -v "$PWD/perf/phase0:/phase0:ro" -w /app sb:${{ matrix.variant }} \
+                gunicorn wsgi_phase0:app --pythonpath /phase0,/app --bind 0.0.0.0:5000 \
+                --workers 1 --threads 8 --timeout 300 --access-logfile -)
+          echo "CID=$CID" >> "$GITHUB_ENV"
+          nohup python perf/phase0/mem_sampler.py "$CID" /tmp/phase /tmp/stop out/memory_${{ matrix.variant }}.json > out/sampler.log 2>&1 &
+          start=$(date +%s)
+          until curl -fsS http://127.0.0.1:5000/api/health > /dev/null 2>&1; do
+            sleep 2
+            if [ $(( $(date +%s) - start )) -gt 1200 ]; then echo "not healthy after 20 min"; docker logs app | tail -50; exit 1; fi
+          done
+          echo $(( $(date +%s) - start )) > out/startup_${{ matrix.variant }}.txt
+          echo "healthy after $(cat out/startup_${{ matrix.variant }}.txt) s"
+      - name: Idle
+        run: echo idle > /tmp/phase && sleep 30
+      - name: Full end-to-end check (backend/e2e_check.py, unchanged)
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          echo e2e > /tmp/phase
+          python e2e_check.py | tee ../out/e2e_${{ matrix.variant }}.txt
+          cp "$(ls -td /tmp/skillbridge_e2e_*/ | head -1)e2e_results.json" ../out/e2e_${{ matrix.variant }}.json
+      - name: Concurrent mixed load (8 students + recruiter + federated learning + job sync)
+        continue-on-error: true
+        run: python perf/phase0/load_driver.py http://127.0.0.1:5000 /tmp/phase 300 out/load_${{ matrix.variant }}.json
+      - name: Collect
+        if: always()
+        run: |
+          echo after > /tmp/phase && sleep 20 && touch /tmp/stop && sleep 2
+          docker inspect app --format '{"OOMKilled": {{.State.OOMKilled}}, "Status": "{{.State.Status}}", "ExitCode": {{.State.ExitCode}}, "RestartCount": {{.RestartCount}}}' > out/state_${{ matrix.variant }}.json || true
+          docker logs app 2>&1 | grep -vE '"(GET|POST|PUT|DELETE) ' | tail -400 > out/app_log_${{ matrix.variant }}.txt || true
+          rm -f ci.env
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-${{ matrix.variant }}
+          path: out/
+
+  report:
+    needs: [retrieval-parity, unit-tests-slim, memory]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts, pattern: "results-*", merge-multiple: true }
+      - name: Report
+        run: |
+          mkdir -p perf/phase0/results
+          cp artifacts/*.json artifacts/*.txt perf/phase0/results/ 2>/dev/null || true
+          python3 perf/phase0/make_report.py perf/phase0/results
+          cat perf/phase0/results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Save results on this branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add perf/phase0/results
+          git commit -m "phase0: measurement results [skip ci]" && git push || echo "nothing to commit"
