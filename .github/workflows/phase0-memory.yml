@@ -98,13 +98,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # tuned ONNX + REST Gemini client instead of the google-genai SDK
-          - variant: onnx-rest
+          # tuned ONNX + REST Gemini client; the 2-hour job sync runs in a separate
+          # process (as the planned GitHub Actions runner), not in the web container
+          - variant: onnx-rest-ext
             dockerfile: slim
             tuning: "ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2"
             pythonpath: "/phase0/rest_genai,/phase0,/app"
             threads: 8
-          - variant: onnx-rest-t4
+          - variant: onnx-rest-ext-t4
             dockerfile: slim
             tuning: "ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2"
             pythonpath: "/phase0/rest_genai,/phase0,/app"
@@ -182,7 +183,9 @@ jobs:
           cp "$(ls -td /tmp/skillbridge_e2e_*/ | head -1)e2e_results.json" ../out/e2e_${{ matrix.variant }}.json
       - name: Concurrent mixed load (8 students + recruiter + federated learning + job sync)
         continue-on-error: true
-        run: python perf/phase0/load_driver.py http://127.0.0.1:5000 /tmp/phase 300 out/load_${{ matrix.variant }}.json
+        run: |
+          export PHASE0_SYNC_CMD="docker run --rm --network host --env-file $PWD/ci.env -v $PWD/perf/phase0:/phase0:ro -w /app sb:${{ matrix.variant }} flask --app app jobs sync"
+          python perf/phase0/load_driver.py http://127.0.0.1:5000 /tmp/phase 300 out/load_${{ matrix.variant }}.json
       - name: Collect
         if: always()
         run: |

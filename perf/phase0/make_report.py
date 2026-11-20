@@ -59,10 +59,12 @@ def variant_block(v):
 def main():
     parity = load("retrieval_parity.json", {})
     tests = load("unit_tests.json", {})
-    order = ("onnx-rest", "onnx-rest-t4", "onnx-tuned", "torch-tuned", "onnx", "torch")
+    order = ("onnx-rest-ext", "onnx-rest-ext-t4", "onnx-rest", "onnx-rest-t4", "onnx-tuned", "torch-tuned",
+             "onnx", "torch")
     variants = [variant_block(v) for v in order if os.path.exists(os.path.join(R, f"memory_{v}.json"))]
     # candidate = the most complete measured configuration, in this order of preference
-    cand = next((v for name in ("onnx-rest", "onnx-tuned", "onnx") for v in variants if v["variant"] == name), None)
+    cand = next((v for name in ("onnx-rest-ext", "onnx-rest", "onnx-tuned", "onnx")
+                 for v in variants if v["variant"] == name), None)
 
     checks = []
     if cand:
@@ -87,7 +89,9 @@ def main():
          "Render free-tier conditions: `--memory=512m --memory-swap=512m --cpus=0.1`, gunicorn 1 worker x 8 threads, "
          "PostgreSQL 16, real job providers; Gemini answered by a local stub (SDK in runs 2-3, REST client in run 4).", "",
          "| Criterion | Result |", "|---|---|"] + [f"| {c} | {'PASS' if ok else 'FAIL'} |" for c, ok in checks]
-    labels = {"onnx-rest": "CANDIDATE: tuned ONNX MiniLM + REST Gemini client (no google-genai SDK), 8 threads (run 4)",
+    labels = {"onnx-rest-ext": "CANDIDATE: tuned ONNX + REST Gemini client, 8 threads, job sync in a separate process (run 5)",
+              "onnx-rest-ext-t4": "same as onnx-rest-ext with 4 gunicorn threads (run 5)",
+              "onnx-rest": "tuned ONNX MiniLM + REST Gemini client (no google-genai SDK), 8 threads (run 4)",
               "onnx-rest-t4": "same as onnx-rest with 4 gunicorn threads (run 4)",
               "onnx-tuned": "candidate: ONNX MiniLM, batch 8, ONNX arena off, MALLOC_ARENA_MAX=2, prebuilt KB index",
               "torch-tuned": "PyTorch MiniLM with the same tuning (batch 8, MALLOC_ARENA_MAX=2, prebuilt KB index)",

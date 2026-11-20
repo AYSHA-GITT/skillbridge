@@ -205,7 +205,17 @@ def main():
             time.sleep(20)
 
     def sync_once():
-        call(adm, "job sync (live providers)", "post", "/api/admin/jobs/sync")
+        cmd = os.getenv("PHASE0_SYNC_CMD")
+        if not cmd:   # inside the web process (admin "sync now"), the worst case
+            call(adm, "job sync (live providers)", "post", "/api/admin/jobs/sync")
+            return
+        # outside the web process, as the planned GitHub Actions runner does: same DB, same lease
+        import shlex
+        import subprocess
+        t = time.time()
+        r = subprocess.run(shlex.split(cmd), capture_output=True, text=True, timeout=TIMEOUT * 2)
+        record("job sync (separate process, live providers)", r.returncode == 0, time.time() - t,
+               (r.stdout + r.stderr)[-200:])
 
     threads += [threading.Thread(target=recruiter_loop, daemon=True), threading.Thread(target=fl_loop, daemon=True),
                 threading.Thread(target=sync_once, daemon=True)]
