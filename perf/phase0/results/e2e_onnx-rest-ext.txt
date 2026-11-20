@@ -1,0 +1,210 @@
+[PASS] Infrastructure     Backend health                                   
+[PASS] Infrastructure     Frontend serves app                              
+[PASS] Auth & security    Register student                                 HTTP 201
+[PASS] Auth & security    Register ignores role=admin                      role=student
+[PASS] Auth & security    Weak password rejected                           
+[PASS] Auth & security    Duplicate email rejected                         
+[PASS] Auth & security    Wrong password rejected                          
+[PASS] Auth & security    Session /me                                      
+[PASS] Auth & security    Unauthenticated blocked                          
+[PASS] Auth & security    Student blocked from admin                       
+[PASS] Auth & security    Student blocked from manual sync                 
+[PASS] Auth & security    Admin login                                      
+[PASS] Resume             Upload PDF                                       HTTP 201
+[PASS] Resume             Parse PDF                                        512 chars
+[PASS] Resume             Extract skills PDF (exact set)                   missing=[] extra=[]
+[PASS] Resume             Upload DOCX                                      HTTP 201
+[PASS] Resume             Parse DOCX                                       512 chars
+[PASS] Resume             Extract skills DOCX (exact set)                  missing=[] extra=[]
+[PASS] Resume             Reject non-PDF/DOCX                              
+[PASS] Resume             No duplicate skills after 2 uploads              12 rows
+[PASS] Resume             Evidence strength per skill                      {'flask': 'applied', 'docker': 'listed_only', 'aws': 'supporting'}
+[PASS] Resume             Explanations present                             
+[PASS] Resume             Other user cannot parse my resume                
+[PASS] Skill verification Get quiz (python)                                5 questions, 0.2s
+[PASS] Skill verification Answers not leaked to client                     
+[PASS] Skill verification Difficulty mix                                   ['Easy', 'Hard', 'Medium']
+[PASS] Skill verification Partial quiz rejected                            
+[PASS] Skill verification Full quiz scored + review                        score=20.0% proficiency=Not yet demonstrated
+[PASS] Skill verification Other user cannot quiz my skill                  
+[PASS] Skill verification Assessment history                               
+[PASS] Skill verification Verified skill profile                           
+[PASS] Career guidance    Set target career                                
+[PASS] Career guidance    Skill gap analysis                               0.1s keys=['career', 'market_caveat', 'market_sample_size', 'matched_nice_to_have', 'matched_required', 'missing_nice_to_have']
+[FAIL] Career guidance    Readiness breakdown                              {}
+[PASS] Career guidance    Career recommendations                           0.0s
+[PASS] Career guidance    Recommendations link to a jobs domain            [('Data Analyst', 'Data Analytics'), ('Data Scientist', 'Data Science'), ('Software Engineer', 'Software Development')]
+[FAIL] Career guidance    Readiness links to a jobs domain                 None
+[PASS] Career guidance    Single career recommendation                     
+[PASS] Career guidance    Compare careers                                  
+[PASS] Career guidance    Simulate career paths                            
+[PASS] Career guidance    Career insights                                  
+[PASS] Roadmap            Generate roadmap                                 HTTP 200 0.7s {'roadmap': [{'already_on_resume': True, 'category': 'Required', 'days': [{'day_number': 1, 'description': 'Study the co
+[PASS] Roadmap            Get roadmap                                      11 skills, 44 days
+[PASS] Roadmap            Roadmap covers exactly the gaps                  roadmap=['sql', 'excel', 'python', 'power bi', 'tableau', 'statistics', 'pandas', 'numpy', 'data visualization', 'r', 'communication']
+[PASS] Roadmap            Required gaps come first                         first 6: ['sql', 'excel', 'python', 'power bi', 'tableau', 'statistics']
+[PASS] Roadmap            Flags gaps already on resume                     flagged=['sql', 'python', 'power bi']
+   roadmap sample: [('sql', 'Required', 'Day 1 topic'), ('excel', 'Required', 'Day 1 topic'), ('python', 'Required', 'Day 1 topic'), ('power bi', 'Required', 'Day 1 topic')]
+[PASS] Roadmap            Complete a roadmap day                           
+[PASS] Roadmap            Other user cannot complete my day                
+[PASS] Progress & salary  Progress history                                 
+[PASS] Progress & salary  Badges                                           
+[PASS] Progress & salary  Salary simulation                                {"additional_skills_count": 2, "current_salary": 4.0, "disclaimer": "Illustrative estimate from a small (24-row) reference table of undocume
+[PASS] Progress & salary  Salary labelled as estimate                      
+[PASS] RAG assistant      Ask assistant                                    5.6s is_rag=True sources=2 provider=Google Gemini
+[PASS] RAG assistant      Off-topic: no career sources cited               sources=0
+[PASS] RAG assistant      RAG resume analysis                              HTTP 200
+[PASS] RAG assistant      RAG job match                                    HTTP 200
+[PASS] RAG assistant      RAG explain gap                                  HTTP 200
+[PASS] RAG assistant      RAG catalog                                      
+[PASS] Jobs               Search + pagination                              total=500 pages=100
+[PASS] Jobs               No demo listings in results                      
+[PASS] Jobs               Freshness + source on each job                   
+[PASS] Jobs               Match score attached                             
+[PASS] Jobs               Sort by recent                                   
+[PASS] Jobs               Filter opportunity                               10 results
+[PASS] Jobs               Filter work_arrangement                          48 results
+[PASS] Jobs               Filter date_posted                               50 results
+[PASS] Jobs               Filter skill                                     50 results
+[PASS] Jobs               Filter entry_level                               14 results
+[PASS] Jobs               Sort by best match                               top=[35.0, 30.0, 28.5]
+[PASS] Jobs               Job detail                                       
+[PASS] Jobs               Explainable match                                0.0s score=None
+[PASS] Jobs               Save job                                         
+[PASS] Jobs               Saved list                                       
+[PASS] Jobs               Saved list private                               
+[PASS] Jobs               Unsave job                                       
+[PASS] Jobs               Track application                                
+[PASS] Jobs               Duplicate application blocked                    
+[PASS] Jobs               Applications list                                
+[PASS] Jobs               Withdraw application                             
+[PASS] Jobs               Compare jobs                                     
+[PASS] Jobs               Data-source metrics                              last_success=2026-11-20T17:14:21.765077+00:00 next=2026-11-20T19:13:57.207621+00:00
+[WARN] Jobs               Adzuna configured                                credentials not set
+[WARN] Jobs               Jooble configured                                credentials not set
+[PASS] Jobs               Real Indian listings available                   481 listings
+[PASS] Preferences/alerts Save preferences                                 
+[PASS] Preferences/alerts Read preferences                                 
+[PASS] Preferences/alerts Create alert                                     
+[PASS] Preferences/alerts Invalid alert rejected                           
+[PASS] Preferences/alerts Update alert                                     
+[PASS] Preferences/alerts Other user cannot edit alert                     
+[PASS] Preferences/alerts Notifications                                    
+[PASS] Preferences/alerts Mark read                                        
+[PASS] Preferences/alerts Delete alert                                     
+[PASS] Interview prep     Start session                                    0.1s 5 questions
+[PASS] Interview prep     Evaluate answer                                  0.1s
+[PASS] Interview prep     Session detail                                   
+[PASS] Interview prep     Other user cannot read session                   
+[PASS] Interview prep     History                                          
+[PASS] Resume optimizer   Careers list                                     
+[PASS] Resume optimizer   My resumes                                       
+[PASS] Resume optimizer   Analyze resume                                   0.0s score=10.5
+[PASS] Resume optimizer   Export PDF                                       2743 bytes
+[PASS] Resume optimizer   Export DOCX                                      37393 bytes
+[PASS] AI / privacy / FL  AI providers list                                
+[PASS] AI / privacy / FL  Select AI provider                               
+[PASS] AI / privacy / FL  Privacy info (no DP claim)                       
+[PASS] AI / privacy / FL  Student FL status                                {"differential_privacy": {"delta": null, "epsilon": null, "formal_guarantee": false, "mechanism": "U
+[PASS] Admin              Stats                                            
+[PASS] Admin              Students list                                    
+[PASS] Admin              Jobs overview                                    jobs=500 next=2026-11-20T19:13:57.207621+00:00
+[PASS] Admin              Sync runs                                        
+[PASS] Admin              Manual sync                                      114.0s status=success new=0 upd=2
+[PASS] Admin              Audit log records manual sync                    
+[PASS] Admin              System health                                    
+[PASS] Admin              FL nodes are simulated                           
+[PASS] Admin              FL round (measured, no epsilon)                  acc=0.6275
+[PASS] Admin              FL rounds history                                
+[PASS] Admin              FL round detail                                  
+[PASS] Admin              FL status                                        
+[PASS] Skill Passport     Passport loads                                   12 skills counts={'ai_extracted': 11, 'assessment_completed': 1}
+[PASS] Skill Passport     Resume-only skills not verified                  
+[PASS] Skill Passport     Save profile                                     
+[PASS] Skill Passport     Unsafe URL rejected                              
+[PASS] Skill Passport     Add self-declared skill                          
+[PASS] Skill Passport     Add evidence                                     
+[PASS] Skill Passport     Evidence alone does not verify                   evidence_submitted
+[PASS] Skill Passport     Request review                                   
+[PASS] Skill Passport     Other user cannot edit evidence                  
+[PASS] Skill Passport     Admin sees review queue                          
+[PASS] Skill Passport     Admin accepts evidence -> verified               verified
+[PASS] Skill Passport     Owner PDF export                                 4249 bytes
+[PASS] Skill Passport     Share needs consent                              
+[PASS] Skill Passport     Create share link + QR                           
+[PASS] Skill Passport     Public view works without login                  
+[PASS] Skill Passport     Public view hides email/ids/hidden sections      
+[PASS] Skill Passport     Public PDF                                       
+[PASS] Skill Passport     Frontend serves public passport route            
+[PASS] Skill Passport     Access history                                   
+[PASS] Skill Passport     Other user cannot revoke                         
+[PASS] Skill Passport     Revoke link                                      
+[PASS] Skill Passport     Revoked link blocked                             
+[PASS] Skill Passport     Unknown token 404                                
+[PASS] Recruiter Portal   Register recruiter (role fixed)                  HTTP 201
+[PASS] Recruiter Portal   Recruiter blocked from student API               
+[PASS] Recruiter Portal   Recruiter blocked from passport owner API        
+[PASS] Recruiter Portal   Student blocked from recruiter API               
+[PASS] Recruiter Portal   Organisation starts unverified                   
+[PASS] Recruiter Portal   Create job draft                                 
+[PASS] Recruiter Portal   Draft hidden from students                       
+[PASS] Recruiter Portal   Publish blocked until verified                   
+[PASS] Recruiter Portal   Search blocked until verified                    
+[PASS] Recruiter Portal   Request verification                             
+[PASS] Recruiter Portal   Admin verifies organisation                      
+[PASS] Recruiter Portal   Publish job                                      
+[PASS] Recruiter Portal   Student sees employer job                        
+[PASS] Recruiter Portal   Apply needs consent                              
+[PASS] Recruiter Portal   Apply with consent                               
+[PASS] Recruiter Portal   Applicant listed with report                     
+[PASS] Recruiter Portal   Candidate profile + match report                 missing=['kubernetes']
+[PASS] Recruiter Portal   Only shared sections, no account email           
+[PASS] Recruiter Portal   Other user's ref is not accessible               
+[PASS] Recruiter Portal   Move to shortlisted                              
+[PASS] Recruiter Portal   Student sees stage update                        
+[PASS] Recruiter Portal   Student sees who viewed profile                  
+[PASS] Recruiter Portal   Internal note                                    
+[PASS] Verification requests Profile lists unverified shared skills           ['python', 'aws', 'docker', 'git', 'javascript', 'linux']
+[PASS] Verification requests Recruiter requests a shared skill                HTTP 201
+[PASS] Verification requests Duplicate request refused                        
+[PASS] Verification requests Signed-out caller refused                        
+[PASS] Verification requests Student cannot send requests                     
+[PASS] Verification requests Student badge counts the request                 {'unread_count': 3, 'verification_requests': 1}
+[PASS] Verification requests Student is notified                              
+[PASS] Verification requests Other student cannot answer it                   
+[PASS] Verification requests Student accepts                                  
+[PASS] Verification requests Recruiter sees acceptance                        
+[PASS] Verification requests Student submits evidence                         
+[PASS] Verification requests Pending review is not completion                 
+[PASS] Verification requests Reviewer accepts evidence                        
+[PASS] Verification requests Recruiter told it is verified                    evidence accepted by a reviewer
+[PASS] Verification requests Dashboard shows the new answer                   
+[PASS] Verification requests Passport shows the skill verified                
+[PASS] Verification requests Verified skill no longer requestable             
+[PASS] Verification requests Student sees it completed                        
+[PASS] Verification requests Recruiter cancels a request                      
+[PASS] Verification requests Student sees it withdrawn                        
+[PASS] Verification requests Cancelled request cannot be accepted             
+[PASS] Roadmap from jobs  Add a missing job skill                          kubernetes: HTTP 201 0.1s kubernetes was added to your learning roadmap (4 days).
+[PASS] Roadmap from jobs  Same skill again is not duplicated               
+[PASS] Roadmap from jobs  Skill appears once on the roadmap                
+[PASS] Roadmap from jobs  Match breakdown knows it is planned              
+[PASS] Recruiter Portal   Opt in to employer search                        
+[PASS] Recruiter Portal   Search finds opted-in student                    
+[PASS] Recruiter Portal   Withdraw application                             
+[PASS] Recruiter Portal   Access ends after withdraw + opt-out             
+[PASS] Recruiter Portal   Frontend serves /recruiter                       
+[PASS] Recruiter Portal   Frontend serves /recruiter/register              
+[PASS] Recruiter Portal   Frontend serves /employer-access                 
+[PASS] Recruiter Portal   Frontend serves /recruiter/verifications         
+[PASS] Recruiter Portal   Delete recruiter account                         
+[PASS] Account            Export my data                                   12 resume skills of 13
+[PASS] Account            Export includes Skill Passport                   
+[PASS] Account            Delete needs confirmation                        
+[FAIL] Account            Delete account e2e_a_646f6663                    
+[PASS] Account            Delete account e2e_b_646f6663                    
+[FAIL] Account            Deleted account cannot log in                    
+[FAIL] Recruiter Portal   Cleanup e2e organisation                         No module named 'flask'
+
+SUMMARY: 199 passed, 2 warnings, 5 failed (of 206)
+Detailed results: /tmp/skillbridge_e2e_0a625lbj/e2e_results.json

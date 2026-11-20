@@ -1,18 +1,106 @@
-# Phase 0 result: **FAIL** (candidate image: onnx-rest)
+# Phase 0 result: **FAIL** (candidate image: onnx-rest-ext)
 
 Render free-tier conditions: `--memory=512m --memory-swap=512m --cpus=0.1`, gunicorn 1 worker x 8 threads, PostgreSQL 16, real job providers; Gemini answered by a local stub (SDK in runs 2-3, REST client in run 4).
 
 | Criterion | Result |
 |---|---|
 | No OOM kill (cgroup oom_kill, OOMKilled flag, worker SIGKILL) | PASS |
-| Peak anonymous memory <= 450 MB (measured 505.2 MB) | FAIL |
+| Peak anonymous memory <= 450 MB (measured 464.5 MB) | FAIL |
 | ONNX MiniLM actually served RAG (log line present, no fallback) | PASS |
 | No HTTP 5xx / dropped connection under concurrent load | PASS |
 | End-to-end: no failures except harness-only (4 real) | FAIL |
 | Retrieval quality equivalent to PyTorch MiniLM | PASS |
 | Backend unit tests in slim image (229 run) | PASS |
 
-## Image: onnx-rest (CANDIDATE: tuned ONNX MiniLM + REST Gemini client (no google-genai SDK), 8 threads (run 4))
+## Image: onnx-rest-ext (CANDIDATE: tuned ONNX + REST Gemini client, 8 threads, job sync in a separate process (run 5))
+- Time to healthy at 0.1 CPU: 24 s
+- Peak anonymous memory: **464.5 MB**; peak charged incl. page cache: 481.2 MB; kernel memory.peak: 481.2 MB; limit 536870912
+- OOM: oom_kill=0, oom events=0, worker SIGKILL=0, OOMKilled=False
+
+| Phase | Peak anon MB | Peak charged MB |
+|---|---|---|
+| startup | 184.3 | 191.6 |
+| idle | 184.4 | 191.7 |
+| e2e | 384.5 | 394.0 |
+| setup | 386.5 | 396.1 |
+| stress | 464.5 | 481.2 |
+| after | 464.5 | 477.7 |
+
+- End-to-end check: 199 pass, 2 warn, 5 fail (harness-only: ['Cleanup e2e organisation']; real: [('Career guidance', 'Readiness breakdown', '{}'), ('Career guidance', 'Readiness links to a jobs domain', 'None'), ('Account', 'Delete account e2e_a_646f6663', ''), ('Account', 'Deleted account cannot log in', '')])
+- Load test: 1874 ok / 0 failed in 300 s, 8 concurrent students + recruiter + FL + job sync
+
+| Feature | ok | failed | p50 s | p95 s | first error |
+|---|---|---|---|---|---|
+| RAG assistant (Gemini) | 165 | 0 | 0.9 | 1.8 |  |
+| RAG explain gap | 128 | 0 | 0.79 | 1.8 |  |
+| RAG job match | 119 | 0 | 0.89 | 2.0 |  |
+| RAG resume analysis | 99 | 0 | 0.79 | 2.5 |  |
+| career recommendations | 107 | 0 | 0.6 | 1.1 |  |
+| federated learning round | 14 | 0 | 1.65 | 4.5 |  |
+| interview start (Gemini) | 60 | 0 | 0.85 | 1.49 |  |
+| job match breakdown | 94 | 0 | 1.45 | 3.1 |  |
+| job sync (separate process, live providers) | 1 | 0 | 36.82 | 36.82 |  |
+| jobs by match | 122 | 0 | 2.1 | 3.49 |  |
+| quiz | 48 | 0 | 0.95 | 1.7 |  |
+| readiness breakdown | 56 | 0 | 1.1 | 2.1 |  |
+| recruiter candidate search | 1 | 0 | 9.79 | 9.79 |  |
+| recruiter match report | 39 | 0 | 1.59 | 2.7 |  |
+| recruiter search | 39 | 0 | 4.9 | 7.3 |  |
+| recruiter verification request | 7 | 0 | 2.2 | 2.8 |  |
+| resume export DOCX | 52 | 0 | 4.4 | 7.29 |  |
+| resume export PDF | 49 | 0 | 0.49 | 1.3 |  |
+| resume optimizer analyze | 55 | 0 | 0.5 | 1.19 |  |
+| resume parse | 172 | 0 | 1.7 | 4.11 |  |
+| resume upload | 172 | 0 | 0.79 | 1.6 |  |
+| skill extraction | 172 | 0 | 1.7 | 3.3 |  |
+| skill gap analysis | 58 | 0 | 0.95 | 1.9 |  |
+| skill passport PDF | 45 | 0 | 1.0 | 1.8 |  |
+
+## Image: onnx-rest-ext-t4 (same as onnx-rest-ext with 4 gunicorn threads (run 5))
+- Time to healthy at 0.1 CPU: 28 s
+- Peak anonymous memory: **429.3 MB**; peak charged incl. page cache: 443.4 MB; kernel memory.peak: 443.4 MB; limit 536870912
+- OOM: oom_kill=0, oom events=0, worker SIGKILL=0, OOMKilled=False
+
+| Phase | Peak anon MB | Peak charged MB |
+|---|---|---|
+| startup | 184.4 | 192.2 |
+| idle | 184.4 | 192.2 |
+| e2e | 384.2 | 393.7 |
+| setup | 386.0 | 395.6 |
+| stress | 429.3 | 443.4 |
+| after | 429.3 | 442.5 |
+
+- End-to-end check: 201 pass, 2 warn, 3 fail (harness-only: ['Cleanup e2e organisation']; real: [('Account', 'Delete account e2e_a_b97a83de', ''), ('Account', 'Deleted account cannot log in', '')])
+- Load test: 1975 ok / 0 failed in 300 s, 8 concurrent students + recruiter + FL + job sync
+
+| Feature | ok | failed | p50 s | p95 s | first error |
+|---|---|---|---|---|---|
+| RAG assistant (Gemini) | 140 | 0 | 1.1 | 1.81 |  |
+| RAG explain gap | 137 | 0 | 1.0 | 1.71 |  |
+| RAG job match | 124 | 0 | 1.0 | 1.8 |  |
+| RAG resume analysis | 102 | 0 | 0.95 | 1.6 |  |
+| career recommendations | 100 | 0 | 0.9 | 1.6 |  |
+| federated learning round | 14 | 0 | 1.54 | 2.1 |  |
+| interview start (Gemini) | 66 | 0 | 0.9 | 2.0 |  |
+| job match breakdown | 102 | 0 | 1.6 | 2.5 |  |
+| job sync (separate process, live providers) | 1 | 0 | 34.97 | 34.97 |  |
+| jobs by match | 114 | 0 | 1.9 | 2.9 |  |
+| quiz | 78 | 0 | 1.0 | 2.29 |  |
+| readiness breakdown | 62 | 0 | 1.0 | 1.7 |  |
+| recruiter candidate search | 1 | 0 | 3.89 | 3.89 |  |
+| recruiter match report | 57 | 0 | 1.6 | 2.6 |  |
+| recruiter search | 57 | 0 | 3.11 | 4.4 |  |
+| recruiter verification request | 8 | 0 | 1.75 | 2.2 |  |
+| resume export DOCX | 61 | 0 | 2.1 | 3.2 |  |
+| resume export PDF | 65 | 0 | 0.9 | 1.8 |  |
+| resume optimizer analyze | 71 | 0 | 0.9 | 1.51 |  |
+| resume parse | 163 | 0 | 1.4 | 2.5 |  |
+| resume upload | 163 | 0 | 0.9 | 1.8 |  |
+| skill extraction | 163 | 0 | 1.5 | 2.39 |  |
+| skill gap analysis | 62 | 0 | 1.19 | 1.9 |  |
+| skill passport PDF | 64 | 0 | 1.2 | 2.3 |  |
+
+## Image: onnx-rest (tuned ONNX MiniLM + REST Gemini client (no google-genai SDK), 8 threads (run 4))
 - Time to healthy at 0.1 CPU: 34 s
 - Peak anonymous memory: **505.2 MB**; peak charged incl. page cache: 511.2 MB; kernel memory.peak: 513.0 MB; limit 536870912
 - OOM: oom_kill=0, oom events=0, worker SIGKILL=0, OOMKilled=False
@@ -287,27 +375,27 @@ Render free-tier conditions: `--memory=512m --memory-swap=512m --cpus=0.1`, guni
 | Configuration | Peak RSS MB |
 |---|---|
 | python only | 13.5 |
-| google-genai SDK import only | 96.1 |
-| app import (incl. genai, sklearn, flwr, pandas) | 300.4 |
-| app + MiniLM + one query | 473.5 |
-| app + build KB index: batch 256, arena on (as tested) | 684.8 |
-| app + build KB index: batch 8, arena on | 532.9 |
-| app + build KB index: batch 8, arena off | 513.0 |
-| app + build KB index: batch 8, arena off, MALLOC_ARENA_MAX=2 | 538.2 |
+| google-genai SDK import only | 95.0 |
+| app import (incl. genai, sklearn, flwr, pandas) | 298.4 |
+| app + MiniLM + one query | 470.2 |
+| app + build KB index: batch 256, arena on (as tested) | 685.0 |
+| app + build KB index: batch 8, arena on | 533.2 |
+| app + build KB index: batch 8, arena off | 521.8 |
+| app + build KB index: batch 8, arena off, MALLOC_ARENA_MAX=2 | 550.4 |
 | app + LOAD prebuilt KB index (no re-encoding), tuned | 480.2 |
-| REST Gemini client: app import | 250.1 |
-| REST Gemini client: app + LOAD prebuilt KB index, tuned | 440.6 |
+| REST Gemini client: app import | 248.5 |
+| REST Gemini client: app + LOAD prebuilt KB index, tuned | 438.1 |
 
 ## Step-by-step peak memory, torch image (fresh process each, no limit)
 | Configuration | Peak RSS MB |
 |---|---|
-| python only | 14.1 |
-| google-genai SDK import only | 95.3 |
-| app import (incl. genai, sklearn, flwr, pandas) | 301.2 |
-| app + MiniLM + one query | 713.2 |
-| app + build KB index: batch 32 (as tested) | 905.1 |
-| app + build KB index: batch 8, MALLOC_ARENA_MAX=2 | 804.6 |
-| app + LOAD prebuilt KB index (no re-encoding), tuned | 733.7 |
+| python only | 14.0 |
+| google-genai SDK import only | 95.8 |
+| app import (incl. genai, sklearn, flwr, pandas) | 301.1 |
+| app + MiniLM + one query | 715.0 |
+| app + build KB index: batch 32 (as tested) | 905.9 |
+| app + build KB index: batch 8, MALLOC_ARENA_MAX=2 | 807.7 |
+| app + LOAD prebuilt KB index (no re-encoding), tuned | 733.5 |
 
 ## Unit tests in slim image: 229 run, 0 failures, 0 errors
 

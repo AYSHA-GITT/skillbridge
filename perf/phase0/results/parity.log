@@ -1,8 +1,8 @@
 Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 5847.34it/s]
-Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 5678.78it/s]
-[0;93m2026-11-20 16:36:19.059530648 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 4938.20it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 5827.54it/s]
+[0;93m2026-11-20 17:12:59.703296934 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
 Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files: 100%|██████████| 5/5 [00:01<00:00,  4.89it/s]Fetching 5 files: 100%|██████████| 5/5 [00:01<00:00,  4.89it/s]
+Fetching 5 files:  20%|██        | 1/5 [00:00<00:00,  9.77it/s]Fetching 5 files: 100%|██████████| 5/5 [00:01<00:00,  3.21it/s]Fetching 5 files: 100%|██████████| 5/5 [00:01<00:00,  3.34it/s]
 PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
 {"benchmark_full_ranking_identical": "27/27", "benchmark_top1_identical": "27/27", "kb_search_top5_identical": "27/27", "vector_cosine": {"min": 1.0, "mean": 1.0, "texts": 36}, "equivalent": true}

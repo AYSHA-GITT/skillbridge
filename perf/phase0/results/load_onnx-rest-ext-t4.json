@@ -1,0 +1,176 @@
+{
+ "seconds": 300,
+ "concurrent_students": 8,
+ "requests_ok": 1975,
+ "requests_failed": 0,
+ "by_feature": {
+  "RAG assistant (Gemini)": {
+   "ok": 140,
+   "fail": 0,
+   "p50_s": 1.1,
+   "p95_s": 1.81,
+   "errors": []
+  },
+  "RAG explain gap": {
+   "ok": 137,
+   "fail": 0,
+   "p50_s": 1.0,
+   "p95_s": 1.71,
+   "errors": []
+  },
+  "RAG job match": {
+   "ok": 124,
+   "fail": 0,
+   "p50_s": 1.0,
+   "p95_s": 1.8,
+   "errors": []
+  },
+  "RAG resume analysis": {
+   "ok": 102,
+   "fail": 0,
+   "p50_s": 0.95,
+   "p95_s": 1.6,
+   "errors": []
+  },
+  "career recommendations": {
+   "ok": 100,
+   "fail": 0,
+   "p50_s": 0.9,
+   "p95_s": 1.6,
+   "errors": []
+  },
+  "federated learning round": {
+   "ok": 14,
+   "fail": 0,
+   "p50_s": 1.54,
+   "p95_s": 2.1,
+   "errors": []
+  },
+  "interview start (Gemini)": {
+   "ok": 66,
+   "fail": 0,
+   "p50_s": 0.9,
+   "p95_s": 2.0,
+   "errors": []
+  },
+  "job match breakdown": {
+   "ok": 102,
+   "fail": 0,
+   "p50_s": 1.6,
+   "p95_s": 2.5,
+   "errors": []
+  },
+  "job sync (separate process, live providers)": {
+   "ok": 1,
+   "fail": 0,
+   "p50_s": 34.97,
+   "p95_s": 34.97,
+   "errors": []
+  },
+  "jobs by match": {
+   "ok": 114,
+   "fail": 0,
+   "p50_s": 1.9,
+   "p95_s": 2.9,
+   "errors": []
+  },
+  "quiz": {
+   "ok": 78,
+   "fail": 0,
+   "p50_s": 1.0,
+   "p95_s": 2.29,
+   "errors": []
+  },
+  "readiness breakdown": {
+   "ok": 62,
+   "fail": 0,
+   "p50_s": 1.0,
+   "p95_s": 1.7,
+   "errors": []
+  },
+  "recruiter candidate search": {
+   "ok": 1,
+   "fail": 0,
+   "p50_s": 3.89,
+   "p95_s": 3.89,
+   "errors": []
+  },
+  "recruiter match report": {
+   "ok": 57,
+   "fail": 0,
+   "p50_s": 1.6,
+   "p95_s": 2.6,
+   "errors": []
+  },
+  "recruiter search": {
+   "ok": 57,
+   "fail": 0,
+   "p50_s": 3.11,
+   "p95_s": 4.4,
+   "errors": []
+  },
+  "recruiter verification request": {
+   "ok": 8,
+   "fail": 0,
+   "p50_s": 1.75,
+   "p95_s": 2.2,
+   "errors": []
+  },
+  "resume export DOCX": {
+   "ok": 61,
+   "fail": 0,
+   "p50_s": 2.1,
+   "p95_s": 3.2,
+   "errors": []
+  },
+  "resume export PDF": {
+   "ok": 65,
+   "fail": 0,
+   "p50_s": 0.9,
+   "p95_s": 1.8,
+   "errors": []
+  },
+  "resume optimizer analyze": {
+   "ok": 71,
+   "fail": 0,
+   "p50_s": 0.9,
+   "p95_s": 1.51,
+   "errors": []
+  },
+  "resume parse": {
+   "ok": 163,
+   "fail": 0,
+   "p50_s": 1.4,
+   "p95_s": 2.5,
+   "errors": []
+  },
+  "resume upload": {
+   "ok": 163,
+   "fail": 0,
+   "p50_s": 0.9,
+   "p95_s": 1.8,
+   "errors": []
+  },
+  "skill extraction": {
+   "ok": 163,
+   "fail": 0,
+   "p50_s": 1.5,
+   "p95_s": 2.39,
+   "errors": []
+  },
+  "skill gap analysis": {
+   "ok": 62,
+   "fail": 0,
+   "p50_s": 1.19,
+   "p95_s": 1.9,
+   "errors": []
+  },
+  "skill passport PDF": {
+   "ok": 64,
+   "fail": 0,
+   "p50_s": 1.2,
+   "p95_s": 2.3,
+   "errors": []
+  }
+ }
+}

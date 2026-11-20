@@ -1,10 +1,10 @@
 .INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 24, "inserted_count": 24, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
-.............WARNING:utils.job_discovery.base_adapter:Jooble: network error (ConnectionError) (attempt 1/1), retrying in 2.3s
-.......WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 1/3), retrying in 2.3s
-WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 2/3), retrying in 4.4s
-WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 3/3), retrying in 8.4s
-.WARNING:utils.job_discovery.base_adapter:Adzuna: network error (Timeout) (attempt 1/3), retrying in 1.3s
-WARNING:utils.job_discovery.base_adapter:Adzuna: network error (ConnectionError) (attempt 2/3), retrying in 2.5s
+.............WARNING:utils.job_discovery.base_adapter:Jooble: network error (ConnectionError) (attempt 1/1), retrying in 2.4s
+.......WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 1/3), retrying in 2.4s
+WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 2/3), retrying in 4.2s
+WARNING:utils.job_discovery.base_adapter:Adzuna: server error HTTP 503 (attempt 3/3), retrying in 8.1s
+.WARNING:utils.job_discovery.base_adapter:Adzuna: network error (Timeout) (attempt 1/3), retrying in 1.0s
+WARNING:utils.job_discovery.base_adapter:Adzuna: network error (ConnectionError) (attempt 2/3), retrying in 2.0s
 ...INFO:skillbridge.job_sync:Job sync failed: {"fetched_count": 0, "inserted_count": 0, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
 .ERROR:skillbridge.job_sync:Job sync crashed
 Traceback (most recent call last):
@@ -52,7 +52,7 @@ INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 1, "inserted_count
 INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 1, "inserted_count": 0, "updated_count": 0, "unchanged_count": 1, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
 .INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 2, "inserted_count": 2, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
 .INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 2, "inserted_count": 2, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
-.........WARNING:skillbridge.resume_files:Refusing to delete file outside uploads folder: /tmp/skillbridge_outside_wged6ckl/secret.txt
+.........WARNING:skillbridge.resume_files:Refusing to delete file outside uploads folder: /tmp/skillbridge_outside_76e91v53/secret.txt
 ..INFO:skillbridge.job_sync:Job sync failed: {"fetched_count": 0, "inserted_count": 0, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
 ......INFO:skillbridge.job_scheduler:Job scheduler started (poll every 60.0s)
 INFO:skillbridge.job_sync:Job sync failed: {"fetched_count": 0, "inserted_count": 0, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
@@ -74,7 +74,7 @@ INFO:app:Password reset completed for account 3
 INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 7, "inserted_count": 7, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
 ......................
 ----------------------------------------------------------------------
-Ran 229 tests in 184.083s
+Ran 229 tests in 171.188s
 
 OK (skipped=1)
 {"ran": 229, "failures": 0, "errors": 0, "ok": true}
