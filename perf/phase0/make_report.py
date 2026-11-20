@@ -59,8 +59,10 @@ def variant_block(v):
 def main():
     parity = load("retrieval_parity.json", {})
     tests = load("unit_tests.json", {})
-    variants = [variant_block(v) for v in ("onnx", "torch") if os.path.exists(os.path.join(R, f"memory_{v}.json"))]
-    cand = next((v for v in variants if v["variant"] == "onnx"), None)
+    variants = [variant_block(v) for v in ("onnx-tuned", "torch-tuned", "onnx", "torch")
+                if os.path.exists(os.path.join(R, f"memory_{v}.json"))]
+    # the candidate is the tuned ONNX image when it was measured, else the untuned one
+    cand = next((v for v in variants if v["variant"] == "onnx-tuned"), None) or         next((v for v in variants if v["variant"] == "onnx"), None)
 
     checks = []
     if cand:
@@ -81,13 +83,16 @@ def main():
                (f"Backend unit tests in slim image ({tests.get('ran', 0)} run)", bool(tests.get("ok")))]
     verdict = "PASS" if all(ok for _, ok in checks) else "FAIL"
 
-    L = [f"# Phase 0 result: **{verdict}**", "",
+    L = [f"# Phase 0 result: **{verdict}** (candidate image: {cand['variant'] if cand else 'none'})", "",
          "Render free-tier conditions: `--memory=512m --memory-swap=512m --cpus=0.1`, gunicorn 1 worker x 8 threads, "
          "PostgreSQL 16, real job providers, Gemini via the real google-genai SDK against a local stub.", "",
          "| Criterion | Result |", "|---|---|"] + [f"| {c} | {'PASS' if ok else 'FAIL'} |" for c, ok in checks]
+    labels = {"onnx-tuned": "candidate: ONNX MiniLM, batch 8, ONNX arena off, MALLOC_ARENA_MAX=2, prebuilt KB index",
+              "torch-tuned": "PyTorch MiniLM with the same tuning (batch 8, MALLOC_ARENA_MAX=2, prebuilt KB index)",
+              "onnx": "ONNX MiniLM, untuned (run 2)", "torch": "current PyTorch image, untuned (run 2)"}
     for v in variants:
         m = v["mem"]
-        L += ["", f"## Image: {v['variant']} ({'candidate, ONNX MiniLM' if v['variant'] == 'onnx' else 'current, PyTorch MiniLM'})",
+        L += ["", f"## Image: {v['variant']} ({labels.get(v['variant'], '')})",
               f"- Time to healthy at 0.1 CPU: {v['startup_s']} s",
               f"- Peak anonymous memory: **{m.get('overall_max_anon_mb')} MB**; peak charged incl. page cache: "
               f"{m.get('overall_max_current_mb')} MB; kernel memory.peak: {m.get('memory_peak_mb')} MB; limit {m.get('memory_max')}",
@@ -115,6 +120,12 @@ def main():
               f"- Full benchmark rankings identical: {parity.get('benchmark_full_ranking_identical')}; "
               f"knowledge-base top-5 identical: {parity.get('kb_search_top5_identical')}; "
               f"max score difference: {parity.get('kb_search_max_score_difference')}"]
+    for pv in ("onnx", "torch"):
+        prof = load(f"profile_{pv}.json")
+        if prof:
+            L += ["", f"## Step-by-step peak memory, {pv} image (fresh process each, no limit)",
+                  "| Configuration | Peak RSS MB |", "|---|---|"]
+            L += [f"| {r['config']} | {r['peak_rss_mb']} |" for r in prof["results"]]
     if tests:
         L += ["", f"## Unit tests in slim image: {tests.get('ran')} run, {tests.get('failures')} failures, "
                   f"{tests.get('errors')} errors", *[f"- {t}" for t in tests.get("failed_tests", [])]]

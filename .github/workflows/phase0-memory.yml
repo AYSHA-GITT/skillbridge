@@ -68,13 +68,42 @@ jobs:
         if: always()
         with: { name: results-tests, path: out/ }
 
+  memory-profile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [onnx, torch]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image (with prebuilt knowledge-base index)
+        run: |
+          eval "$RUN_LOGGED"
+          run_logged build_profile_${{ matrix.variant }} docker build --progress=plain --build-arg PREBUILD_KB=1             -f perf/phase0/Dockerfile.${{ matrix.variant == 'onnx' && 'slim' || 'torch' }} -t sb:${{ matrix.variant }} .
+      - name: Step-by-step peak memory (fresh process per configuration, no limit)
+        run: |
+          mkdir -p out
+          docker run --rm -u root -w /app -e DATABASE_URL=sqlite:////tmp/profile.db -e GEMINI_API_KEY=stub-key             -e RUN_JOB_SCHEDULER_IN_PROCESS=0 -v "$PWD/perf/phase0:/phase0:ro" -v "$PWD/out:/out"             sb:${{ matrix.variant }} python /phase0/profile_memory.py ${{ matrix.variant }} /out/profile_${{ matrix.variant }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-profile-${{ matrix.variant }}
+          path: out/
+
   memory:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        variant: [onnx, torch]
+        include:
+          - variant: onnx-tuned
+            dockerfile: slim
+            tuning: "ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2"
+          - variant: torch-tuned
+            dockerfile: torch
+            tuning: "TORCH_BATCH_SIZE=8 MALLOC_ARENA_MAX=2"
     services:
       postgres:
         image: postgres:16
@@ -100,7 +129,7 @@ jobs:
       - name: Build image
         run: |
           eval "$RUN_LOGGED"
-          run_logged build_${{ matrix.variant }} docker build --progress=plain             -f perf/phase0/Dockerfile.${{ matrix.variant == 'onnx' && 'slim' || 'torch' }} -t sb:${{ matrix.variant }} .
+          run_logged build_${{ matrix.variant }} docker build --progress=plain --build-arg PREBUILD_KB=1             -f perf/phase0/Dockerfile.${{ matrix.dockerfile }} -t sb:${{ matrix.variant }} .
           docker image ls sb | tee out/image_${{ matrix.variant }}.txt
       - name: Environment (throw-away values)
         run: |
@@ -113,7 +142,9 @@ jobs:
             echo "RUN_JOB_SCHEDULER_IN_PROCESS=0"
             echo "FRONTEND_URL=http://localhost:3000"
             echo "PHASE0_VARIANT=${{ matrix.variant }}"
+            for kv in ${{ matrix.tuning }}; do echo "$kv"; done
           } > ci.env
+          echo "tuning: ${{ matrix.tuning }}" > out/tuning_${{ matrix.variant }}.txt
           nohup python perf/phase0/gemini_stub.py 8089 frontend/build 3000 out/gemini_stub_${{ matrix.variant }}.json > /dev/null 2>&1 &
       - name: Create schema and CI admin (throw-away database)
         run: |
@@ -161,7 +192,7 @@ jobs:
           path: out/
 
   report:
-    needs: [retrieval-parity, unit-tests-slim, memory]
+    needs: [retrieval-parity, unit-tests-slim, memory-profile, memory]
     if: always()
     runs-on: ubuntu-24.04
     permissions:

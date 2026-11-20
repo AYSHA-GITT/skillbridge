@@ -9,9 +9,12 @@ from one IP (127.0.0.1); it has no measurable memory cost either way.
 """
 import os
 
-if os.getenv("PHASE0_VARIANT", "onnx") == "onnx":
-    import onnx_shim
+import onnx_shim  # noqa: E402
+
+if os.getenv("PHASE0_VARIANT", "onnx").startswith("onnx"):
     onnx_shim.install()
+else:
+    onnx_shim.install_torch_batch()
 
 from app import app  # noqa: E402
 

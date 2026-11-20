@@ -25,6 +25,9 @@ RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTr
 
 COPY backend/ /app/
 
+ARG PREBUILD_KB=0
+RUN if [ "$PREBUILD_KB" = "1" ]; then       python -c "import sys; sys.path.insert(0, '/app'); from rag.knowledge_manager import KnowledgeManager; km = KnowledgeManager(base_dir='/app'); km.initialize(); print('KB index prebuilt:', len(km.documents), 'chunks')";     fi
+
 RUN useradd --create-home --uid 1000 app \
  && mkdir -p uploads/resumes uploads/avatars uploads/evidence .cache/huggingface \
  && chown -R app:app /app

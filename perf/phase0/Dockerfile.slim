@@ -23,6 +23,11 @@ RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-tran
 COPY backend/ /app/
 COPY perf/phase0/onnx_shim.py perf/phase0/wsgi_phase0.py /app/phase0/
 
+# Optional: build the RAG knowledge-base index once, at image build time, so a restart
+# loads it instead of re-encoding every chunk (the knowledge base ships with the code).
+ARG PREBUILD_KB=0
+RUN if [ "$PREBUILD_KB" = "1" ]; then       ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 python -c "import sys; sys.path[:0]=['/app/phase0','/app']; import onnx_shim; onnx_shim.install(); from rag.knowledge_manager import KnowledgeManager; km = KnowledgeManager(base_dir='/app'); km.initialize(); print('KB index prebuilt:', len(km.documents), 'chunks')";     fi
+
 RUN useradd --create-home --uid 1000 app \
  && mkdir -p uploads/resumes uploads/avatars uploads/evidence \
  && chown -R app:app /app

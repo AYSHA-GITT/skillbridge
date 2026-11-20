@@ -27,3 +27,6 @@ with app.app_context():
     print("tables:", len(db.metadata.tables), "| admin ready")
 
 subprocess.run(["flask", "--app", "app", "db", "stamp", "head"], check=True, cwd="/app")
+# One real sync (live providers) so the end-to-end job checks have postings, as the
+# developer database does. The measured container runs its own sync again later.
+subprocess.run(["flask", "--app", "app", "jobs", "sync"], check=False, cwd="/app", timeout=900)
