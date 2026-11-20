@@ -17,7 +17,7 @@ import sys
 
 STEPS_CODE = r'''
 import os, sys, json
-sys.path[:0] = ["/phase0", "/app"]
+sys.path[:0] = [p for p in os.getenv("PHASE0_EXTRA_PATH", "").split(",") if p] + ["/phase0", "/app"]
 def status():
     d = {}
     for line in open("/proc/self/status"):
@@ -67,6 +67,10 @@ CONFIGS = {
          {"ONNX_BATCH_SIZE": "8", "ONNX_CPU_ARENA": "0", "MALLOC_ARENA_MAX": "2"}),
         ("app + LOAD prebuilt KB index (no re-encoding), tuned", "app,query,kb_load",
          {"ONNX_BATCH_SIZE": "8", "ONNX_CPU_ARENA": "0", "MALLOC_ARENA_MAX": "2"}),
+        ("REST Gemini client: app import", "app", {"PHASE0_EXTRA_PATH": "/phase0/rest_genai"}),
+        ("REST Gemini client: app + LOAD prebuilt KB index, tuned", "app,query,kb_load",
+         {"ONNX_BATCH_SIZE": "8", "ONNX_CPU_ARENA": "0", "MALLOC_ARENA_MAX": "2",
+          "PHASE0_EXTRA_PATH": "/phase0/rest_genai"}),
     ],
     "torch": [
         ("python only", "", {}),

@@ -98,12 +98,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - variant: onnx-tuned
+          # tuned ONNX + REST Gemini client instead of the google-genai SDK
+          - variant: onnx-rest
             dockerfile: slim
             tuning: "ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2"
-          - variant: torch-tuned
-            dockerfile: torch
-            tuning: "TORCH_BATCH_SIZE=8 MALLOC_ARENA_MAX=2"
+            pythonpath: "/phase0/rest_genai,/phase0,/app"
+            threads: 8
+          - variant: onnx-rest-t4
+            dockerfile: slim
+            tuning: "ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2"
+            pythonpath: "/phase0/rest_genai,/phase0,/app"
+            threads: 4
     services:
       postgres:
         image: postgres:16
@@ -144,7 +149,7 @@ jobs:
             echo "PHASE0_VARIANT=${{ matrix.variant }}"
             for kv in ${{ matrix.tuning }}; do echo "$kv"; done
           } > ci.env
-          echo "tuning: ${{ matrix.tuning }}" > out/tuning_${{ matrix.variant }}.txt
+          echo "tuning: ${{ matrix.tuning }} | threads: ${{ matrix.threads }} | pythonpath: ${{ matrix.pythonpath }}" > out/tuning_${{ matrix.variant }}.txt
           nohup python perf/phase0/gemini_stub.py 8089 frontend/build 3000 out/gemini_stub_${{ matrix.variant }}.json > /dev/null 2>&1 &
       - name: Create schema and CI admin (throw-away database)
         run: |
@@ -155,8 +160,8 @@ jobs:
           echo startup > /tmp/phase
           CID=$(docker run -d --name app --network host --memory=512m --memory-swap=512m --cpus=0.1 \
                 --env-file ci.env -v "$PWD/perf/phase0:/phase0:ro" -w /app sb:${{ matrix.variant }} \
-                gunicorn wsgi_phase0:app --pythonpath /phase0,/app --bind 0.0.0.0:5000 \
-                --workers 1 --threads 8 --timeout 300 --access-logfile -)
+                gunicorn wsgi_phase0:app --pythonpath "${{ matrix.pythonpath }}" --bind 0.0.0.0:5000 \
+                --workers 1 --threads ${{ matrix.threads }} --timeout 300 --access-logfile -)
           echo "CID=$CID" >> "$GITHUB_ENV"
           nohup python perf/phase0/mem_sampler.py "$CID" /tmp/phase /tmp/stop out/memory_${{ matrix.variant }}.json > out/sampler.log 2>&1 &
           start=$(date +%s)

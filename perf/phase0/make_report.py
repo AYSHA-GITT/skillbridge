@@ -59,10 +59,10 @@ def variant_block(v):
 def main():
     parity = load("retrieval_parity.json", {})
     tests = load("unit_tests.json", {})
-    variants = [variant_block(v) for v in ("onnx-tuned", "torch-tuned", "onnx", "torch")
-                if os.path.exists(os.path.join(R, f"memory_{v}.json"))]
-    # the candidate is the tuned ONNX image when it was measured, else the untuned one
-    cand = next((v for v in variants if v["variant"] == "onnx-tuned"), None) or         next((v for v in variants if v["variant"] == "onnx"), None)
+    order = ("onnx-rest", "onnx-rest-t4", "onnx-tuned", "torch-tuned", "onnx", "torch")
+    variants = [variant_block(v) for v in order if os.path.exists(os.path.join(R, f"memory_{v}.json"))]
+    # candidate = the most complete measured configuration, in this order of preference
+    cand = next((v for name in ("onnx-rest", "onnx-tuned", "onnx") for v in variants if v["variant"] == name), None)
 
     checks = []
     if cand:
@@ -85,9 +85,11 @@ def main():
 
     L = [f"# Phase 0 result: **{verdict}** (candidate image: {cand['variant'] if cand else 'none'})", "",
          "Render free-tier conditions: `--memory=512m --memory-swap=512m --cpus=0.1`, gunicorn 1 worker x 8 threads, "
-         "PostgreSQL 16, real job providers, Gemini via the real google-genai SDK against a local stub.", "",
+         "PostgreSQL 16, real job providers; Gemini answered by a local stub (SDK in runs 2-3, REST client in run 4).", "",
          "| Criterion | Result |", "|---|---|"] + [f"| {c} | {'PASS' if ok else 'FAIL'} |" for c, ok in checks]
-    labels = {"onnx-tuned": "candidate: ONNX MiniLM, batch 8, ONNX arena off, MALLOC_ARENA_MAX=2, prebuilt KB index",
+    labels = {"onnx-rest": "CANDIDATE: tuned ONNX MiniLM + REST Gemini client (no google-genai SDK), 8 threads (run 4)",
+              "onnx-rest-t4": "same as onnx-rest with 4 gunicorn threads (run 4)",
+              "onnx-tuned": "candidate: ONNX MiniLM, batch 8, ONNX arena off, MALLOC_ARENA_MAX=2, prebuilt KB index",
               "torch-tuned": "PyTorch MiniLM with the same tuning (batch 8, MALLOC_ARENA_MAX=2, prebuilt KB index)",
               "onnx": "ONNX MiniLM, untuned (run 2)", "torch": "current PyTorch image, untuned (run 2)"}
     for v in variants:
