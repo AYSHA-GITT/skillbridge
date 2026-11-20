@@ -8,79 +8,79 @@
    "marks": {
     "start": {
      "VmHWM": 13.5,
-     "VmRSS": 13.4
+     "VmRSS": 13.5
     }
    }
   },
   {
    "config": "google-genai SDK import only",
    "env": {},
-   "peak_rss_mb": 95.7,
+   "peak_rss_mb": 96.1,
    "marks": {
     "start": {
-     "VmHWM": 13.6,
+     "VmHWM": 13.5,
      "VmRSS": 13.5
     },
     "after_genai_import": {
-     "VmHWM": 95.7,
-     "VmRSS": 95.7
+     "VmHWM": 96.1,
+     "VmRSS": 96.1
     }
    }
   },
   {
    "config": "app import (incl. genai, sklearn, flwr, pandas)",
    "env": {},
-   "peak_rss_mb": 300.2,
-   "marks": {
-    "start": {
-     "VmHWM": 13.6,
-     "VmRSS": 13.5
-    },
-    "after_app_import": {
-     "VmHWM": 300.2,
-     "VmRSS": 300.2
-    }
-   }
-  },
-  {
-   "config": "app + MiniLM + one query",
-   "env": {},
-   "peak_rss_mb": 473.0,
+   "peak_rss_mb": 300.4,
    "marks": {
     "start": {
      "VmHWM": 13.6,
      "VmRSS": 13.4
     },
     "after_app_import": {
-     "VmHWM": 298.4,
-     "VmRSS": 298.4
+     "VmHWM": 300.4,
+     "VmRSS": 300.4
+    }
+   }
+  },
+  {
+   "config": "app + MiniLM + one query",
+   "env": {},
+   "peak_rss_mb": 473.5,
+   "marks": {
+    "start": {
+     "VmHWM": 13.8,
+     "VmRSS": 13.6
+    },
+    "after_app_import": {
+     "VmHWM": 298.9,
+     "VmRSS": 298.9
     },
     "after_model_and_one_query": {
-     "VmHWM": 473.0,
-     "VmRSS": 466.2
+     "VmHWM": 473.5,
+     "VmRSS": 466.8
     }
    }
   },
   {
    "config": "app + build KB index: batch 256, arena on (as tested)",
    "env": {},
-   "peak_rss_mb": 688.0,
+   "peak_rss_mb": 684.8,
    "marks": {
     "start": {
-     "VmHWM": 13.8,
-     "VmRSS": 13.8
+     "VmHWM": 13.6,
+     "VmRSS": 13.6
     },
     "after_app_import": {
-     "VmHWM": 298.5,
-     "VmRSS": 298.5
+     "VmHWM": 298.9,
+     "VmRSS": 298.9
     },
     "after_model_and_one_query": {
-     "VmHWM": 472.2,
-     "VmRSS": 466.3
+     "VmHWM": 470.6,
+     "VmRSS": 463.9
     },
     "after_kb_build": {
-     "VmHWM": 688.0,
-     "VmRSS": 688.0,
+     "VmHWM": 684.8,
+     "VmRSS": 684.8,
      "chunks": 41
     }
    }
@@ -90,23 +90,23 @@
    "env": {
     "ONNX_BATCH_SIZE": "8"
    },
-   "peak_rss_mb": 530.2,
+   "peak_rss_mb": 532.9,
    "marks": {
     "start": {
-     "VmHWM": 13.9,
-     "VmRSS": 13.9
+     "VmHWM": 13.7,
+     "VmRSS": 13.7
     },
     "after_app_import": {
-     "VmHWM": 299.1,
-     "VmRSS": 299.1
+     "VmHWM": 297.5,
+     "VmRSS": 297.5
     },
     "after_model_and_one_query": {
-     "VmHWM": 472.1,
-     "VmRSS": 463.9
+     "VmHWM": 471.7,
+     "VmRSS": 465.2
     },
     "after_kb_build": {
-     "VmHWM": 530.2,
-     "VmRSS": 530.2,
+     "VmHWM": 532.9,
+     "VmRSS": 532.9,
      "chunks": 41
     }
    }
@@ -117,23 +117,23 @@
     "ONNX_BATCH_SIZE": "8",
     "ONNX_CPU_ARENA": "0"
    },
-   "peak_rss_mb": 526.5,
+   "peak_rss_mb": 513.0,
    "marks": {
     "start": {
-     "VmHWM": 13.9,
-     "VmRSS": 13.9
+     "VmHWM": 13.7,
+     "VmRSS": 13.7
     },
     "after_app_import": {
-     "VmHWM": 298.1,
-     "VmRSS": 298.1
+     "VmHWM": 297.0,
+     "VmRSS": 297.0
     },
     "after_model_and_one_query": {
-     "VmHWM": 472.7,
-     "VmRSS": 457.0
+     "VmHWM": 471.7,
+     "VmRSS": 460.5
     },
     "after_kb_build": {
-     "VmHWM": 526.5,
-     "VmRSS": 500.5,
+     "VmHWM": 513.0,
+     "VmRSS": 502.7,
      "chunks": 41
     }
    }
@@ -145,23 +145,23 @@
     "ONNX_CPU_ARENA": "0",
     "MALLOC_ARENA_MAX": "2"
    },
-   "peak_rss_mb": 553.7,
+   "peak_rss_mb": 538.2,
    "marks": {
     "start": {
-     "VmHWM": 13.9,
-     "VmRSS": 13.9
+     "VmHWM": 13.5,
+     "VmRSS": 13.5
     },
     "after_app_import": {
-     "VmHWM": 297.8,
-     "VmRSS": 297.8
+     "VmHWM": 297.4,
+     "VmRSS": 297.4
     },
     "after_model_and_one_query": {
-     "VmHWM": 470.5,
-     "VmRSS": 458.3
+     "VmHWM": 470.2,
+     "VmRSS": 458.0
     },
     "after_kb_build": {
-     "VmHWM": 553.7,
-     "VmRSS": 543.8,
+     "VmHWM": 538.2,
+     "VmRSS": 520.0,
      "chunks": 41
     }
    }
@@ -173,23 +173,69 @@
     "ONNX_CPU_ARENA": "0",
     "MALLOC_ARENA_MAX": "2"
    },
-   "peak_rss_mb": 482.3,
+   "peak_rss_mb": 480.2,
    "marks": {
     "start": {
-     "VmHWM": 13.7,
+     "VmHWM": 13.6,
+     "VmRSS": 13.4
+    },
+    "after_app_import": {
+     "VmHWM": 300.9,
+     "VmRSS": 300.9
+    },
+    "after_model_and_one_query": {
+     "VmHWM": 475.3,
+     "VmRSS": 461.7
+    },
+    "after_kb_load": {
+     "VmHWM": 480.2,
+     "VmRSS": 480.2,
+     "chunks": 41
+    }
+   }
+  },
+  {
+   "config": "REST Gemini client: app import",
+   "env": {
+    "PHASE0_EXTRA_PATH": "/phase0/rest_genai"
+   },
+   "peak_rss_mb": 250.1,
+   "marks": {
+    "start": {
+     "VmHWM": 13.6,
      "VmRSS": 13.6
     },
     "after_app_import": {
-     "VmHWM": 298.7,
-     "VmRSS": 298.7
+     "VmHWM": 250.1,
+     "VmRSS": 250.1
+    }
+   }
+  },
+  {
+   "config": "REST Gemini client: app + LOAD prebuilt KB index, tuned",
+   "env": {
+    "ONNX_BATCH_SIZE": "8",
+    "ONNX_CPU_ARENA": "0",
+    "MALLOC_ARENA_MAX": "2",
+    "PHASE0_EXTRA_PATH": "/phase0/rest_genai"
+   },
+   "peak_rss_mb": 440.6,
+   "marks": {
+    "start": {
+     "VmHWM": 13.7,
+     "VmRSS": 13.5
+    },
+    "after_app_import": {
+     "VmHWM": 249.9,
+     "VmRSS": 249.9
     },
     "after_model_and_one_query": {
-     "VmHWM": 472.4,
-     "VmRSS": 462.3
+     "VmHWM": 423.6,
+     "VmRSS": 421.2
     },
     "after_kb_load": {
-     "VmHWM": 482.3,
-     "VmRSS": 482.3,
+     "VmHWM": 440.6,
+     "VmRSS": 440.6,
      "chunks": 41
     }
    }

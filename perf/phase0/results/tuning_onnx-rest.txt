@@ -1,0 +1,1 @@
+tuning: ONNX_BATCH_SIZE=8 ONNX_CPU_ARENA=0 MALLOC_ARENA_MAX=2 | threads: 8 | pythonpath: /phase0/rest_genai,/phase0,/app

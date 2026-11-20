@@ -3,10 +3,10 @@
  "checks": [
   [
    "No OOM kill (cgroup oom_kill, OOMKilled flag, worker SIGKILL)",
-   false
+   true
   ],
   [
-   "Peak anonymous memory <= 450 MB (measured 505.3 MB)",
+   "Peak anonymous memory <= 450 MB (measured 505.2 MB)",
    false
   ],
   [
@@ -15,10 +15,10 @@
   ],
   [
    "No HTTP 5xx / dropped connection under concurrent load",
-   false
+   true
   ],
   [
-   "End-to-end: no failures except harness-only (2 real)",
+   "End-to-end: no failures except harness-only (4 real)",
    false
   ],
   [
