@@ -12,6 +12,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # run_logged <name> <command...>: full output to the job log, last 120 lines kept in out/<name>.log
+  RUN_LOGGED: |
+    run_logged() { name=$1; shift; mkdir -p out; set +e; "$@" > /tmp/$name.full 2>&1; rc=$?; set -e;
+                   cat /tmp/$name.full; tail -120 /tmp/$name.full > out/$name.log; return $rc; }
+
 concurrency:
   group: phase0-${{ github.ref }}
   cancel-in-progress: true
@@ -26,14 +32,16 @@ jobs:
         with: { python-version: "3.12" }
       - name: Install PyTorch MiniLM (current) and ONNX MiniLM (candidate)
         run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r backend/requirements.txt fastembed==0.9.1
+          eval "$RUN_LOGGED"
+          run_logged pip_torch pip install torch --index-url https://download.pytorch.org/whl/cpu
+          run_logged pip_parity pip install -r perf/phase0/requirements-torch.txt fastembed==0.9.1
       - name: Compare retrieval quality
         env: { GEMINI_API_KEY: "", PYTHONUNBUFFERED: "1" }
         run: |
-          mkdir -p out
-          python perf/phase0/retrieval_parity.py backend out/retrieval_parity.json
+          eval "$RUN_LOGGED"
+          run_logged parity python perf/phase0/retrieval_parity.py backend out/retrieval_parity.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with: { name: results-parity, path: out/ }
 
   unit-tests-slim:
@@ -42,7 +50,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build slim image (no PyTorch, ONNX MiniLM)
-        run: docker build -f perf/phase0/Dockerfile.slim -t sb:onnx .
+        run: |
+          eval "$RUN_LOGGED"
+          run_logged build_tests docker build --progress=plain -f perf/phase0/Dockerfile.slim -t sb:onnx .
       - name: Gemini stub
         run: |
           mkdir -p out empty
@@ -52,8 +62,10 @@ jobs:
           docker run --rm --network host -u root -w /app \
             -e GEMINI_API_KEY=stub-key -e GOOGLE_GEMINI_BASE_URL=http://127.0.0.1:8089 \
             -v "$PWD/perf/phase0:/phase0:ro" -v "$PWD/out:/out" \
-            sb:onnx python /phase0/run_tests.py /out/unit_tests.json 2>&1 | tail -40 || true
+            sb:onnx python /phase0/run_tests.py /out/unit_tests.json > /tmp/tests.full 2>&1 || true
+          tail -80 /tmp/tests.full | tee out/unit_tests.log
       - uses: actions/upload-artifact@v4
+        if: always()
         with: { name: results-tests, path: out/ }
 
   memory:
@@ -75,20 +87,21 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v4
-        with: { node-version: "20" }
+        with: { node-version: "24" }
       - name: Runner tools (load driver and e2e_check only)
         run: pip install requests reportlab python-docx
       - name: Build the React app (served locally for e2e_check's frontend checks)
-        working-directory: frontend
-        run: npm ci --no-audit --no-fund && CI=false npm run build
+        # npm install, not npm ci: frontend/package-lock.json is out of sync with package.json
+        # (pre-existing; npm ci fails). Only this throw-away CI checkout is affected.
+        run: |
+          eval "$RUN_LOGGED"
+          run_logged npm_${{ matrix.variant }} npm --prefix frontend install --no-audit --no-fund
+          CI=false run_logged react_build_${{ matrix.variant }} npm --prefix frontend run build
       - name: Build image
         run: |
-          if [ "${{ matrix.variant }}" = onnx ]; then
-            docker build -f perf/phase0/Dockerfile.slim -t sb:onnx .
-          else
-            docker build -t sb:torch backend
-          fi
-          docker image ls sb
+          eval "$RUN_LOGGED"
+          run_logged build_${{ matrix.variant }} docker build --progress=plain             -f perf/phase0/Dockerfile.${{ matrix.variant == 'onnx' && 'slim' || 'torch' }} -t sb:${{ matrix.variant }} .
+          docker image ls sb | tee out/image_${{ matrix.variant }}.txt
       - name: Environment (throw-away values)
         run: |
           mkdir -p out
@@ -160,7 +173,7 @@ jobs:
       - name: Report
         run: |
           mkdir -p perf/phase0/results
-          cp artifacts/*.json artifacts/*.txt perf/phase0/results/ 2>/dev/null || true
+          cp artifacts/*.json artifacts/*.txt artifacts/*.log perf/phase0/results/ 2>/dev/null || true
           python3 perf/phase0/make_report.py perf/phase0/results
           cat perf/phase0/results/SUMMARY.md >> "$GITHUB_STEP_SUMMARY"
       - name: Save results on this branch

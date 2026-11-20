@@ -1,0 +1,16 @@
+# The build context is the repository root: never send secrets, databases,
+# uploads or local environments to the Docker build.
+**/.env
+**/.env.*
+**/instance/
+**/uploads/
+**/venv/
+**/.venv/
+**/__pycache__/
+**/node_modules/
+frontend/build/
+**/*.db
+**/*.bak*
+**/cookies.txt
+backend/data/cache/
+.git/
