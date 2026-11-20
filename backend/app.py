@@ -23,6 +23,32 @@ if (app.config['SQLALCHEMY_DATABASE_URI'] or '').startswith('sqlite'):
     # request that writes while the background job sync is committing is delayed, not failed
     # with "database is locked".
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'timeout': 30}}
+    # NumPy scalars from the ML code: SQLite silently stored numpy integers as raw bytes.
+    # Store them as plain numbers, exactly as on PostgreSQL (below).
+    import sqlite3 as _sqlite3
+    import numpy as _np
+    for _t in (_np.float16, _np.float32, _np.float64):
+        _sqlite3.register_adapter(_t, float)
+    for _t in (_np.int8, _np.int16, _np.int32, _np.int64, _np.uint8, _np.uint16, _np.uint32, _np.uint64):
+        _sqlite3.register_adapter(_t, int)
+    _sqlite3.register_adapter(_np.bool_, bool)
+elif (app.config['SQLALCHEMY_DATABASE_URI'] or '').startswith('postgres'):
+    # Timestamps are stored as UTC in columns without a time zone. PostgreSQL converts
+    # incoming aware datetimes to the SESSION time zone, so a server set to e.g.
+    # Asia/Kolkata shifted every stored time and expired tokens/links looked valid for
+    # hours. Pin each session to UTC; pool_pre_ping survives a scaled-to-zero database.
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'options': '-c timezone=UTC'},
+                                               'pool_pre_ping': True}
+    # NumPy scalars (from the ML code) have no psycopg2 adapter: NumPy 2 renders them as
+    # "np.float64(...)" and PostgreSQL fails with 'schema "np" does not exist'. Store them
+    # as the plain numbers they are. (SQLite stored them silently.)
+    import numpy as _np
+    from psycopg2.extensions import AsIs as _AsIs, Float as _PgFloat, register_adapter as _register_adapter
+    for _t in (_np.float16, _np.float32, _np.float64):
+        _register_adapter(_t, lambda v: _PgFloat(float(v)))
+    for _t in (_np.int8, _np.int16, _np.int32, _np.int64, _np.uint8, _np.uint16, _np.uint32, _np.uint64):
+        _register_adapter(_t, lambda v: _AsIs(int(v)))
+    _register_adapter(_np.bool_, lambda v: _AsIs("true" if bool(v) else "false"))
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 # Production (SKILLBRIDGE_ENV=production): HTTPS-only cookies, real client IPs behind the

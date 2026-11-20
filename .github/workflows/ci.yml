@@ -1,0 +1,79 @@
+# Continuous integration: tests only. Nothing is deployed and no secret is used.
+#  - backend test suite on SQLite (development) and PostgreSQL 17 (production database)
+#  - clean install of the pinned requirements (catches conflicting pins)
+#  - frontend: npm ci (catches a lock file out of sync), tests and production build
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        database: [sqlite, postgresql]
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_PASSWORD: ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      # Gemini is never called from tests: an unreachable local address, not a real key
+      GEMINI_API_KEY: offline-test-key
+      GOOGLE_GEMINI_BASE_URL: http://127.0.0.1:9
+      PYTHONUNBUFFERED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install pinned requirements (CPU-only PyTorch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r backend/requirements.txt
+          pip check || true
+      - name: Create the PostgreSQL test database
+        if: matrix.database == 'postgresql'
+        run: PGPASSWORD=ci psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE skillbridge_test;"
+      - name: Test suite
+        working-directory: backend
+        env:
+          SKILLBRIDGE_TEST_DATABASE_URL: ${{ matrix.database == 'postgresql' && 'postgresql://postgres:ci@127.0.0.1:5432/skillbridge_test' || '' }}
+        run: python -m unittest discover -s tests
+      - name: Migrations on an empty PostgreSQL database (twice) match the models
+        if: matrix.database == 'postgresql'
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:ci@127.0.0.1:5432/skillbridge_migrate
+          SECRET_KEY: ci-only
+          RUN_JOB_SCHEDULER_IN_PROCESS: "0"
+        run: |
+          PGPASSWORD=ci psql -h 127.0.0.1 -U postgres -c "CREATE DATABASE skillbridge_migrate;"
+          flask --app app db upgrade
+          flask --app app db upgrade
+          flask --app app db check
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "24" }
+      - run: npm ci --no-audit --no-fund
+      - run: CI=true npx react-scripts test --watchAll=false
+      - run: npm run build

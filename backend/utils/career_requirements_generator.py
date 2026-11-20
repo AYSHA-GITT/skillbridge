@@ -6,7 +6,24 @@ from google import genai
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Created on first use, like every other Gemini caller: creating it at import time made
+# the whole app fail to start ("No API key was provided") when GEMINI_API_KEY was unset.
+_client = None
+
+FALLBACK_REQUIREMENTS = {
+    "required": ["python", "sql", "git", "data structures"],
+    "nice_to_have": ["docker", "cloud computing", "rest api"]
+}
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+        if not api_key:
+            return None
+        _client = genai.Client(api_key=api_key)
+    return _client
 
 
 def generate_career_requirements(career_name):
@@ -34,6 +51,12 @@ Return ONLY valid JSON in this exact format:
 }}
 """
 
+    client = _get_client()
+    if client is None:
+        logging.warning("Gemini is not configured (GEMINI_API_KEY unset); using the default "
+                        "skill list for career %r", career_name)
+        return {k: list(v) for k, v in FALLBACK_REQUIREMENTS.items()}
+
     for model_name in ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"]:
         try:
             response = client.models.generate_content(
@@ -55,7 +78,4 @@ Return ONLY valid JSON in this exact format:
         except Exception as e:
             logging.warning(f"Gemini career requirements error with {model_name}: {e}")
 
-    return {
-        "required": ["python", "sql", "git", "data structures"],
-        "nice_to_have": ["docker", "cloud computing", "rest api"]
-    }
+    return {k: list(v) for k, v in FALLBACK_REQUIREMENTS.items()}

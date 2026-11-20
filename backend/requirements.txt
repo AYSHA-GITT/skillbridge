@@ -4,7 +4,8 @@ flask-cors==6.0.5
 Flask-Login==0.6.3
 Flask-SQLAlchemy==3.1.1
 Flask-Migrate==4.1.0
-SQLAlchemy==2.0.35
+# >= 2.0.45 is required by flwr 1.32.1; 2.0.35 made the pinned set uninstallable
+SQLAlchemy==2.0.45
 alembic==1.18.5
 psycopg2-binary==2.9.10
 Werkzeug==3.1.8

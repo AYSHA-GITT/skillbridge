@@ -7,7 +7,7 @@ because the scheduler's first sync wrote ~490 jobs in one transaction, holding
 SQLite's single write lock longer than the 5 s that other writers waited.
 Fixed by (1) a 30 s SQLite busy timeout and (2) committing the sync in chunks.
 """
-from tests.base import app, db, reset_db, make_student, login  # must be first
+from tests.base import app, db, reset_db, make_student, login, IS_POSTGRES  # must be first
 
 import sqlite3
 import threading
@@ -23,6 +23,7 @@ def _db_file():
     return app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '', 1)
 
 
+@unittest.skipIf(IS_POSTGRES, "SQLite-specific locking behaviour")
 class SqliteLockingTests(unittest.TestCase):
     def setUp(self):
         reset_db()

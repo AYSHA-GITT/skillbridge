@@ -137,6 +137,11 @@ class Resume(BaseModel):
     uploaded_on = db.Column(db.DateTime, default=utc_now)
     is_latest = db.Column(db.Boolean, default=True)
 
+    # Declares the skills.resume_id dependency so the unit of work deletes skills before
+    # their resume when both go (account deletion). Without it PostgreSQL rejected the
+    # delete (skills_resume_id_fkey); SQLite never enforced the key. No cascade is added.
+    extracted_skills = db.relationship('Skill', backref='resume', lazy=True)
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -168,6 +173,10 @@ class Skill(BaseModel):
     # (added by the student in the Skill Passport). NULL on legacy rows = 'resume'.
     source = db.Column(db.String(20))
     added_on = db.Column(db.DateTime, default=utc_now)
+
+    # Same for skill_verifications.skill_id: verifications are deleted before their skill.
+    # (Removing a single skill that has assessment history stays refused by the routes.)
+    verifications = db.relationship('SkillVerification', backref='skill', lazy=True)
 
     def get_evidence(self):
         try:

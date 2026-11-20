@@ -22,7 +22,8 @@ class ReadinessScorer:
                 v.quiz_score_percent if hasattr(v, 'quiz_score_percent') else v.get('quiz_score_percent', 0.0)
                 for v in verifications
             ]
-            avg_quiz_score = np.mean(scores) / 100.0 if scores else 0.0
+            # float(): np.mean returns numpy.float64, which PostgreSQL (psycopg2) cannot store
+            avg_quiz_score = float(np.mean(scores)) / 100.0 if scores else 0.0
         else:
             avg_quiz_score = 0.0
 
@@ -31,7 +32,7 @@ class ReadinessScorer:
         # 30% Verified Quiz Competency
         # 20% Nice-to-Have Bonus
         readiness = (req_cov * 0.50) + (avg_quiz_score * 0.30) + (nth_cov * 0.20)
-        readiness_pct = min(100.0, max(0.0, round(readiness * 100.0, 1)))
+        readiness_pct = float(min(100.0, max(0.0, round(float(readiness) * 100.0, 1))))
 
         # Tier calculation
         if readiness_pct >= 85:
@@ -62,9 +63,9 @@ class ReadinessScorer:
             'tier': tier,
             'badge_color': badge_color,
             'breakdown': {
-                'required_skills_pct': round(req_cov * 100, 1),
-                'quiz_proficiency_pct': round(avg_quiz_score * 100, 1),
-                'nice_to_have_pct': round(nth_cov * 100, 1)
+                'required_skills_pct': round(float(req_cov) * 100, 1),
+                'quiz_proficiency_pct': round(float(avg_quiz_score) * 100, 1),
+                'nice_to_have_pct': round(float(nth_cov) * 100, 1)
             },
             'recommendations': recommendations
         }
