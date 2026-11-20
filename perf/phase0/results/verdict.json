@@ -6,7 +6,7 @@
    false
   ],
   [
-   "Peak anonymous memory <= 450 MB (measured 508.9 MB)",
+   "Peak anonymous memory <= 450 MB (measured 505.3 MB)",
    false
   ],
   [
@@ -18,7 +18,7 @@
    false
   ],
   [
-   "End-to-end: no failures except harness-only (7 real)",
+   "End-to-end: no failures except harness-only (2 real)",
    false
   ],
   [

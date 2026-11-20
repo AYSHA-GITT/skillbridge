@@ -1,0 +1,143 @@
+{
+ "variant": "torch",
+ "results": [
+  {
+   "config": "python only",
+   "env": {},
+   "peak_rss_mb": 14.0,
+   "marks": {
+    "start": {
+     "VmHWM": 14.0,
+     "VmRSS": 13.8
+    }
+   }
+  },
+  {
+   "config": "google-genai SDK import only",
+   "env": {},
+   "peak_rss_mb": 95.1,
+   "marks": {
+    "start": {
+     "VmHWM": 13.8,
+     "VmRSS": 13.6
+    },
+    "after_genai_import": {
+     "VmHWM": 95.1,
+     "VmRSS": 95.1
+    }
+   }
+  },
+  {
+   "config": "app import (incl. genai, sklearn, flwr, pandas)",
+   "env": {},
+   "peak_rss_mb": 298.4,
+   "marks": {
+    "start": {
+     "VmHWM": 14.0,
+     "VmRSS": 13.8
+    },
+    "after_app_import": {
+     "VmHWM": 298.4,
+     "VmRSS": 298.4
+    }
+   }
+  },
+  {
+   "config": "app + MiniLM + one query",
+   "env": {},
+   "peak_rss_mb": 714.7,
+   "marks": {
+    "start": {
+     "VmHWM": 13.9,
+     "VmRSS": 13.8
+    },
+    "after_app_import": {
+     "VmHWM": 299.8,
+     "VmRSS": 299.8
+    },
+    "after_model_and_one_query": {
+     "VmHWM": 714.7,
+     "VmRSS": 714.7
+    }
+   }
+  },
+  {
+   "config": "app + build KB index: batch 32 (as tested)",
+   "env": {},
+   "peak_rss_mb": 905.0,
+   "marks": {
+    "start": {
+     "VmHWM": 14.0,
+     "VmRSS": 13.8
+    },
+    "after_app_import": {
+     "VmHWM": 298.0,
+     "VmRSS": 298.0
+    },
+    "after_model_and_one_query": {
+     "VmHWM": 712.8,
+     "VmRSS": 712.8
+    },
+    "after_kb_build": {
+     "VmHWM": 905.0,
+     "VmRSS": 777.9,
+     "chunks": 41
+    }
+   }
+  },
+  {
+   "config": "app + build KB index: batch 8, MALLOC_ARENA_MAX=2",
+   "env": {
+    "TORCH_BATCH_SIZE": "8",
+    "MALLOC_ARENA_MAX": "2"
+   },
+   "peak_rss_mb": 807.5,
+   "marks": {
+    "start": {
+     "VmHWM": 14.1,
+     "VmRSS": 13.8
+    },
+    "after_app_import": {
+     "VmHWM": 625.0,
+     "VmRSS": 625.0
+    },
+    "after_model_and_one_query": {
+     "VmHWM": 713.1,
+     "VmRSS": 713.1
+    },
+    "after_kb_build": {
+     "VmHWM": 807.5,
+     "VmRSS": 803.6,
+     "chunks": 41
+    }
+   }
+  },
+  {
+   "config": "app + LOAD prebuilt KB index (no re-encoding), tuned",
+   "env": {
+    "TORCH_BATCH_SIZE": "8",
+    "MALLOC_ARENA_MAX": "2"
+   },
+   "peak_rss_mb": 732.0,
+   "marks": {
+    "start": {
+     "VmHWM": 14.0,
+     "VmRSS": 13.8
+    },
+    "after_app_import": {
+     "VmHWM": 624.3,
+     "VmRSS": 624.3
+    },
+    "after_model_and_one_query": {
+     "VmHWM": 712.7,
+     "VmRSS": 712.7
+    },
+    "after_kb_load": {
+     "VmHWM": 732.0,
+     "VmRSS": 732.0,
+     "chunks": 41
+    }
+   }
+  }
+ ]
+}

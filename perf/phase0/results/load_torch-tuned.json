@@ -1,0 +1,216 @@
+{
+ "seconds": 300,
+ "concurrent_students": 8,
+ "requests_ok": 145,
+ "requests_failed": 40,
+ "by_feature": {
+  "RAG assistant (Gemini)": {
+   "ok": 0,
+   "fail": 12,
+   "p50_s": 10.47,
+   "p95_s": 73.49,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "RAG explain gap": {
+   "ok": 2,
+   "fail": 5,
+   "p50_s": 14.3,
+   "p95_s": 69.11,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "RAG job match": {
+   "ok": 0,
+   "fail": 7,
+   "p50_s": 11.14,
+   "p95_s": 69.11,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "RAG resume analysis": {
+   "ok": 0,
+   "fail": 7,
+   "p50_s": 10.73,
+   "p95_s": 73.5,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "career recommendations": {
+   "ok": 12,
+   "fail": 0,
+   "p50_s": 1.9,
+   "p95_s": 60.78,
+   "errors": []
+  },
+  "federated learning round": {
+   "ok": 5,
+   "fail": 0,
+   "p50_s": 55.0,
+   "p95_s": 55.2,
+   "errors": []
+  },
+  "interview start (Gemini)": {
+   "ok": 4,
+   "fail": 1,
+   "p50_s": 1.31,
+   "p95_s": 1.9,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "job match breakdown": {
+   "ok": 8,
+   "fail": 1,
+   "p50_s": 2.99,
+   "p95_s": 62.77,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+   ]
+  },
+  "job sync (live providers)": {
+   "ok": 0,
+   "fail": 1,
+   "p50_s": 2.19,
+   "p95_s": 2.19,
+   "errors": [
+    "HTTP 409 {\"run\":{\"alerts_created\":0,\"duplicate_count\":0,\"error\":\"Another synchronization is already running\",\"expired_count\":0,\"f"
+   ]
+  },
+  "jobs by match": {
+   "ok": 9,
+   "fail": 0,
+   "p50_s": 2.3,
+   "p95_s": 3.3,
+   "errors": []
+  },
+  "quiz": {
+   "ok": 3,
+   "fail": 0,
+   "p50_s": 1.4,
+   "p95_s": 1.4,
+   "errors": []
+  },
+  "readiness breakdown": {
+   "ok": 5,
+   "fail": 1,
+   "p50_s": 3.01,
+   "p95_s": 60.47,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+   ]
+  },
+  "recruiter candidate search": {
+   "ok": 1,
+   "fail": 0,
+   "p50_s": 3.8,
+   "p95_s": 3.8,
+   "errors": []
+  },
+  "recruiter match report": {
+   "ok": 12,
+   "fail": 1,
+   "p50_s": 1.4,
+   "p95_s": 61.57,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+   ]
+  },
+  "recruiter search": {
+   "ok": 10,
+   "fail": 3,
+   "p50_s": 2.11,
+   "p95_s": 4.42,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "recruiter verification request": {
+   "ok": 6,
+   "fail": 0,
+   "p50_s": 1.1,
+   "p95_s": 1.7,
+   "errors": []
+  },
+  "resume export DOCX": {
+   "ok": 1,
+   "fail": 0,
+   "p50_s": 62.48,
+   "p95_s": 62.48,
+   "errors": []
+  },
+  "resume export PDF": {
+   "ok": 5,
+   "fail": 0,
+   "p50_s": 2.3,
+   "p95_s": 59.17,
+   "errors": []
+  },
+  "resume optimizer analyze": {
+   "ok": 3,
+   "fail": 0,
+   "p50_s": 1.8,
+   "p95_s": 1.8,
+   "errors": []
+  },
+  "resume parse": {
+   "ok": 17,
+   "fail": 0,
+   "p50_s": 1.4,
+   "p95_s": 3.69,
+   "errors": []
+  },
+  "resume upload": {
+   "ok": 17,
+   "fail": 0,
+   "p50_s": 1.51,
+   "p95_s": 60.98,
+   "errors": []
+  },
+  "skill extraction": {
+   "ok": 17,
+   "fail": 0,
+   "p50_s": 1.19,
+   "p95_s": 2.5,
+   "errors": []
+  },
+  "skill gap analysis": {
+   "ok": 4,
+   "fail": 0,
+   "p50_s": 0.5,
+   "p95_s": 0.5,
+   "errors": []
+  },
+  "skill passport PDF": {
+   "ok": 4,
+   "fail": 1,
+   "p50_s": 1.5,
+   "p95_s": 2.03,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  }
+ }
+}

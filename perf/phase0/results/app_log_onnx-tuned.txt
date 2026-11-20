@@ -1,0 +1,400 @@
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for react
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for power bi
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+[2026-11-20 16:23:39 +0000] [1] [ERROR] Worker (pid:7) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:23:39 +0000] [28] [INFO] Booting worker with pid: 28
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for react
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for docker
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:faiss.loader:Loading faiss with AVX512-SPR support.
+INFO:faiss.loader:Could not load library with AVX512-SPR support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512_spr'")
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:rag.knowledge_manager:Loaded RAG vector cache successfully: 41 knowledge chunks.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for aws
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for linux
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for power bi
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for git
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for rest api
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for linux
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for aws
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for git
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for javascript
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for power bi
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for aws
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for aws
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for linux
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for docker
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for flask
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:GitHub API search failed: HTTP Error 403: rate limit exceeded

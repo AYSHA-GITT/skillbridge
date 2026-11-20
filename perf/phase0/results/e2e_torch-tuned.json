@@ -1,0 +1,1238 @@
+[
+ [
+  "Infrastructure",
+  "Backend health",
+  "PASS",
+  ""
+ ],
+ [
+  "Infrastructure",
+  "Frontend serves app",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Register student",
+  "PASS",
+  "HTTP 201"
+ ],
+ [
+  "Auth & security",
+  "Register ignores role=admin",
+  "PASS",
+  "role=student"
+ ],
+ [
+  "Auth & security",
+  "Weak password rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Duplicate email rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Wrong password rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Session /me",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Unauthenticated blocked",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Student blocked from admin",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Student blocked from manual sync",
+  "PASS",
+  ""
+ ],
+ [
+  "Auth & security",
+  "Admin login",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume",
+  "Upload PDF",
+  "PASS",
+  "HTTP 201"
+ ],
+ [
+  "Resume",
+  "Parse PDF",
+  "PASS",
+  "512 chars"
+ ],
+ [
+  "Resume",
+  "Extract skills PDF (exact set)",
+  "PASS",
+  "missing=[] extra=[]"
+ ],
+ [
+  "Resume",
+  "Upload DOCX",
+  "PASS",
+  "HTTP 201"
+ ],
+ [
+  "Resume",
+  "Parse DOCX",
+  "PASS",
+  "512 chars"
+ ],
+ [
+  "Resume",
+  "Extract skills DOCX (exact set)",
+  "PASS",
+  "missing=[] extra=[]"
+ ],
+ [
+  "Resume",
+  "Reject non-PDF/DOCX",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume",
+  "No duplicate skills after 2 uploads",
+  "PASS",
+  "12 rows"
+ ],
+ [
+  "Resume",
+  "Evidence strength per skill",
+  "PASS",
+  "{'flask': 'applied', 'docker': 'listed_only', 'aws': 'supporting'}"
+ ],
+ [
+  "Resume",
+  "Explanations present",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume",
+  "Other user cannot parse my resume",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill verification",
+  "Get quiz (python)",
+  "PASS",
+  "5 questions, 0.3s"
+ ],
+ [
+  "Skill verification",
+  "Answers not leaked to client",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill verification",
+  "Difficulty mix",
+  "PASS",
+  "['Easy', 'Hard', 'Medium']"
+ ],
+ [
+  "Skill verification",
+  "Partial quiz rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill verification",
+  "Full quiz scored + review",
+  "PASS",
+  "score=40.0% proficiency=Not yet demonstrated"
+ ],
+ [
+  "Skill verification",
+  "Other user cannot quiz my skill",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill verification",
+  "Assessment history",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill verification",
+  "Verified skill profile",
+  "PASS",
+  ""
+ ],
+ [
+  "Career guidance",
+  "Set target career",
+  "PASS",
+  ""
+ ],
+ [
+  "Career guidance",
+  "Skill gap analysis",
+  "PASS",
+  "0.0s keys=['career', 'market_caveat', 'market_sample_size', 'matched_nice_to_have', 'matched_required', 'missing_nice_to_have']"
+ ],
+ [
+  "Career guidance",
+  "Readiness breakdown",
+  "FAIL",
+  "{}"
+ ],
+ [
+  "Career guidance",
+  "Career recommendations",
+  "PASS",
+  "0.1s"
+ ],
+ [
+  "Career guidance",
+  "Recommendations link to a jobs domain",
+  "PASS",
+  "[('Data Analyst', 'Data Analytics'), ('Data Scientist', 'Data Science'), ('Software Engineer', 'Software Development')]"
+ ],
+ [
+  "Career guidance",
+  "Readiness links to a jobs domain",
+  "FAIL",
+  "None"
+ ],
+ [
+  "Career guidance",
+  "Single career recommendation",
+  "PASS",
+  ""
+ ],
+ [
+  "Career guidance",
+  "Compare careers",
+  "PASS",
+  ""
+ ],
+ [
+  "Career guidance",
+  "Simulate career paths",
+  "PASS",
+  ""
+ ],
+ [
+  "Career guidance",
+  "Career insights",
+  "PASS",
+  ""
+ ],
+ [
+  "Roadmap",
+  "Generate roadmap",
+  "PASS",
+  "HTTP 200 1.0s {'roadmap': [{'already_on_resume': True, 'category': 'Required', 'days': [{'day_number': 1, 'description': 'Study the co"
+ ],
+ [
+  "Roadmap",
+  "Get roadmap",
+  "PASS",
+  "11 skills, 44 days"
+ ],
+ [
+  "Roadmap",
+  "Roadmap covers exactly the gaps",
+  "PASS",
+  "roadmap=['sql', 'excel', 'python', 'power bi', 'tableau', 'statistics', 'pandas', 'numpy', 'data visualization', 'r', 'communication']"
+ ],
+ [
+  "Roadmap",
+  "Required gaps come first",
+  "PASS",
+  "first 6: ['sql', 'excel', 'python', 'power bi', 'tableau', 'statistics']"
+ ],
+ [
+  "Roadmap",
+  "Flags gaps already on resume",
+  "PASS",
+  "flagged=['sql', 'python', 'power bi']"
+ ],
+ [
+  "Roadmap",
+  "Complete a roadmap day",
+  "PASS",
+  ""
+ ],
+ [
+  "Roadmap",
+  "Other user cannot complete my day",
+  "PASS",
+  ""
+ ],
+ [
+  "Progress & salary",
+  "Progress history",
+  "PASS",
+  ""
+ ],
+ [
+  "Progress & salary",
+  "Badges",
+  "PASS",
+  ""
+ ],
+ [
+  "Progress & salary",
+  "Salary simulation",
+  "PASS",
+  "{\"additional_skills_count\": 2, \"current_salary\": 4.0, \"disclaimer\": \"Illustrative estimate from a small (24-row) reference table of undocume"
+ ],
+ [
+  "Progress & salary",
+  "Salary labelled as estimate",
+  "PASS",
+  ""
+ ],
+ [
+  "RAG assistant",
+  "Ask assistant",
+  "PASS",
+  "6.6s is_rag=True sources=2 provider=Google Gemini"
+ ],
+ [
+  "RAG assistant",
+  "Off-topic: no career sources cited",
+  "PASS",
+  "sources=0"
+ ],
+ [
+  "RAG assistant",
+  "RAG resume analysis",
+  "PASS",
+  "HTTP 200"
+ ],
+ [
+  "RAG assistant",
+  "RAG job match",
+  "PASS",
+  "HTTP 200"
+ ],
+ [
+  "RAG assistant",
+  "RAG explain gap",
+  "PASS",
+  "HTTP 200"
+ ],
+ [
+  "RAG assistant",
+  "RAG catalog",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Search + pagination",
+  "PASS",
+  "total=497 pages=100"
+ ],
+ [
+  "Jobs",
+  "No demo listings in results",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Freshness + source on each job",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Match score attached",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Sort by recent",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Filter opportunity",
+  "PASS",
+  "10 results"
+ ],
+ [
+  "Jobs",
+  "Filter work_arrangement",
+  "PASS",
+  "45 results"
+ ],
+ [
+  "Jobs",
+  "Filter date_posted",
+  "PASS",
+  "50 results"
+ ],
+ [
+  "Jobs",
+  "Filter skill",
+  "PASS",
+  "50 results"
+ ],
+ [
+  "Jobs",
+  "Filter entry_level",
+  "PASS",
+  "14 results"
+ ],
+ [
+  "Jobs",
+  "Sort by best match",
+  "PASS",
+  "top=[50.0, 35.0, 31.5]"
+ ],
+ [
+  "Jobs",
+  "Job detail",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Explainable match",
+  "PASS",
+  "0.1s score=10.6"
+ ],
+ [
+  "Jobs",
+  "Save job",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Saved list",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Saved list private",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Unsave job",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Track application",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Duplicate application blocked",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Applications list",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Withdraw application",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Compare jobs",
+  "PASS",
+  ""
+ ],
+ [
+  "Jobs",
+  "Data-source metrics",
+  "PASS",
+  "last_success=2026-11-20T16:16:53.630302+00:00 next=2026-11-20T18:16:38.119842+00:00"
+ ],
+ [
+  "Jobs",
+  "Adzuna configured",
+  "WARN",
+  "credentials not set"
+ ],
+ [
+  "Jobs",
+  "Jooble configured",
+  "WARN",
+  "credentials not set"
+ ],
+ [
+  "Jobs",
+  "Real Indian listings available",
+  "WARN",
+  "0 listings"
+ ],
+ [
+  "Preferences/alerts",
+  "Save preferences",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Read preferences",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Create alert",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Invalid alert rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Update alert",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Other user cannot edit alert",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Notifications",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Mark read",
+  "PASS",
+  ""
+ ],
+ [
+  "Preferences/alerts",
+  "Delete alert",
+  "PASS",
+  ""
+ ],
+ [
+  "Interview prep",
+  "Start session",
+  "PASS",
+  "0.2s 5 questions"
+ ],
+ [
+  "Interview prep",
+  "Evaluate answer",
+  "PASS",
+  "0.1s"
+ ],
+ [
+  "Interview prep",
+  "Session detail",
+  "PASS",
+  ""
+ ],
+ [
+  "Interview prep",
+  "Other user cannot read session",
+  "PASS",
+  ""
+ ],
+ [
+  "Interview prep",
+  "History",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume optimizer",
+  "Careers list",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume optimizer",
+  "My resumes",
+  "PASS",
+  ""
+ ],
+ [
+  "Resume optimizer",
+  "Analyze resume",
+  "PASS",
+  "0.2s score=10.5"
+ ],
+ [
+  "Resume optimizer",
+  "Export PDF",
+  "PASS",
+  "2743 bytes"
+ ],
+ [
+  "Resume optimizer",
+  "Export DOCX",
+  "PASS",
+  "37393 bytes"
+ ],
+ [
+  "AI / privacy / FL",
+  "AI providers list",
+  "PASS",
+  ""
+ ],
+ [
+  "AI / privacy / FL",
+  "Select AI provider",
+  "PASS",
+  ""
+ ],
+ [
+  "AI / privacy / FL",
+  "Privacy info (no DP claim)",
+  "PASS",
+  ""
+ ],
+ [
+  "AI / privacy / FL",
+  "Student FL status",
+  "PASS",
+  "{\"differential_privacy\": {\"delta\": null, \"epsilon\": null, \"formal_guarantee\": false, \"mechanism\": \"U"
+ ],
+ [
+  "Admin",
+  "Stats",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "Students list",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "Jobs overview",
+  "PASS",
+  "jobs=497 next=2026-11-20T18:16:38.119842+00:00"
+ ],
+ [
+  "Admin",
+  "Sync runs",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "Manual sync",
+  "FAIL",
+  "1.0s status=None new=None upd=None"
+ ],
+ [
+  "Admin",
+  "Audit log records manual sync",
+  "FAIL",
+  ""
+ ],
+ [
+  "Admin",
+  "System health",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "FL nodes are simulated",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "FL round (measured, no epsilon)",
+  "PASS",
+  "acc=0.6275"
+ ],
+ [
+  "Admin",
+  "FL rounds history",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "FL round detail",
+  "PASS",
+  ""
+ ],
+ [
+  "Admin",
+  "FL status",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Passport loads",
+  "PASS",
+  "12 skills counts={'ai_extracted': 11, 'assessment_completed': 1}"
+ ],
+ [
+  "Skill Passport",
+  "Resume-only skills not verified",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Save profile",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Unsafe URL rejected",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Add self-declared skill",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Add evidence",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Evidence alone does not verify",
+  "PASS",
+  "evidence_submitted"
+ ],
+ [
+  "Skill Passport",
+  "Request review",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Other user cannot edit evidence",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Admin sees review queue",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Admin accepts evidence -> verified",
+  "PASS",
+  "verified"
+ ],
+ [
+  "Skill Passport",
+  "Owner PDF export",
+  "PASS",
+  "4249 bytes"
+ ],
+ [
+  "Skill Passport",
+  "Share needs consent",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Create share link + QR",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Public view works without login",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Public view hides email/ids/hidden sections",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Public PDF",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Frontend serves public passport route",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Access history",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Other user cannot revoke",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Revoke link",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Revoked link blocked",
+  "PASS",
+  ""
+ ],
+ [
+  "Skill Passport",
+  "Unknown token 404",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Register recruiter (role fixed)",
+  "PASS",
+  "HTTP 201"
+ ],
+ [
+  "Recruiter Portal",
+  "Recruiter blocked from student API",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Recruiter blocked from passport owner API",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Student blocked from recruiter API",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Organisation starts unverified",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Create job draft",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Draft hidden from students",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Publish blocked until verified",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Search blocked until verified",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Request verification",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Admin verifies organisation",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Publish job",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Student sees employer job",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Apply needs consent",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Apply with consent",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Applicant listed with report",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Candidate profile + match report",
+  "PASS",
+  "missing=['kubernetes']"
+ ],
+ [
+  "Recruiter Portal",
+  "Only shared sections, no account email",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Other user's ref is not accessible",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Move to shortlisted",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Student sees stage update",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Student sees who viewed profile",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Internal note",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Profile lists unverified shared skills",
+  "PASS",
+  "['python', 'aws', 'docker', 'git', 'javascript', 'linux']"
+ ],
+ [
+  "Verification requests",
+  "Recruiter requests a shared skill",
+  "PASS",
+  "HTTP 201"
+ ],
+ [
+  "Verification requests",
+  "Duplicate request refused",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Signed-out caller refused",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student cannot send requests",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student badge counts the request",
+  "PASS",
+  "{'unread_count': 3, 'verification_requests': 1}"
+ ],
+ [
+  "Verification requests",
+  "Student is notified",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Other student cannot answer it",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student accepts",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Recruiter sees acceptance",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student submits evidence",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Pending review is not completion",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Reviewer accepts evidence",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Recruiter told it is verified",
+  "PASS",
+  "evidence accepted by a reviewer"
+ ],
+ [
+  "Verification requests",
+  "Dashboard shows the new answer",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Passport shows the skill verified",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Verified skill no longer requestable",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student sees it completed",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Recruiter cancels a request",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Student sees it withdrawn",
+  "PASS",
+  ""
+ ],
+ [
+  "Verification requests",
+  "Cancelled request cannot be accepted",
+  "PASS",
+  ""
+ ],
+ [
+  "Roadmap from jobs",
+  "Add a missing job skill",
+  "PASS",
+  "kubernetes: HTTP 201 0.3s kubernetes was added to your learning roadmap (4 days)."
+ ],
+ [
+  "Roadmap from jobs",
+  "Same skill again is not duplicated",
+  "PASS",
+  ""
+ ],
+ [
+  "Roadmap from jobs",
+  "Skill appears once on the roadmap",
+  "PASS",
+  ""
+ ],
+ [
+  "Roadmap from jobs",
+  "Match breakdown knows it is planned",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Opt in to employer search",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Search finds opted-in student",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Withdraw application",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Access ends after withdraw + opt-out",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Frontend serves /recruiter",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Frontend serves /recruiter/register",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Frontend serves /employer-access",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Frontend serves /recruiter/verifications",
+  "PASS",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Delete recruiter account",
+  "PASS",
+  ""
+ ],
+ [
+  "Account",
+  "Export my data",
+  "PASS",
+  "12 resume skills of 13"
+ ],
+ [
+  "Account",
+  "Export includes Skill Passport",
+  "PASS",
+  ""
+ ],
+ [
+  "Account",
+  "Delete needs confirmation",
+  "PASS",
+  ""
+ ],
+ [
+  "Account",
+  "Delete account e2e_a_e5d5ef22",
+  "FAIL",
+  ""
+ ],
+ [
+  "Account",
+  "Delete account e2e_b_e5d5ef22",
+  "PASS",
+  ""
+ ],
+ [
+  "Account",
+  "Deleted account cannot log in",
+  "FAIL",
+  ""
+ ],
+ [
+  "Recruiter Portal",
+  "Cleanup e2e organisation",
+  "FAIL",
+  "No module named 'flask'"
+ ]
+]

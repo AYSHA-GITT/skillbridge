@@ -1,0 +1,193 @@
+{
+ "seconds": 300,
+ "concurrent_students": 8,
+ "requests_ok": 1387,
+ "requests_failed": 10,
+ "by_feature": {
+  "RAG assistant (Gemini)": {
+   "ok": 125,
+   "fail": 1,
+   "p50_s": 1.16,
+   "p95_s": 3.91,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "RAG explain gap": {
+   "ok": 72,
+   "fail": 0,
+   "p50_s": 1.51,
+   "p95_s": 2.3,
+   "errors": []
+  },
+  "RAG job match": {
+   "ok": 71,
+   "fail": 0,
+   "p50_s": 1.6,
+   "p95_s": 2.5,
+   "errors": []
+  },
+  "RAG resume analysis": {
+   "ok": 70,
+   "fail": 0,
+   "p50_s": 1.4,
+   "p95_s": 2.3,
+   "errors": []
+  },
+  "career recommendations": {
+   "ok": 75,
+   "fail": 0,
+   "p50_s": 0.7,
+   "p95_s": 1.2,
+   "errors": []
+  },
+  "federated learning round": {
+   "ok": 14,
+   "fail": 0,
+   "p50_s": 1.75,
+   "p95_s": 2.9,
+   "errors": []
+  },
+  "interview start (Gemini)": {
+   "ok": 49,
+   "fail": 0,
+   "p50_s": 1.1,
+   "p95_s": 2.0,
+   "errors": []
+  },
+  "job match breakdown": {
+   "ok": 86,
+   "fail": 2,
+   "p50_s": 1.5,
+   "p95_s": 2.8,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "job sync (live providers)": {
+   "ok": 0,
+   "fail": 1,
+   "p50_s": 159.32,
+   "p95_s": 159.32,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "jobs by match": {
+   "ok": 84,
+   "fail": 2,
+   "p50_s": 2.25,
+   "p95_s": 3.7,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "quiz": {
+   "ok": 49,
+   "fail": 0,
+   "p50_s": 1.2,
+   "p95_s": 2.5,
+   "errors": []
+  },
+  "readiness breakdown": {
+   "ok": 39,
+   "fail": 0,
+   "p50_s": 1.4,
+   "p95_s": 2.7,
+   "errors": []
+  },
+  "recruiter candidate search": {
+   "ok": 1,
+   "fail": 0,
+   "p50_s": 5.9,
+   "p95_s": 5.9,
+   "errors": []
+  },
+  "recruiter match report": {
+   "ok": 33,
+   "fail": 0,
+   "p50_s": 1.91,
+   "p95_s": 3.4,
+   "errors": []
+  },
+  "recruiter search": {
+   "ok": 32,
+   "fail": 1,
+   "p50_s": 5.5,
+   "p95_s": 7.71,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "recruiter verification request": {
+   "ok": 8,
+   "fail": 0,
+   "p50_s": 2.6,
+   "p95_s": 2.89,
+   "errors": []
+  },
+  "resume export DOCX": {
+   "ok": 33,
+   "fail": 2,
+   "p50_s": 4.3,
+   "p95_s": 6.29,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))",
+    "ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))"
+   ]
+  },
+  "resume export PDF": {
+   "ok": 29,
+   "fail": 0,
+   "p50_s": 0.7,
+   "p95_s": 1.5,
+   "errors": []
+  },
+  "resume optimizer analyze": {
+   "ok": 33,
+   "fail": 0,
+   "p50_s": 1.2,
+   "p95_s": 2.4,
+   "errors": []
+  },
+  "resume parse": {
+   "ok": 135,
+   "fail": 0,
+   "p50_s": 1.9,
+   "p95_s": 4.8,
+   "errors": []
+  },
+  "resume upload": {
+   "ok": 135,
+   "fail": 0,
+   "p50_s": 0.99,
+   "p95_s": 1.81,
+   "errors": []
+  },
+  "skill extraction": {
+   "ok": 134,
+   "fail": 1,
+   "p50_s": 2.0,
+   "p95_s": 3.1,
+   "errors": [
+    "ConnectionError: ('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))"
+   ]
+  },
+  "skill gap analysis": {
+   "ok": 33,
+   "fail": 0,
+   "p50_s": 1.2,
+   "p95_s": 2.6,
+   "errors": []
+  },
+  "skill passport PDF": {
+   "ok": 47,
+   "fail": 0,
+   "p50_s": 1.19,
+   "p95_s": 2.0,
+   "errors": []
+  }
+ }
+}
