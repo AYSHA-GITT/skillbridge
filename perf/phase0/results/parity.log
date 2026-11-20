@@ -1,0 +1,8 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8929.40it/s]
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8865.45it/s]
+[0;93m2026-11-20 15:48:16.645613597 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Fetching 5 files:  80%|████████  | 4/5 [00:00<00:00, 34.30it/s]Fetching 5 files: 100%|██████████| 5/5 [00:01<00:00,  3.72it/s]
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+{"benchmark_full_ranking_identical": "27/27", "benchmark_top1_identical": "27/27", "kb_search_top5_identical": "27/27", "vector_cosine": {"min": 1.0, "mean": 1.0, "texts": 36}, "equivalent": true}

@@ -1,0 +1,358 @@
+[2026-11-20 15:49:17 +0000] [1] [INFO] Starting gunicorn 23.0.0
+[2026-11-20 15:49:17 +0000] [1] [INFO] Listening at: http://0.0.0.0:5000 (1)
+[2026-11-20 15:49:17 +0000] [1] [INFO] Using worker: gthread
+[2026-11-20 15:49:17 +0000] [7] [INFO] Booting worker with pid: 7
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for python
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+[0;93m2026-11-20 15:50:41.294933734 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 15:50:49 +0000] [1] [ERROR] Worker (pid:7) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 15:50:49 +0000] [17] [INFO] Booting worker with pid: 17
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+[0;93m2026-11-20 15:51:33.490191590 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 15:51:37 +0000] [1] [ERROR] Worker (pid:17) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 15:51:37 +0000] [27] [INFO] Booting worker with pid: 27
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[0;93m2026-11-20 15:52:21.590392087 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+[2026-11-20 15:52:25 +0000] [1] [ERROR] Worker (pid:27) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 15:52:25 +0000] [37] [INFO] Booting worker with pid: 37
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[0;93m2026-11-20 15:53:10.000105077 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+[2026-11-20 15:53:14 +0000] [1] [ERROR] Worker (pid:37) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 15:53:14 +0000] [47] [INFO] Booting worker with pid: 47
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+WARNING:root:LLM rubric evaluation error, used deterministic rubric: Expecting value: line 1 column 1 (char 0)
+INFO:skillbridge.job_sync:Job sync success: {"fetched_count": 496, "inserted_count": 496, "updated_count": 0, "unchanged_count": 0, "duplicate_count": 0, "invalid_count": 0, "expired_count": 0, "stale_count": 0}
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+ERROR:app:Exception on /api/student/account/delete [DELETE]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/psycopg2.py", line 800, in do_executemany
+    cursor.executemany(statement, parameters)
+psycopg2.errors.ForeignKeyViolation: update or delete on table "resumes" violates foreign key constraint "skills_resume_id_fkey" on table "skills"
+DETAIL:  Key (id)=(2) is still referenced from table "skills".
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/flask_cors/extension.py", line 206, in wrapped_function
+    return cors_after_request(app_any.make_response(f(*args, **kwargs)))
+                                                    ^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/flask/app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/flask_login/utils.py", line 290, in decorated_view
+    return current_app.ensure_sync(func)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/routes/student.py", line 2376, in delete_student_account
+    db.session.commit()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py", line 597, in commit
+    return self._proxied.commit()
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 2030, in commit
+    trans.commit(_to_root=True)
+  File "<string>", line 2, in commit
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1311, in commit
+    self._prepare_impl()
+  File "<string>", line 2, in _prepare_impl
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 1286, in _prepare_impl
+    self.session.flush()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4331, in flush
+    self._flush(objects)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4466, in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/util/langhelpers.py", line 224, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/session.py", line 4427, in _flush
+    flush_context.execute()
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 466, in execute
+    rec.execute(self)
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/unitofwork.py", line 679, in execute
+    util.preloaded.orm_persistence.delete_obj(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 193, in delete_obj
+    _emit_delete_statements(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/orm/persistence.py", line 1471, in _emit_delete_statements
+    c = connection.execute(
+        ^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/sql/elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/engine/base.py", line 1936, in _exec_single_context
+    self.dialect.do_executemany(
+  File "/usr/local/lib/python3.12/site-packages/sqlalchemy/dialects/postgresql/psycopg2.py", line 800, in do_executemany
+    cursor.executemany(statement, parameters)
+sqlalchemy.exc.IntegrityError: (psycopg2.errors.ForeignKeyViolation) update or delete on table "resumes" violates foreign key constraint "skills_resume_id_fkey" on table "skills"
+DETAIL:  Key (id)=(2) is still referenced from table "skills".
+
+[SQL: DELETE FROM resumes WHERE resumes.id = %(id)s]
+[parameters: [{'id': 1}, {'id': 2}]]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+[0;93m2026-11-20 15:59:16.793496887 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 15:59:30 +0000] [1] [ERROR] Worker (pid:47) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 15:59:30 +0000] [67] [INFO] Booting worker with pid: 67
+[0;93m2026-11-20 16:00:25.896284535 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 16:00:36 +0000] [1] [ERROR] Worker (pid:67) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:00:36 +0000] [87] [INFO] Booting worker with pid: 87
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for aws
+[0;93m2026-11-20 16:01:30.893663343 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 16:01:39 +0000] [1] [ERROR] Worker (pid:87) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:01:39 +0000] [104] [INFO] Booting worker with pid: 104
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for rest api
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for sql
+[0;93m2026-11-20 16:02:37.995484921 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+[2026-11-20 16:02:47 +0000] [1] [ERROR] Worker (pid:104) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:02:47 +0000] [124] [INFO] Booting worker with pid: 124
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for rest api
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for power bi
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:root:Generated 10 questions for react
+INFO:faiss.loader:Successfully loaded faiss.
+[0;93m2026-11-20 16:03:41.191434240 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 16:03:48 +0000] [1] [ERROR] Worker (pid:124) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:03:48 +0000] [141] [INFO] Booting worker with pid: 141
+INFO:google_genai.models:AFC is enabled with max remote calls: 10.
+INFO:faiss.loader:Loading faiss with AVX512 support.
+INFO:httpx:HTTP Request: POST http://127.0.0.1:8089/v1beta/models/gemini-3.5-flash:generateContent "HTTP/1.0 200 OK"
+INFO:faiss.loader:Could not load library with AVX512 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx512'")
+INFO:faiss.loader:Loading faiss with AVX2 support.
+INFO:faiss.loader:Could not load library with AVX2 support due to:
+ModuleNotFoundError("No module named 'faiss.swigfaiss_avx2'")
+INFO:faiss.loader:Loading faiss.
+INFO:faiss.loader:Successfully loaded faiss.
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[0;93m2026-11-20 16:04:39.996009671 [W:onnxruntime:Default, device_discovery.cc:95 GetPciBusId] Skipping pci_bus_id for PCI path at "/sys/devices/LNXSYSTM:00/LNXSYBUS:00/ACPI0004:00/MSFT1000:00/5620e0c7-8062-4dce-aeb7-520c7ef76171" because filename "5620e0c7-8062-4dce-aeb7-520c7ef76171" did not match expected pattern of [0-9a-f]+:[0-9a-f]+:[0-9a-f]+[.][0-9a-f]+[m
+PHASE0: ONNX MiniLM loaded (fastembed, all-MiniLM-L6-v2)
+INFO:rag.knowledge_manager:Building RAG Knowledge Base index...
+INFO:rag.knowledge_manager:Encoding 41 knowledge chunks using Sentence Transformers...
+[2026-11-20 16:04:44 +0000] [1] [ERROR] Worker (pid:141) was sent SIGKILL! Perhaps out of memory?
+[2026-11-20 16:04:44 +0000] [158] [INFO] Booting worker with pid: 158

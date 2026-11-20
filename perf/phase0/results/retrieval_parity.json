@@ -1,0 +1,168 @@
+{
+ "engines": {
+  "torch": "sentence-transformers/all-MiniLM-L6-v2 (semantic embeddings)",
+  "onnx": "sentence-transformers/all-MiniLM-L6-v2 (semantic embeddings)"
+ },
+ "benchmark": {
+  "torch": {
+   "all": {
+    "recall@1": 0.852,
+    "recall@3": 1.0,
+    "mrr": 0.926,
+    "n": 27
+   },
+   "keyword": {
+    "recall@1": 1.0,
+    "recall@3": 1.0,
+    "mrr": 1.0,
+    "n": 9
+   },
+   "paraphrase": {
+    "recall@1": 0.778,
+    "recall@3": 1.0,
+    "mrr": 0.889,
+    "n": 18
+   }
+  },
+  "onnx": {
+   "all": {
+    "recall@1": 0.852,
+    "recall@3": 1.0,
+    "mrr": 0.926,
+    "n": 27
+   },
+   "keyword": {
+    "recall@1": 1.0,
+    "recall@3": 1.0,
+    "mrr": 1.0,
+    "n": 9
+   },
+   "paraphrase": {
+    "recall@1": 0.778,
+    "recall@3": 1.0,
+    "mrr": 0.889,
+    "n": 18
+   }
+  }
+ },
+ "vector_cosine": {
+  "min": 1.0,
+  "mean": 1.0,
+  "texts": 36
+ },
+ "benchmark_full_ranking_identical": "27/27",
+ "benchmark_top1_identical": "27/27",
+ "kb_search_top5_identical": "27/27",
+ "kb_search_max_score_difference": 0.0,
+ "kb_search_examples": {
+  "Which career uses SQL, Excel and Power BI dashboards?": {
+   "torch": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.7709
+    },
+    {
+     "source": "SkillLens Knowledge Taxonomy: Power Bi",
+     "text": "Skill Definition: Power Bi (Business Intelligence & Visualization). Definition: ",
+     "score": 0.5924
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.5677
+    }
+   ],
+   "onnx": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.7709
+    },
+    {
+     "source": "SkillLens Knowledge Taxonomy: Power Bi",
+     "text": "Skill Definition: Power Bi (Business Intelligence & Visualization). Definition: ",
+     "score": 0.5924
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.5677
+    }
+   ]
+  },
+  "I like turning business numbers into charts that managers can understand": {
+   "torch": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.4192
+    },
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Industry Standard Requirements for Data Analyst in Business Intelligence & Data ",
+     "score": 0.3187
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.2943
+    }
+   ],
+   "onnx": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.4192
+    },
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Industry Standard Requirements for Data Analyst in Business Intelligence & Data ",
+     "score": 0.3187
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.2943
+    }
+   ]
+  },
+  "job where I report on sales trends from company spreadsheets": {
+   "torch": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.4437
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.4027
+    },
+    {
+     "source": "ACM Computing Classification System: Data Science Framework 2026",
+     "text": "Career Role: Data Scientist. Domain: Artificial Intelligence & Predictive Modeli",
+     "score": 0.399
+    }
+   ],
+   "onnx": [
+    {
+     "source": "IEEE Computer Society Industry Career Benchmark: Data Analytics 2026",
+     "text": "Career Role: Data Analyst. Domain: Business Intelligence & Data Analytics. Overv",
+     "score": 0.4437
+    },
+    {
+     "source": "FinTech Capital Global Placement Board 2026 - JD #DA-104",
+     "text": "Job Opening: Junior Data Analyst at FinTech Capital Global (Bengaluru / Remote).",
+     "score": 0.4027
+    },
+    {
+     "source": "ACM Computing Classification System: Data Science Framework 2026",
+     "text": "Career Role: Data Scientist. Domain: Artificial Intelligence & Predictive Modeli",
+     "score": 0.399
+    }
+   ]
+  }
+ },
+ "equivalent": true
+}

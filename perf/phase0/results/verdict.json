@@ -2,16 +2,32 @@
  "verdict": "FAIL",
  "checks": [
   [
-   "Candidate image measured",
+   "No OOM kill (cgroup oom_kill, OOMKilled flag, worker SIGKILL)",
+   false
+  ],
+  [
+   "Peak anonymous memory <= 450 MB (measured 508.9 MB)",
+   false
+  ],
+  [
+   "ONNX MiniLM actually served RAG (log line present, no fallback)",
+   true
+  ],
+  [
+   "No HTTP 5xx / dropped connection under concurrent load",
+   false
+  ],
+  [
+   "End-to-end: no failures except harness-only (7 real)",
    false
   ],
   [
    "Retrieval quality equivalent to PyTorch MiniLM",
-   false
+   true
   ],
   [
-   "Backend unit tests in slim image (0 run)",
-   false
+   "Backend unit tests in slim image (229 run)",
+   true
   ]
  ]
 }
