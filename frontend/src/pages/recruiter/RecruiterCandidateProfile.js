@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TbArrowLeft, TbShieldLock, TbNote, TbListCheck, TbMail, TbSend, TbTrash } from 'react-icons/tb';
+import {
+  TbArrowLeft, TbShieldLock, TbNote, TbListCheck, TbMail, TbSend, TbTrash, TbRosetteDiscountCheck
+} from 'react-icons/tb';
 import RecruiterLayout, { useRecruiter } from '../../components/RecruiterLayout';
 import recruiterService, { errorText } from '../../services/recruiterService';
 import AlertBanner from '../../components/AlertBanner';
@@ -90,6 +92,76 @@ function Passport({ p }) {
   );
 }
 
+export const VR_STATUS_STYLES = {
+  pending: 'text-white/60 border-white/15',
+  accepted: 'text-sky-300 border-sky-500/40',
+  completed: 'text-emerald-300 border-emerald-500/40',
+  declined: 'text-rose-300 border-rose-500/40',
+  cancelled: 'text-white/40 border-white/10',
+  closed: 'text-white/40 border-white/10'
+};
+
+/** Ask the candidate to verify skills they share but have not verified yet. */
+export function VerificationRequestsPanel({ data, candidateRef, jobId, act }) {
+  const [chosen, setChosen] = useState([]);
+  const [message, setMessage] = useState('');
+  const requests = data.verification_requests || [];
+  const skills = data.requestable_skills || [];
+  const toggle = (name) => setChosen(chosen.includes(name) ? chosen.filter((x) => x !== name) : [...chosen, name]);
+
+  return (
+    <Section title={<span className="flex items-center gap-2"><TbRosetteDiscountCheck className="w-4 h-4" /> Skill verification requests</span>}>
+      {!data.can_request_verification ? (
+        <p className="text-xs text-white/40">Verification requests can be sent once your organisation is verified.</p>
+      ) : skills.length === 0 ? (
+        <p className="text-xs text-white/40">Every skill this candidate shares with you is either verified or already has an open request.</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-[11px] text-white/45">Ask the candidate to verify skills they share but have not verified (up to 5 at a time). They decide whether to take part; you are told only when a skill becomes verified, never about failed attempts.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {skills.map((s) => (
+              <button type="button" key={s.skill_name} onClick={() => toggle(s.skill_name)} title={s.status_label}
+                aria-pressed={chosen.includes(s.skill_name)}
+                className={`text-[11px] px-2.5 py-1 rounded-full border ${chosen.includes(s.skill_name)
+                  ? 'border-indigo-400 bg-indigo-500/20 text-indigo-200' : 'border-base-700 text-white/55 hover:text-white'}`}>
+                {displaySkill(s.skill_name)} · {s.status_label}
+              </button>
+            ))}
+          </div>
+          <textarea className="input-field text-xs py-2" rows={2} maxLength={500} placeholder="Why you are asking (optional, the candidate sees this)"
+            value={message} onChange={(e) => setMessage(e.target.value)} />
+          <button disabled={chosen.length === 0 || chosen.length > 5} className="btn-primary text-xs py-2 w-auto px-4 disabled:opacity-40"
+            onClick={() => act(() => recruiterService.requestSkillVerification(candidateRef,
+              { skills: chosen, message, job_id: jobId ? Number(jobId) : undefined }),
+            () => { setChosen([]); setMessage(''); })}>
+            Request verification{chosen.length ? ` (${chosen.length})` : ''}
+          </button>
+        </div>
+      )}
+      {requests.length > 0 && (
+        <div className="space-y-1.5 pt-2 border-t border-base-700">
+          {requests.map((r) => (
+            <div key={r.id} className="surface p-2.5 text-xs flex flex-wrap items-center gap-2">
+              <b className="text-white">{displaySkill(r.skill_name)}</b>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full border ${VR_STATUS_STYLES[r.status] || ''}`}>{r.status_label}</span>
+              {r.completed_via_label && <span className="text-emerald-300/80">via {r.completed_via_label}</span>}
+              {r.job_title && <span className="text-white/40">for {r.job_title}</span>}
+              {r.student_note && <span className="text-white/60 italic">"{r.student_note}"</span>}
+              <span className="text-white/35 ml-auto">{fmtDate(r.completed_at || r.responded_at || r.created_at)}</span>
+              {(r.status === 'pending' || r.status === 'accepted') && (
+                <button className="text-[11px] text-white/40 hover:text-rose-300"
+                  onClick={() => window.confirm('Cancel this verification request?') && act(() => recruiterService.cancelVerificationRequest(r.id))}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function Content() {
   const { ref } = useParams();
   const [params, setParams] = useSearchParams();
@@ -170,6 +242,8 @@ function Content() {
       }>
         {data.report ? <MatchReport report={data.report} /> : <p className="text-xs text-white/40">Select one of your jobs to see an explainable, evidence-by-evidence comparison.</p>}
       </Section>
+
+      <VerificationRequestsPanel data={data} candidateRef={ref} jobId={jobId} act={act} />
 
       {data.applications.length > 0 && (
         <Section title="Applications to your organisation">

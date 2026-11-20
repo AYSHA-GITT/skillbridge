@@ -31,6 +31,12 @@ export const recruiterService = {
   deleteNote: (id) => d(api.delete(`/recruiter/notes/${id}`)),
   invite: (ref, jobId, message) =>
     d(api.post(`/recruiter/candidates/${encodeURIComponent(ref)}/invite`, { job_id: jobId, message })),
+  // Skill verification requests (the candidate decides; completion uses the passport "verified" rule)
+  requestSkillVerification: (ref, payload) =>
+    d(api.post(`/recruiter/candidates/${encodeURIComponent(ref)}/verification_requests`, payload)),
+  verificationRequests: (status) => d(api.get('/recruiter/verification_requests', { params: status ? { status } : {} })),
+  markVerificationRequestsRead: () => d(api.post('/recruiter/verification_requests/read')),
+  cancelVerificationRequest: (id) => d(api.post(`/recruiter/verification_requests/${id}/cancel`)),
 
   listShortlists: () => d(api.get('/recruiter/shortlists')),
   getShortlist: (id) => d(api.get(`/recruiter/shortlists/${id}`)),
@@ -55,6 +61,10 @@ export const candidateService = {
   getAccess: () => d(api.get('/candidate/access')),
   getUpdates: () => d(api.get('/candidate/updates')),
   markUpdatesRead: () => d(api.post('/candidate/updates/read')),
+  unreadCount: () => d(api.get('/candidate/updates/unread_count')),
+  verificationRequests: () => d(api.get('/candidate/verification_requests')),
+  respondVerificationRequest: (id, action, note) =>
+    d(api.post(`/candidate/verification_requests/${id}/respond`, { action, note })),
   readinessPreview: () => d(api.get('/candidate/readiness_preview'))
 };
 

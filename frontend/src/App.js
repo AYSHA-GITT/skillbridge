@@ -37,6 +37,7 @@ import RecruiterCandidates from './pages/recruiter/RecruiterCandidates';
 import RecruiterCandidateProfile from './pages/recruiter/RecruiterCandidateProfile';
 import RecruiterPipeline from './pages/recruiter/RecruiterPipeline';
 import RecruiterShortlists from './pages/recruiter/RecruiterShortlists';
+import RecruiterVerifications from './pages/recruiter/RecruiterVerifications';
 import { ProtectedRoute, AdminRoute, RecruiterRoute } from './components/RouteGuards';
 
 function App() {
@@ -270,6 +271,7 @@ function App() {
         <Route path="/recruiter/candidates/:ref" element={<RecruiterRoute><RecruiterCandidateProfile /></RecruiterRoute>} />
         <Route path="/recruiter/pipeline" element={<RecruiterRoute><RecruiterPipeline /></RecruiterRoute>} />
         <Route path="/recruiter/shortlists" element={<RecruiterRoute><RecruiterShortlists /></RecruiterRoute>} />
+        <Route path="/recruiter/verifications" element={<RecruiterRoute><RecruiterVerifications /></RecruiterRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

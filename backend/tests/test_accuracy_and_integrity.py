@@ -282,7 +282,7 @@ class RagRetrievalTests(unittest.TestCase):
         self.assertGreaterEqual(res["mrr"], 0.90)
 
 
-HEAD = "f7c2a9e4d1b3"  # latest migration (recruiter portal)
+HEAD = "a3d8f1c6e2b7"  # latest migration (skill verification requests)
 
 
 class MigrationTests(unittest.TestCase):
@@ -306,6 +306,7 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue({"organisations", "recruiter_profiles", "candidate_discovery_settings",
                          "recruiter_access_logs", "application_events", "recruitment_notes",
                          "candidate_shortlists", "shortlist_entries", "job_invitations"} <= tables)
+        self.assertIn("skill_verification_requests", tables)
         self.assertTrue({"organisation_id", "posted_by"} <= cols)
         self.assertTrue({"stage", "share_consent_at", "share_visibility"}
                         <= {r[1] for r in con.execute("pragma table_info(job_applications)")})

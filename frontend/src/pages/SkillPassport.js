@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import AlertBanner from '../components/AlertBanner';
 import passportService from '../services/passportService';
@@ -88,9 +88,13 @@ function Empty({ children }) {
 
 export default function SkillPassport() {
   const navigate = useNavigate();
+  // ?evidence_for=<skill id> (e.g. from an employer's verification request) opens a new
+  // evidence form with that skill already linked
+  const [searchParams] = useSearchParams();
+  const presetSkillId = Number(searchParams.get('evidence_for')) || null;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useState(presetSkillId ? 'evidence' : 'overview');
   const [alert, setAlert] = useState(null);
 
   const load = useCallback(async () => {
@@ -161,7 +165,7 @@ export default function SkillPassport() {
                 onAddEvidence={() => setTab('evidence')}
               />
             )}
-            {tab === 'evidence' && <EvidenceTab data={data} reload={load} notify={notify} />}
+            {tab === 'evidence' && <EvidenceTab data={data} reload={load} notify={notify} presetSkillId={presetSkillId} />}
             {tab === 'share' && <ShareTab data={data} reload={load} notify={notify} />}
           </>
         )}
@@ -547,8 +551,11 @@ function SkillsTab({ data, reload, notify, navigate, onAddEvidence }) {
 }
 
 /* ───────────────────────────── Evidence ───────────────────────────── */
-function EvidenceTab({ data, reload, notify }) {
-  const [form, setForm] = useState(null); // null = closed; {id?: number, ...fields}
+function EvidenceTab({ data, reload, notify, presetSkillId = null }) {
+  // null = closed; {id?: number, ...fields}
+  const [form, setForm] = useState(() =>
+    presetSkillId && (data.skills || []).some((s) => s.id === presetSkillId)
+      ? { ...EMPTY_EVIDENCE, skill_ids: [presetSkillId] } : null);
   const [saving, setSaving] = useState(false);
   const [selectedImports, setSelectedImports] = useState({});
   const [importing, setImporting] = useState(false);

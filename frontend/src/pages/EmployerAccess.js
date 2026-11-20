@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  TbEye, TbEyeOff, TbShieldLock, TbBell, TbBuilding, TbRosetteDiscountCheck, TbMail, TbHistory
+  TbEye, TbEyeOff, TbShieldLock, TbBell, TbBuilding, TbRosetteDiscountCheck, TbMail, TbHistory, TbClipboardCheck
 } from 'react-icons/tb';
 import AppLayout from '../components/AppLayout';
 import AlertBanner from '../components/AlertBanner';
 import { candidateService, errorText } from '../services/recruiterService';
-import { SECTION_LABELS, fmtDateTime } from '../components/PassportBits';
+import { SECTION_LABELS, fmtDateTime, displaySkill } from '../components/PassportBits';
 
 function Card({ title, icon: Icon, children, right }) {
   return (
@@ -19,6 +19,53 @@ function Card({ title, icon: Icon, children, right }) {
       </div>
       {children}
     </section>
+  );
+}
+
+/** An employer asking the student to verify one skill; the student decides. */
+export function VerificationRequestItem({ r, onRespond, busy }) {
+  const [note, setNote] = useState('');
+  const open = r.status === 'pending' || r.status === 'accepted';
+  return (
+    <div className={`surface p-3 text-xs space-y-1.5 ${r.seen ? '' : 'border-accent-400/40'}`}>
+      <div className="flex flex-wrap items-center gap-2">
+        <TbClipboardCheck className="w-4 h-4 text-accent-300" />
+        <b className="text-white">{r.organisation?.name}</b>
+        {r.organisation?.is_verified && <span className="text-[10px] text-emerald-300 flex items-center gap-0.5"><TbRosetteDiscountCheck className="w-3 h-3" />verified</span>}
+        <span className="text-white/60">asked you to verify <b className="text-white">{displaySkill(r.skill_name)}</b>{r.job_title && <> for <b className="text-white">{r.job_title}</b></>}</span>
+        <span className="text-white/35 ml-auto">{fmtDateTime(r.created_at)}</span>
+      </div>
+      {r.message && <p className="text-white/60 pl-6">"{r.message}"</p>}
+      <div className="pl-6 space-y-1.5">
+        <p className={r.status === 'completed' ? 'text-emerald-300' : r.status === 'accepted' ? 'text-sky-300' : 'text-white/50'}>
+          {r.status_label}{r.completed_via_label && ` (${r.completed_via_label})`}
+        </p>
+        {r.close_reason && <p className="text-white/40">{r.close_reason}</p>}
+        {r.status === 'pending' && (
+          <>
+            <p className="text-[11px] text-white/40">{r.what_is_shared}</p>
+            {r.skill_verified && <p className="text-[11px] text-emerald-300/80">This skill is already verified - accepting tells the employer straight away.</p>}
+            <input className="input-field text-xs py-1.5" maxLength={500} placeholder="Optional note to the employer"
+              value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="flex gap-2">
+              <button disabled={busy} onClick={() => onRespond(r, 'accept', note)} className="btn-primary w-auto text-xs py-1.5 px-3 disabled:opacity-40">Accept</button>
+              <button disabled={busy} onClick={() => onRespond(r, 'decline', note)} className="btn-ghost text-xs py-1.5">Decline</button>
+            </div>
+          </>
+        )}
+        {r.status === 'accepted' && !r.skill_verified && (
+          <div className="flex flex-wrap gap-3">
+            {r.skill_id && <Link to={`/verify-skill/${r.skill_id}`} className="text-accent-300">Take the assessment →</Link>}
+            {r.skill_id && <Link to={`/skill-passport?evidence_for=${r.skill_id}`} className="text-accent-300">Submit evidence for review →</Link>}
+            {!r.skill_id && <span className="text-white/40">This skill is no longer in your profile. Add it again on the Skill Passport page, or decline.</span>}
+            <button disabled={busy} onClick={() => onRespond(r, 'decline', '')} className="text-white/40 hover:text-rose-300">Decline instead</button>
+          </div>
+        )}
+        {open && r.status === 'accepted' && r.skill_status === 'pending_verification' && (
+          <p className="text-[11px] text-white/40">Your evidence is waiting for a reviewer; the employer is told once it is accepted.</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -62,8 +109,25 @@ export default function EmployerAccess() {
     }
   };
 
+  const [responding, setResponding] = useState(false);
+  const respond = async (r, action, note) => {
+    if (action === 'decline' && !window.confirm(`Decline the request to verify ${displaySkill(r.skill_name)}?`)) return;
+    setResponding(true);
+    try {
+      const res = await candidateService.respondVerificationRequest(r.id, action, note);
+      setAlert({ type: 'success', message: res.message });
+      window.dispatchEvent(new Event('skillbridge:employerUpdatesChanged'));
+      load();
+    } catch (e) {
+      setAlert({ type: 'error', message: errorText(e) });
+    } finally {
+      setResponding(false);
+    }
+  };
+
   const markRead = async () => {
     await candidateService.markUpdatesRead().catch(() => {});
+    window.dispatchEvent(new Event('skillbridge:employerUpdatesChanged'));
     load();
   };
 
@@ -83,9 +147,13 @@ export default function EmployerAccess() {
 
         <Card title="Updates from employers" icon={TbBell}
           right={updates?.unread_count > 0 && <button onClick={markRead} className="text-[11px] text-accent-300">Mark {updates.unread_count} as read</button>}>
-          {updates.invitations.length === 0 && updates.application_updates.length === 0 && (
+          {updates.invitations.length === 0 && updates.application_updates.length === 0
+            && (updates.verification_requests || []).length === 0 && (
             <p className="text-xs text-white/40">No updates yet. Apply to an employer-posted job on the <Link to="/jobs" className="text-accent-300">Jobs page</Link>, or become visible to employers below.</p>
           )}
+          {(updates.verification_requests || []).map((r) => (
+            <VerificationRequestItem key={`v${r.id}`} r={r} onRespond={respond} busy={responding} />
+          ))}
           {updates.invitations.map((i) => (
             <div key={`i${i.id}`} className={`surface p-3 text-xs space-y-1 ${i.seen ? '' : 'border-accent-400/40'}`}>
               <div className="flex flex-wrap items-center gap-2">

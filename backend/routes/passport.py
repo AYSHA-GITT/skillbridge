@@ -632,6 +632,10 @@ def admin_review_evidence(evidence_id):
     ev.reviewed_by = current_user.id
     ev.review_note = note or None
     db.session.commit()
+    if decision == 'verified':
+        # Accepted evidence may complete an employer's verification request the student accepted
+        from utils.verification_requests import safe_sync
+        safe_sync(ev.student_id)
     audit('passport.evidence_reviewed', actor_id=current_user.id, target=f'evidence:{ev.id}',
           details={'decision': decision, 'student_id': ev.student_id})
     return jsonify({'message': f'Evidence {decision}', 'evidence': ev.to_dict()}), 200

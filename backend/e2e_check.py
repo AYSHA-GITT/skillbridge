@@ -124,12 +124,14 @@ def _remove_e2e_organisation(org_name):
     try:
         from app import app
         from extensions import db
-        from models import Organisation, JobListing, JobInvitation, CandidateShortlist, RecruiterProfile
+        from models import (Organisation, JobListing, JobInvitation, CandidateShortlist, RecruiterProfile,
+                            SkillVerificationRequest)
         with app.app_context():
             org = Organisation.query.filter_by(name=org_name).first()
             if not org:
                 return
             jobs = JobListing.query.filter_by(organisation_id=org.id).all()
+            SkillVerificationRequest.query.filter_by(organisation_id=org.id).delete()
             for j in jobs:
                 JobInvitation.query.filter_by(job_id=j.id).delete()
                 db.session.delete(j)
@@ -586,6 +588,80 @@ def main():
             check(A, "Student sees who viewed profile", acc["access_log"][0]["organisation"] == org_name)
             r = rec.post(f"{BASE}/api/recruiter/candidates/{ref}/notes", json={"body": "e2e internal"})
             check(A, "Internal note", r.status_code == 201 and "e2e internal" not in json.dumps(js(s.get(f"{BASE}/api/candidate/updates"))))
+
+            # ── Skill verification request: recruiter asks, student consents and verifies ──
+            V = "Verification requests"
+            prof = js(rec.get(f"{BASE}/api/recruiter/candidates/{ref}", params={"job_id": job["id"]}))
+            requestable = [x["skill_name"] for x in prof.get("requestable_skills", [])]
+            check(V, "Profile lists unverified shared skills", prof.get("can_request_verification") is True
+                  and len(requestable) > 0 and not any(x["status"] == "verified" for x in prof["requestable_skills"]),
+                  f"{requestable[:6]}")
+            if len(requestable) >= 2:
+                target, other = requestable[0], requestable[1]
+                r = rec.post(f"{BASE}/api/recruiter/candidates/{ref}/verification_requests",
+                             json={"skills": [target, "skill-the-student-does-not-share"], "job_id": job["id"],
+                                   "message": "e2e: please verify"})
+                body = js(r)
+                check(V, "Recruiter requests a shared skill", r.status_code == 201 and len(body.get("requests", [])) == 1
+                      and body["skipped"][0]["reason"].startswith("Not shown"), f"HTTP {r.status_code}")
+                r = rec.post(f"{BASE}/api/recruiter/candidates/{ref}/verification_requests", json={"skills": [target]})
+                check(V, "Duplicate request refused", r.status_code == 409)
+                rec2 = requests.Session()
+                check(V, "Signed-out caller refused", rec2.post(
+                    f"{BASE}/api/recruiter/candidates/{ref}/verification_requests", json={"skills": [target]}).status_code == 401)
+                check(V, "Student cannot send requests", s.post(
+                    f"{BASE}/api/recruiter/candidates/{ref}/verification_requests", json={"skills": [target]}).status_code == 403)
+                badge = js(s.get(f"{BASE}/api/candidate/updates/unread_count"))
+                check(V, "Student badge counts the request", badge.get("verification_requests", 0) >= 1, str(badge))
+                upd = js(s.get(f"{BASE}/api/candidate/updates"))
+                item = next((v for v in upd.get("verification_requests", []) if v["skill_name"] == target), None)
+                check(V, "Student is notified", item is not None and item["status"] == "pending"
+                      and item["organisation"]["name"] == org_name and item["job_title"] == job["title"])
+                check(V, "Other student cannot answer it", s2.post(
+                    f"{BASE}/api/candidate/verification_requests/{item['id']}/respond",
+                    json={"action": "accept"}).status_code in (403, 404))
+                r = s.post(f"{BASE}/api/candidate/verification_requests/{item['id']}/respond",
+                           json={"action": "accept", "note": "e2e: happy to"})
+                check(V, "Student accepts", r.status_code == 200 and js(r)["request"]["status"] == "accepted")
+                lst = js(rec.get(f"{BASE}/api/recruiter/verification_requests"))
+                mine = next((x for x in lst.get("requests", []) if x["skill_name"] == target), {})
+                check(V, "Recruiter sees acceptance", mine.get("status") == "accepted" and mine.get("unread")
+                      and mine.get("student_note") == "e2e: happy to")
+                rec.post(f"{BASE}/api/recruiter/verification_requests/read")
+                if admin_ok and item.get("skill_id"):
+                    r = s.post(f"{BASE}/api/passport/me/evidence", json={
+                        "kind": "project", "title": f"E2E evidence for {target}",
+                        "url": "https://github.com/example/e2e-project", "skill_ids": [item["skill_id"]]})
+                    ev_id = js(r).get("evidence", {}).get("id")
+                    r = s.post(f"{BASE}/api/passport/me/evidence/{ev_id}/request_review")
+                    check(V, "Student submits evidence", r.status_code == 200)
+                    still = js(rec.get(f"{BASE}/api/recruiter/verification_requests"))
+                    check(V, "Pending review is not completion",
+                          next(x for x in still["requests"] if x["skill_name"] == target)["status"] == "accepted")
+                    r = adm.post(f"{BASE}/api/passport/admin/evidence/{ev_id}/review", json={"decision": "verified"})
+                    check(V, "Reviewer accepts evidence", r.status_code == 200)
+                    lst = js(rec.get(f"{BASE}/api/recruiter/verification_requests"))
+                    done = next(x for x in lst["requests"] if x["skill_name"] == target)
+                    check(V, "Recruiter told it is verified", done["status"] == "completed" and done["unread"]
+                          and "evidence" in done["completed_via_label"], done.get("completed_via_label"))
+                    dash = js(rec.get(f"{BASE}/api/recruiter/dashboard"))
+                    check(V, "Dashboard shows the new answer", dash.get("verification_requests", {}).get("unread", 0) >= 1)
+                    prof = js(rec.get(f"{BASE}/api/recruiter/candidates/{ref}", params={"job_id": job["id"]}))
+                    shown = next((x for x in prof["passport"]["skills"] if x["skill_name"] == target), {})
+                    check(V, "Passport shows the skill verified", shown.get("status") == "verified")
+                    check(V, "Verified skill no longer requestable",
+                          target not in [x["skill_name"] for x in prof.get("requestable_skills", [])])
+                    check(V, "Student sees it completed", next(v for v in js(s.get(
+                        f"{BASE}/api/candidate/verification_requests"))["requests"] if v["skill_name"] == target)["status"] == "completed")
+                r = rec.post(f"{BASE}/api/recruiter/candidates/{ref}/verification_requests", json={"skills": [other]})
+                rid = (js(r).get("requests") or [{}])[0].get("id")
+                r = rec.post(f"{BASE}/api/recruiter/verification_requests/{rid}/cancel")
+                check(V, "Recruiter cancels a request", r.status_code == 200)
+                v = next(v for v in js(s.get(f"{BASE}/api/candidate/verification_requests"))["requests"] if v["id"] == rid)
+                check(V, "Student sees it withdrawn", v["status"] == "cancelled")
+                check(V, "Cancelled request cannot be accepted", s.post(
+                    f"{BASE}/api/candidate/verification_requests/{rid}/respond", json={"action": "accept"}).status_code == 400)
+
             r = s.put(f"{BASE}/api/candidate/discovery", json={
                 "is_discoverable": True, "consent": True,
                 "visibility": {"sections": {"skills": True, "profile": True}, "skill_filter": "all"}})
@@ -595,7 +671,7 @@ def main():
             s.put(f"{BASE}/api/candidate/discovery", json={"is_discoverable": False})
             check(A, "Withdraw application", s.post(f"{BASE}/api/student/jobs/{job['id']}/withdraw").status_code == 200)
             check(A, "Access ends after withdraw + opt-out", rec.get(f"{BASE}/api/recruiter/candidates/{ref}").status_code == 404)
-    for path in ("/recruiter", "/recruiter/register", "/employer-access"):
+    for path in ("/recruiter", "/recruiter/register", "/employer-access", "/recruiter/verifications"):
         r = requests.get(f"{FRONT}{path}")
         check(A, f"Frontend serves {path}", r.status_code == 200 and '<div id="root">' in r.text, warn=True)
     r = rec.delete(f"{BASE}/api/student/account/delete", json={"confirmation": "DELETE_MY_ACCOUNT"})
@@ -607,7 +683,7 @@ def main():
     resume_skills = [x for x in ex.get("skills", []) if x.get("source") != "self_declared"]
     check(A, "Export my data", ex.get("profile", {}).get("email") == email_a and len(resume_skills) == len(EXPECTED_SKILLS),
           f"{len(resume_skills)} resume skills of {len(ex.get('skills', []))}")
-    check(A, "Export includes Skill Passport", len(ex.get("skill_passport", {}).get("evidence", [])) == 1
+    check(A, "Export includes Skill Passport", len(ex.get("skill_passport", {}).get("evidence", [])) >= 1   # + 1 from the verification-request flow
           and "token" not in json.dumps(ex.get("skill_passport", {}).get("share_links", [])).replace("token_hint", ""))
     check(A, "Delete needs confirmation", s.delete(f"{BASE}/api/student/account/delete", json={}).status_code == 400)
     for sess_, em in ((s, email_a), (s2, email_b)):

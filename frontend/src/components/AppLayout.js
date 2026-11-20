@@ -56,7 +56,7 @@ export default function AppLayout({ children, fullWidth = false }) {
         onOpenPrivacyModal={() => setPrivacyModalOpen(true)}
       />
       <div className={`flex-1 flex w-full mx-auto ${fullWidth ? 'max-w-[1600px] px-2 md:px-4' : 'max-w-7xl'}`}>
-        <Sidebar onOpenPrivacyModal={() => setPrivacyModalOpen(true)} />
+        <Sidebar onOpenPrivacyModal={() => setPrivacyModalOpen(true)} role={student?.role} />
         <main className={`flex-1 p-4 md:p-8 overflow-y-auto ${fullWidth ? 'w-full' : 'max-w-5xl'}`}>
           {children}
         </main>

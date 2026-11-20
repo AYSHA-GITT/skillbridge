@@ -13,7 +13,8 @@ import {
   TbAlertTriangle,
   TbLock,
   TbMenu2,
-  TbX
+  TbX,
+  TbClipboardCheck
 } from 'react-icons/tb';
 import authService from '../services/authService';
 import recruiterService from '../services/recruiterService';
@@ -27,6 +28,7 @@ const NAV = [
   { to: '/recruiter/candidates', label: 'Find Candidates', icon: TbUserSearch },
   { to: '/recruiter/pipeline', label: 'Hiring Pipeline', icon: TbColumns3 },
   { to: '/recruiter/shortlists', label: 'Shortlists', icon: TbListCheck },
+  { to: '/recruiter/verifications', label: 'Verification Requests', icon: TbClipboardCheck },
   { to: '/recruiter/organisation', label: 'Organisation', icon: TbBuildingSkyscraper }
 ];
 

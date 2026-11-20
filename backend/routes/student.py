@@ -441,6 +441,9 @@ def submit_quiz(skill_id):
     )
     db.session.add(verification)
     db.session.commit()
+    # A pass may complete an employer's verification request the student accepted
+    from utils.verification_requests import safe_sync
+    safe_sync(current_user.id)
 
     return jsonify({
         'message': 'Quiz submitted and scored',
@@ -2227,6 +2230,11 @@ def export_student_data():
             'invitations': [{'job_id': i.job_id, 'message': i.message,
                              'created_at': i.created_at.isoformat() if i.created_at else None}
                             for i in current_user.job_invitations],
+            'verification_requests': [{'organisation': r.organisation.name if r.organisation else None,
+                                       'skill_name': r.skill_name, 'status': r.status, 'message': r.message,
+                                       'your_note': r.student_note,
+                                       'created_at': r.created_at.isoformat() if r.created_at else None}
+                                      for r in current_user.skill_verification_requests],
         },
         'exported_at': datetime.now(timezone.utc).isoformat(),
         'data_sovereignty_notice': 'This export includes all profile and learning artifacts stored under your account.'

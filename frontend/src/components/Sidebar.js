@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   TbLayoutDashboard,
@@ -21,8 +21,29 @@ import {
   TbId,
   TbBuildingSkyscraper
 } from 'react-icons/tb';
+import { candidateService } from '../services/recruiterService';
 
-export default function Sidebar({ onOpenPrivacyModal }) {
+/** Unread employer updates (application stages, invitations, verification requests). */
+export function useEmployerUnread(enabled) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let alive = true;
+    const refresh = () => candidateService.unreadCount()
+      .then((r) => { if (alive) setCount(r.unread_count || 0); })
+      .catch(() => {});
+    refresh();
+    window.addEventListener('skillbridge:employerUpdatesChanged', refresh);
+    return () => {
+      alive = false;
+      window.removeEventListener('skillbridge:employerUpdatesChanged', refresh);
+    };
+  }, [enabled]);
+  return count;
+}
+
+export default function Sidebar({ onOpenPrivacyModal, role }) {
+  const employerUnread = useEmployerUnread(role === 'student');
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', icon: TbLayoutDashboard },
     { to: '/profile-settings', label: 'Profile Settings', icon: TbUserCircle },
@@ -66,6 +87,10 @@ export default function Sidebar({ onOpenPrivacyModal }) {
             >
               <Icon className="w-4 h-4 flex-shrink-0" />
               <span>{item.label}</span>
+              {item.to === '/employer-access' && employerUnread > 0 && (
+                <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-accent-500 text-white"
+                  aria-label={`${employerUnread} unread employer updates`}>{employerUnread}</span>
+              )}
             </NavLink>
           );
         })}

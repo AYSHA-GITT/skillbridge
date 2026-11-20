@@ -22,7 +22,7 @@ from flask_login import current_user
 from extensions import db
 from models import (ApplicationEvent, CandidateDiscoverySetting, CandidateShortlist, JobApplication,
                     JobInvitation, JobListing, Organisation, RecruiterAccessLog, RecruiterProfile,
-                    RecruitmentNote, ShortlistEntry, Student)
+                    RecruitmentNote, ShortlistEntry, SkillVerificationRequest, Student)
 from routes.admin import admin_required
 from utils.audit import audit
 from utils.rate_limit import rate_limited
@@ -33,6 +33,7 @@ from utils.recruiting import (EMPLOYER_PROVIDER, EMPLOYER_SOURCE_LABEL, PIPELINE
                               stage_label, student_for_ref)
 from utils.skill_passport import SECTION_KEYS, SKILL_FILTERS, is_safe_url, normalize_visibility
 from utils.skill_taxonomy import normalize_skill_name
+from utils import verification_requests as vr
 
 recruiter_bp = Blueprint('recruiter', __name__)
 candidate_bp = Blueprint('candidate', __name__)
@@ -284,6 +285,7 @@ def recruiter_dashboard():
                                  'applied_at': _iso(a.applied_at)} for a in recent],
         'discoverable_candidates': (CandidateDiscoverySetting.query.filter_by(is_discoverable=True).count()
                                     if g.org.is_verified else None),
+        'verification_requests': _verification_counts(),
     }), 200
 
 
@@ -574,6 +576,7 @@ def delete_org_job(job_id):
         return _bad('Only drafts that were never published can be deleted. Close the job instead.')
     JobInvitation.query.filter_by(job_id=job.id).delete()
     CandidateShortlist.query.filter_by(job_id=job.id).update({'job_id': None})
+    SkillVerificationRequest.query.filter_by(job_id=job.id).update({'job_id': None})
     db.session.delete(job)
     db.session.commit()
     audit('recruiter.job_deleted', actor_id=current_user.id, target=f'job:{job_id}')
@@ -716,6 +719,9 @@ def _profile_payload(student, access, job):
     invited = {i.job_id for i in JobInvitation.query.filter_by(organisation_id=g.org.id,
                                                                student_id=student.id).all()}
     applied = {a.job_id for a in access['applications']}
+    vr.sync_student_requests(student.id)
+    ver_reqs = (SkillVerificationRequest.query.filter_by(organisation_id=g.org.id, student_id=student.id)
+                .order_by(SkillVerificationRequest.created_at.desc()).limit(50).all())
     return {
         'candidate_ref': candidate_ref(student.id),
         'basis': access['basis'],
@@ -728,6 +734,9 @@ def _profile_payload(student, access, job):
         'shortlist_ids': [s[0] for s in shortlists],
         'invitable_jobs': [{'id': j.id, 'title': j.title, 'invited': j.id in invited}
                            for j in open_jobs if j.id not in applied] if access['basis'] == 'discovery' else [],
+        'verification_requests': [vr.recruiter_dict(r, None, None) for r in ver_reqs],
+        'requestable_skills': vr.requestable_skills(g.org.id, student.id, passport) if g.org.is_verified else [],
+        'can_request_verification': g.org.is_verified,
         'privacy': 'Shown with the student\'s consent. Contact details appear only in applications the student '
                    'submitted to you. Do not copy this information outside your hiring process.',
     }
@@ -835,6 +844,125 @@ def invite_candidate(ref):
     audit('recruiter.candidate_invited', actor_id=current_user.id, target=f'invitation:{inv.id}',
           details={'organisation_id': g.org.id, 'job_id': job.id})
     return jsonify({'message': 'Invitation sent. The candidate decides whether to apply.'}), 201
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Skill verification requests (see utils/verification_requests.py)
+# ─────────────────────────────────────────────────────────────────────────
+def _verification_counts():
+    q = SkillVerificationRequest.query.filter_by(organisation_id=g.org.id)
+    return {'open': q.filter(SkillVerificationRequest.status.in_(SkillVerificationRequest.OPEN_STATUSES)).count(),
+            'unread': q.filter(SkillVerificationRequest.seen_by_recruiter.is_(False)).count()}
+
+
+@recruiter_bp.route('/candidates/<ref>/verification_requests', methods=['POST'])
+@recruiter_required
+@rate_limited('recruiter_verification_request', 30, 3600, per_user=True)
+def request_skill_verification(ref):
+    student, access = _resolve_candidate(ref)
+    if not access:
+        return _bad(CANDIDATE_NOT_FOUND, 404)
+    if not g.org.is_verified:
+        return _bad('Verification requests can be sent once your organisation is verified.', 403)
+    data = request.get_json(silent=True) or {}
+    skills = data.get('skills')
+    if isinstance(skills, str):
+        skills = [skills]
+    if not isinstance(skills, list) or not all(isinstance(x, str) and 0 < len(x.strip()) <= 60 for x in skills):
+        return _bad('skills must be a list of skill names')
+    message, err = _text(data, 'message', 500, label='Message')
+    if err:
+        return _bad(err)
+    job_id = data.get('job_id')
+    if job_id not in (None, ''):
+        try:
+            job = _org_job(int(job_id))
+        except (TypeError, ValueError):
+            job = None
+        if not job:
+            return _bad('Job not found', 404)
+        job_id = job.id
+    else:
+        job_id = None
+    passport = candidate_passport(student, access)
+    created, skipped, err = vr.create_requests(g.org, current_user.id, student, passport,
+                                               [x.strip() for x in skills], job_id, message)
+    if err:
+        db.session.rollback()
+        return _bad(err)
+    if not created:
+        db.session.rollback()
+        return jsonify({'error': 'No request was sent - ' + '; '.join(f"{x['skill']}: {x['reason']}" for x in skipped),
+                        'skipped': skipped}), 409
+    db.session.commit()
+    audit('recruiter.verification_requested', actor_id=current_user.id, target=f'student:{student.id}',
+          details={'organisation_id': g.org.id, 'skills': [r.skill_name for r in created], 'job_id': job_id})
+    names = ', '.join(r.skill_name for r in created)
+    return jsonify({'message': f'Verification requested for {names}. The candidate decides whether to take part.',
+                    'requests': [vr.recruiter_dict(r, ref, None) for r in created], 'skipped': skipped}), 201
+
+
+@recruiter_bp.route('/verification_requests', methods=['GET'])
+@recruiter_required
+def list_verification_requests():
+    status = request.args.get('status')
+    if status and status not in SkillVerificationRequest.STATUSES and status != 'open':
+        return _bad('Unknown status')
+    # Bring open requests up to date (completion, lost access) before listing
+    for (sid,) in (db.session.query(SkillVerificationRequest.student_id)
+                   .filter(SkillVerificationRequest.organisation_id == g.org.id,
+                           SkillVerificationRequest.status.in_(SkillVerificationRequest.OPEN_STATUSES))
+                   .distinct().all()):
+        vr.sync_student_requests(sid)
+    q = SkillVerificationRequest.query.filter_by(organisation_id=g.org.id)
+    if status == 'open':
+        q = q.filter(SkillVerificationRequest.status.in_(SkillVerificationRequest.OPEN_STATUSES))
+    elif status:
+        q = q.filter_by(status=status)
+    out = []
+    access_cache = {}
+    for r in q.order_by(SkillVerificationRequest.created_at.desc()).limit(300).all():
+        if r.student_id not in access_cache:
+            st = db.session.get(Student, r.student_id)
+            access_cache[r.student_id] = (st, access_for(g.org, st) if st else None)
+        st, access = access_cache[r.student_id]
+        if access:
+            out.append(vr.recruiter_dict(r, candidate_ref(st.id), st.name))
+        else:
+            # The candidate stopped sharing: keep the record, hide who it was
+            out.append(vr.recruiter_dict(r, None, None))
+    counts = _verification_counts()
+    db.session.commit()
+    return _no_store(jsonify({'requests': out, **counts})), 200
+
+
+@recruiter_bp.route('/verification_requests/read', methods=['POST'])
+@recruiter_required
+def mark_verification_requests_read():
+    n = (SkillVerificationRequest.query
+         .filter(SkillVerificationRequest.organisation_id == g.org.id,
+                 SkillVerificationRequest.seen_by_recruiter.is_(False))
+         .update({'seen_by_recruiter': True}, synchronize_session=False))
+    db.session.commit()
+    return jsonify({'updated': n}), 200
+
+
+@recruiter_bp.route('/verification_requests/<int:req_id>/cancel', methods=['POST'])
+@recruiter_required
+def cancel_verification_request(req_id):
+    r = SkillVerificationRequest.query.filter_by(id=req_id, organisation_id=g.org.id).first()
+    if not r:
+        return _bad(NOT_FOUND, 404)
+    if not r.is_open:
+        return _bad('Only open requests can be cancelled')
+    r.status = 'cancelled'
+    r.closed_at = _naive(_now())
+    r.seen_by_student = False
+    db.session.commit()
+    audit('recruiter.verification_request_cancelled', actor_id=current_user.id,
+          target=f'verification_request:{r.id}', details={'organisation_id': g.org.id})
+    return jsonify({'message': 'Request cancelled. The candidate will see that it was withdrawn.',
+                    'request': vr.recruiter_dict(r, None, None)}), 200
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -1206,8 +1334,88 @@ def my_updates():
                           'organisation': i.organisation.public_dict() if i.organisation else None,
                           'message': i.message or '', 'created_at': _iso(i.created_at),
                           'seen': i.seen_at is not None, 'applied': applied})
-    unread = sum(1 for e in ev_items if not e['seen']) + sum(1 for i in inv_items if not i['seen'])
-    return jsonify({'application_updates': ev_items, 'invitations': inv_items, 'unread_count': unread}), 200
+    ver_items = _student_verification_items()
+    unread = (sum(1 for e in ev_items if not e['seen']) + sum(1 for i in inv_items if not i['seen'])
+              + sum(1 for v in ver_items if not v['seen']))
+    return jsonify({'application_updates': ev_items, 'invitations': inv_items,
+                    'verification_requests': ver_items, 'unread_count': unread}), 200
+
+
+def _student_verification_items():
+    from utils.skill_passport import skill_verification_states
+    if vr.sync_student_requests(current_user.id):
+        db.session.commit()
+    reqs = (SkillVerificationRequest.query.filter_by(student_id=current_user.id)
+            .order_by(SkillVerificationRequest.created_at.desc()).limit(100).all())
+    states = skill_verification_states(current_user.id) if reqs else {}
+    return [vr.student_dict(r, states) for r in reqs]
+
+
+@candidate_bp.route('/verification_requests', methods=['GET'])
+@student_required
+def my_verification_requests():
+    items = _student_verification_items()
+    return jsonify({'requests': items,
+                    'open': sum(1 for i in items if i['status'] in SkillVerificationRequest.OPEN_STATUSES)}), 200
+
+
+@candidate_bp.route('/verification_requests/<int:req_id>/respond', methods=['POST'])
+@student_required
+def respond_verification_request(req_id):
+    from utils.skill_passport import skill_verification_states
+    r = SkillVerificationRequest.query.filter_by(id=req_id, student_id=current_user.id).first()
+    if not r:
+        return _bad(NOT_FOUND, 404)
+    data = request.get_json(silent=True) or {}
+    action = data.get('action')
+    note, err = _text(data, 'note', 500, label='Note')
+    if err:
+        return _bad(err)
+    if action == 'accept':
+        if r.status != 'pending':
+            return _bad('Only requests awaiting your answer can be accepted')
+        r.status = 'accepted'
+    elif action == 'decline':
+        if not r.is_open:
+            return _bad('This request is no longer open')
+        r.status = 'declined'
+        r.closed_at = _naive(_now())
+    else:
+        return _bad('action must be "accept" or "decline"')
+    r.student_note = note or None
+    r.responded_at = _naive(_now())
+    r.seen_by_student = True
+    r.seen_by_recruiter = False
+    db.session.flush()
+    # Accepting a skill that is already verified completes the request straight away;
+    # a request whose organisation lost access is closed instead.
+    vr.sync_student_requests(current_user.id)
+    r.seen_by_student = True
+    db.session.commit()
+    audit('candidate.verification_request_' + action + ('ed' if action == 'accept' else 'd'),
+          actor_id=current_user.id, target=f'verification_request:{r.id}',
+          details={'organisation_id': r.organisation_id})
+    msg = {'accepted': 'Accepted. Take the assessment or submit evidence to verify this skill; the employer is '
+                       'told only when it is verified.',
+           'completed': 'This skill is already verified, so the employer has been told.',
+           'declined': 'Declined. The employer has been told you will not verify this skill for now.',
+           'closed': 'This employer no longer has access to your profile, so the request was closed.'}
+    return jsonify({'message': msg.get(r.status, 'Saved'),
+                    'request': vr.student_dict(r, skill_verification_states(current_user.id))}), 200
+
+
+@candidate_bp.route('/updates/unread_count', methods=['GET'])
+@student_required
+def my_unread_count():
+    """Cheap badge count for the navigation (no sync, no payload)."""
+    events = (ApplicationEvent.query.join(JobApplication, ApplicationEvent.application_id == JobApplication.id)
+              .filter(JobApplication.student_id == current_user.id, ApplicationEvent.seen_by_student.is_(False))
+              .count())
+    invites = JobInvitation.query.filter(JobInvitation.student_id == current_user.id,
+                                         JobInvitation.seen_at.is_(None)).count()
+    ver = SkillVerificationRequest.query.filter(SkillVerificationRequest.student_id == current_user.id,
+                                                SkillVerificationRequest.seen_by_student.is_(False)).count()
+    return jsonify({'unread_count': events + invites + ver, 'verification_requests': ver}), 200
 
 
 @candidate_bp.route('/updates/read', methods=['POST'])
@@ -1221,6 +1429,9 @@ def mark_updates_read():
             .update({'seen_by_student': True}, synchronize_session=False)
     n += JobInvitation.query.filter(JobInvitation.student_id == current_user.id, JobInvitation.seen_at.is_(None)) \
         .update({'seen_at': _naive(_now())}, synchronize_session=False)
+    n += SkillVerificationRequest.query.filter(SkillVerificationRequest.student_id == current_user.id,
+                                               SkillVerificationRequest.seen_by_student.is_(False)) \
+        .update({'seen_by_student': True}, synchronize_session=False)
     db.session.commit()
     return jsonify({'updated': n}), 200
 

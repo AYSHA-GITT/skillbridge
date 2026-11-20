@@ -73,6 +73,8 @@ class Student(BaseModel, UserMixin):
     recruiter_access_logs = db.relationship('RecruiterAccessLog', lazy=True, cascade='all, delete-orphan')
     shortlist_entries = db.relationship('ShortlistEntry', lazy=True, cascade='all, delete-orphan')
     job_invitations = db.relationship('JobInvitation', lazy=True, cascade='all, delete-orphan')
+    skill_verification_requests = db.relationship('SkillVerificationRequest', lazy=True,
+                                                  cascade='all, delete-orphan')
     recruitment_notes = db.relationship('RecruitmentNote', lazy=True, cascade='all, delete-orphan',
                                         overlaps='notes')
 
@@ -1400,3 +1402,45 @@ class JobInvitation(BaseModel):
 
     job = db.relationship('JobListing', lazy=True)
     organisation = db.relationship('Organisation', lazy=True)
+
+
+class SkillVerificationRequest(BaseModel):
+    """
+    A recruiter asking a candidate to verify one skill the candidate already shares
+    with the organisation. The student decides: accepting lets them take the
+    SkillBridge assessment or submit evidence for review; declining closes it.
+    The request is only completed when the skill becomes verified under the single
+    passport rule (utils.skill_passport.skill_verification_states), and only after
+    the student accepted, so nothing is reported to the recruiter without consent.
+    Failed attempts are never reported.
+    """
+    __tablename__ = 'skill_verification_requests'
+
+    STATUSES = ('pending', 'accepted', 'completed', 'declined', 'cancelled', 'closed')
+    OPEN_STATUSES = ('pending', 'accepted')
+
+    id = db.Column(db.Integer, primary_key=True)
+    organisation_id = db.Column(db.Integer, db.ForeignKey('organisations.id'), nullable=False, index=True)
+    recruiter_id = db.Column(db.Integer)            # no FK: survives recruiter deletion
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False, index=True)
+    job_id = db.Column(db.Integer, db.ForeignKey('job_listings.id'), nullable=True)
+    skill_id = db.Column(db.Integer)                # student's skills row when requested (no FK)
+    skill_name = db.Column(db.String(100), nullable=False)
+    message = db.Column(db.String(500))             # optional note from the recruiter
+    status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    student_note = db.Column(db.String(500))        # optional reply from the student
+    completed_via = db.Column(db.String(60))        # "assessment", "reviewed_evidence" or both
+    close_reason = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=utc_now)
+    responded_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    closed_at = db.Column(db.DateTime)
+    seen_by_student = db.Column(db.Boolean, default=False, nullable=False)
+    seen_by_recruiter = db.Column(db.Boolean, default=True, nullable=False)
+
+    organisation = db.relationship('Organisation', lazy=True)
+    job = db.relationship('JobListing', lazy=True)
+
+    @property
+    def is_open(self):
+        return self.status in self.OPEN_STATUSES

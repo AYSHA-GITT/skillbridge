@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TbBriefcase, TbUsers, TbUserSearch, TbArrowRight, TbAlertTriangle } from 'react-icons/tb';
+import { TbBriefcase, TbUsers, TbUserSearch, TbArrowRight, TbAlertTriangle, TbRosetteDiscountCheck } from 'react-icons/tb';
 import RecruiterLayout, { OrgBadge } from '../../components/RecruiterLayout';
 import recruiterService, { errorText } from '../../services/recruiterService';
 import AlertBanner from '../../components/AlertBanner';
@@ -49,6 +49,14 @@ function Content() {
           </p>
           <Link to="/recruiter/organisation" className="btn-ghost text-xs whitespace-nowrap">Organisation & verification</Link>
         </div>
+      )}
+
+      {data.verification_requests?.unread > 0 && (
+        <Link to="/recruiter/verifications" className="rounded-2xl border border-indigo-400/40 bg-indigo-500/10 p-4 flex items-center gap-2 text-sm text-indigo-200">
+          <TbRosetteDiscountCheck className="w-5 h-5" />
+          {data.verification_requests.unread} new answer{data.verification_requests.unread === 1 ? '' : 's'} to your skill verification requests
+          <TbArrowRight className="ml-auto" />
+        </Link>
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
