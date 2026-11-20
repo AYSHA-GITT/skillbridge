@@ -67,6 +67,12 @@ export const skillService = {
     return response.data;
   },
 
+  // Adds one skill (e.g. a job's missing skill) to the roadmap; duplicates are reported, not added
+  addSkillToRoadmap: async (skillName, jobId) => {
+    const response = await api.post('/student/roadmap/skills', { skill_name: skillName, job_id: jobId });
+    return response.data;
+  },
+
   getRoadmap: async () => {
     const response = await api.get('/student/get_roadmap');
     return response.data;

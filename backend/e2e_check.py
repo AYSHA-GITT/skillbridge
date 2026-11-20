@@ -258,6 +258,10 @@ def main():
     r, t = timed(s.get, f"{BASE}/api/student/career_recommendations", timeout=180)
     recs = js(r)
     check(A, "Career recommendations", r.status_code == 200, f"{t}s")
+    check(A, "Recommendations link to a jobs domain",
+          any(x.get("job_domain") for x in recs.get("recommendations", [])),
+          str([(x.get("career"), x.get("job_domain")) for x in recs.get("recommendations", [])][:3]))
+    check(A, "Readiness links to a jobs domain", "job_domain" in rb and "target_career_set" in rb, str(rb.get("job_domain")))
     r = s.get(f"{BASE}/api/student/career_recommendation/data analyst", timeout=180)
     check(A, "Single career recommendation", r.status_code == 200)
     r = s.post(f"{BASE}/api/student/compare_careers", json={"careers": ["data analyst", "software engineer"]}, timeout=180)
@@ -662,6 +666,24 @@ def main():
                 check(V, "Cancelled request cannot be accepted", s.post(
                     f"{BASE}/api/candidate/verification_requests/{rid}/respond", json={"action": "accept"}).status_code == 400)
 
+            # ── Roadmap from a job's missing skills ──
+            R = "Roadmap from jobs"
+            m = js(s.get(f"{BASE}/api/student/jobs/{job['id']}/match"))
+            missing = m.get("missing_mandatory_skills") or m.get("missing_preferred_skills") or []
+            if missing:
+                sk = missing[0]
+                r, t = timed(s.post, f"{BASE}/api/student/roadmap/skills", json={"skill_name": sk, "job_id": job["id"]},
+                             timeout=300)
+                check(R, "Add a missing job skill", r.status_code in (200, 201) and js(r).get("on_roadmap") is True,
+                      f"{sk}: HTTP {r.status_code} {t}s {js(r).get('message')}")
+                r = s.post(f"{BASE}/api/student/roadmap/skills", json={"skill_name": sk.upper(), "job_id": job["id"]})
+                check(R, "Same skill again is not duplicated", r.status_code == 200 and js(r).get("added") is False)
+                rm = js(s.get(f"{BASE}/api/student/get_roadmap")).get("roadmap", [])
+                check(R, "Skill appears once on the roadmap", sum(1 for g in rm if g["skill"].lower() == sk.lower()) == 1)
+                m = js(s.get(f"{BASE}/api/student/jobs/{job['id']}/match"))
+                check(R, "Match breakdown knows it is planned", sk.lower() in m.get("roadmap_skills", []))
+            else:
+                check(R, "Add a missing job skill", True, "no missing skill for this job (skipped)", warn=True)
             r = s.put(f"{BASE}/api/candidate/discovery", json={
                 "is_discoverable": True, "consent": True,
                 "visibility": {"sections": {"skills": True, "profile": True}, "skill_filter": "all"}})

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import ProgressBar from '../components/ProgressBar';
 import AlertBanner from '../components/AlertBanner';
@@ -12,8 +12,14 @@ import {
   TbX,
   TbTarget,
   TbClock,
-  TbRoute
+  TbRoute,
+  TbBriefcase
 } from 'react-icons/tb';
+
+/** Jobs page filtered to the career's field (the classifier used for job listings). */
+export const careerJobsLink = (career) => (career.job_domain
+  ? `/jobs?domain=${encodeURIComponent(career.job_domain)}`
+  : `/jobs?q=${encodeURIComponent(career.career)}`);
 
 
 export default function Company() {
@@ -229,6 +235,14 @@ export default function Company() {
                         <span>{selectedForCompare.includes(topMatch.career_key) ? 'Selected' : 'Compare'}</span>
                       </button>
 
+                      <Link
+                        to={careerJobsLink(topMatch)}
+                        className="text-xs py-2 px-3 rounded-xl border surface border-base-700 text-white/70 hover:text-white flex items-center space-x-1"
+                      >
+                        <TbBriefcase className="w-3.5 h-3.5" />
+                        <span>Matching jobs</span>
+                      </Link>
+
                       <button
                         onClick={() => handleSelectRole(topMatch.career)}
                         disabled={updating === topMatch.career}
@@ -382,6 +396,11 @@ export default function Company() {
                           >
                             {isExpanded ? 'Hide Details ▲' : 'View Details ▼'}
                           </button>
+
+                          <Link to={careerJobsLink(career)}
+                            className="text-xs text-white/50 hover:text-accent-300 flex items-center gap-1">
+                            <TbBriefcase className="w-3.5 h-3.5" /> Jobs
+                          </Link>
                         </div>
 
                         <button

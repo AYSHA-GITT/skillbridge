@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import AddToRoadmapButton from '../components/AddToRoadmapButton';
 import AppLayout from '../components/AppLayout';
 import AlertBanner from '../components/AlertBanner';
 import ProgressBar from '../components/ProgressBar';
@@ -146,8 +147,11 @@ export default function Jobs() {
   const [alert, setAlert] = useState(null);
 
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState('All Domains');
+  // Deep links from other pages: ?q=<text>, ?domain=<Jobs domain>, ?skill=<skill>
+  const [initialParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(() => (initialParams.get('q') || '').slice(0, 100));
+  const [selectedDomain, setSelectedDomain] = useState(() =>
+    (DOMAINS.includes(initialParams.get('domain')) ? initialParams.get('domain') : 'All Domains'));
   const [selectedJobType, setSelectedJobType] = useState('All Types');
   const [selectedRegion, setSelectedRegion] = useState('All Regions');
   const [workMode, setWorkMode] = useState('All Work Modes');
@@ -156,7 +160,7 @@ export default function Jobs() {
   const [origin, setOrigin] = useState(''); // '' | 'employer' | 'external'
   const [locationFilter, setLocationFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
-  const [skillFilter, setSkillFilter] = useState('');
+  const [skillFilter, setSkillFilter] = useState(() => (initialParams.get('skill') || '').slice(0, 60));
   const [experienceMax, setExperienceMax] = useState('');
   const [salaryMinLpa, setSalaryMinLpa] = useState('');
   const [datePosted, setDatePosted] = useState('');
@@ -1435,9 +1439,13 @@ export default function Jobs() {
 
                     {/* Missing Skills with Curated Resources */}
                     {(() => {
-                      const missingList = Array.isArray(matchData.missing_mandatory_skills)
+                      const mandatory = Array.isArray(matchData.missing_mandatory_skills)
                         ? matchData.missing_mandatory_skills
                         : (matchData.missing_skills?.mandatory || []);
+                      const preferred = Array.isArray(matchData.missing_preferred_skills)
+                        ? matchData.missing_preferred_skills : [];
+                      const missingList = [...mandatory, ...preferred.filter((p) => !mandatory.includes(p))];
+                      const planned = new Set((matchData.roadmap_skills || []).map((x) => String(x).toLowerCase()));
 
                       return (
                         <div className="space-y-2">
@@ -1458,9 +1466,13 @@ export default function Jobs() {
                                   >
                                     <div className="flex items-center justify-between">
                                       <span className="text-white/80 font-medium">{skill}</span>
-                                      <span className="text-[10px] font-mono text-rose-400">Mandatory</span>
+                                      {mandatory.includes(skill)
+                                        ? <span className="text-[10px] font-mono text-rose-400">Mandatory</span>
+                                        : <span className="text-[10px] font-mono text-amber-300">Preferred</span>}
                                     </div>
                                     <div className="flex items-center gap-2 pt-0.5 text-[10px]">
+                                      <AddToRoadmapButton skill={skill} jobId={matchModalJob?.id}
+                                        initiallyPlanned={planned.has(String(skill).toLowerCase())} />
                                       {links.youtube && (
                                         <a
                                           href={links.youtube}

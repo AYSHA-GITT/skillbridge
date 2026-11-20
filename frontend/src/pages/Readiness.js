@@ -4,7 +4,30 @@ import { ReadinessRadar } from '../components/Charts';
 import ProgressBar from '../components/ProgressBar';
 import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
-import { TbChartRadar, TbBulb } from 'react-icons/tb';
+import NextSteps from '../components/NextSteps';
+import AddToRoadmapButton from '../components/AddToRoadmapButton';
+import {
+  TbChartRadar, TbBulb, TbTarget, TbClipboardCheck, TbRoute, TbBriefcase, TbId
+} from 'react-icons/tb';
+
+/** Concrete next actions derived from the readiness breakdown (exported for tests). */
+export function readinessSteps(data) {
+  if (!data) return [];
+  const b = data.readiness?.breakdown || {};
+  const missing = data.gap_summary?.missing_required || [];
+  const jobsTo = data.job_domain ? `/jobs?domain=${encodeURIComponent(data.job_domain)}` : `/jobs?q=${encodeURIComponent(data.career || '')}`;
+  return [
+    !data.target_career_set && { to: '/careers', icon: TbTarget, label: 'Choose your target career',
+      detail: `This score assumes ${data.career}. Pick the career you are aiming for.` },
+    (b.required_skills_pct ?? 100) < 100 && { to: '/skill-gap', icon: TbTarget, label: 'Analyse your skill gaps',
+      detail: missing.length ? `${missing.length} required skill${missing.length === 1 ? '' : 's'} not verified yet.` : 'See which required skills you still need.' },
+    (b.quiz_proficiency_pct ?? 100) < 70 && { to: '/assessment', icon: TbClipboardCheck, label: 'Verify skills with assessments',
+      detail: 'Quiz proficiency is 30% of this score; the pass mark is 70%.' },
+    { to: '/roadmap', icon: TbRoute, label: 'Continue your learning roadmap', detail: 'Day-by-day plans for your missing skills.' },
+    { to: '/skill-passport', icon: TbId, label: 'Add evidence to your Skill Passport', detail: 'Reviewed projects and certificates also verify skills.' },
+    { to: jobsTo, icon: TbBriefcase, label: `Browse ${data.job_domain || data.career || ''} jobs`, detail: 'Openings ranked by your verified skills.' }
+  ];
+}
 
 export default function Readiness() {
   const [data, setData] = useState(null);
@@ -81,6 +104,22 @@ export default function Readiness() {
                 />
               </div>
             </div>
+
+            {(data?.gap_summary?.missing_required || []).length > 0 && (
+              <div className="glass p-5 rounded-2xl space-y-2">
+                <h3 className="font-heading text-sm font-bold text-white">Required skills to close for {data.career}</h3>
+                <div className="flex flex-wrap gap-2">
+                  {data.gap_summary.missing_required.slice(0, 8).map((s) => (
+                    <div key={s} className="surface px-3 py-2 rounded-xl text-xs flex items-center gap-3">
+                      <span className="text-white capitalize">{s}</span>
+                      <span className="text-[11px]"><AddToRoadmapButton skill={s} /></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <NextSteps steps={readinessSteps(data)} />
 
             {/* Radar & Recommendations Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

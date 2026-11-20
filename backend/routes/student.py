@@ -617,8 +617,15 @@ def analyze_skill_gap_endpoint():
         }), 500
 
     # Save missing required skills into the SkillGap table for
-    # later use (e.g. Learning Roadmap generation)
-    SkillGap.query.filter_by(student_id=current_user.id).delete()
+    # later use (e.g. Learning Roadmap generation). Skills the student added from
+    # a job stay; if the career analysis now lists the same skill, its entry wins.
+    career_missing = [str(x) for k in ('missing_required', 'missing_nice_to_have')
+                      for x in (result.get(k) if isinstance(result.get(k), list) else [])]
+    career_keys = {_skill_key(x) for x in career_missing}
+    for gap in SkillGap.query.filter_by(student_id=current_user.id).all():
+        if not _is_student_added(gap) or _skill_key(gap.missing_skill) in career_keys:
+            db.session.delete(gap)
+    db.session.flush()
 
     missing_req = result.get('missing_required')
     if isinstance(missing_req, list):
@@ -727,6 +734,87 @@ def generate_roadmap():
     return jsonify({'roadmap': _ordered_roadmap(current_user.id)}), 200
 
 
+JOB_GAP_PREFIX = 'From job'   # SkillGap.category of skills added from a job's missing skills
+MANUAL_GAP_LABEL = 'Added by you'   # ...and of skills the student added from other pages
+MAX_ROADMAP_SKILLS = 40
+
+
+def _skill_key(name):
+    from utils.skill_taxonomy import normalize_skill_name
+    return normalize_skill_name(str(name or '')).lower().strip()
+
+
+def _is_job_gap(gap):
+    return (gap.category or '').startswith(JOB_GAP_PREFIX)
+
+
+def _is_student_added(gap):
+    """Added by the student (from a job or another page), so a career re-analysis keeps it."""
+    return _is_job_gap(gap) or (gap.category or '') == MANUAL_GAP_LABEL
+
+
+def roadmap_skill_keys(student_id):
+    """Normalised names of every skill on the student's roadmap (gaps + planned days)."""
+    keys = {_skill_key(g.missing_skill) for g in SkillGap.query.filter_by(student_id=student_id).all()}
+    keys |= {_skill_key(n) for (n,) in db.session.query(StudyPlan.skill_name)
+             .filter(StudyPlan.student_id == student_id).distinct().all()}
+    keys.discard('')
+    return keys
+
+
+@student_bp.route('/roadmap/skills', methods=['POST'])
+@login_required
+def add_skill_to_roadmap():
+    """Add one missing skill (e.g. from a job's match breakdown) to the learning
+    roadmap without regenerating it and without duplicates."""
+    from models import JobListing
+    data = request.get_json(silent=True) or {}
+    skill = str(data.get('skill_name') or '').strip()
+    if not skill or len(skill) > 60:
+        return jsonify({'error': 'skill_name is required (at most 60 characters)'}), 400
+    key = _skill_key(skill)
+    job = None
+    if data.get('job_id') not in (None, ''):
+        try:
+            job = db.session.get(JobListing, int(data.get('job_id')))
+        except (TypeError, ValueError):
+            job = None
+        if _hidden_from_students(job):
+            return jsonify({'error': 'Job listing not found'}), 404
+        job_skills = {_skill_key(x) for x in job.get_required_skills() + job.get_preferred_skills()}
+        if key not in job_skills:
+            return jsonify({'error': 'That skill is not listed for this job'}), 400
+
+    if key in roadmap_skill_keys(current_user.id):
+        return jsonify({'added': False, 'skill_name': skill, 'on_roadmap': True,
+                        'message': f'{skill} is already on your learning roadmap.'}), 200
+    state = next((st for k, st in skill_verification_states(current_user.id).items() if _skill_key(k) == key), None)
+    if state and state['verified']:
+        return jsonify({'added': False, 'skill_name': skill, 'on_roadmap': False, 'verified': True,
+                        'message': f'{skill} is already verified on your profile, so it is not added.'}), 200
+    if SkillGap.query.filter_by(student_id=current_user.id).count() >= MAX_ROADMAP_SKILLS:
+        return jsonify({'error': f'Your roadmap already has {MAX_ROADMAP_SKILLS} skills. Finish or regenerate it first.'}), 400
+
+    required = (data.get('importance') or 'required') != 'preferred'
+    if job is not None:
+        required = key in {_skill_key(x) for x in job.get_required_skills()}
+    label = f"{JOB_GAP_PREFIX}: {job.title}" if job is not None else MANUAL_GAP_LABEL
+    gap = SkillGap(student_id=current_user.id, missing_skill=skill, importance='High' if required else 'Medium',
+                   estimated_days=None, category=label[:100])
+    db.session.add(gap)
+    db.session.flush()
+    for day in ensure_roadmap_template(skill, gap.importance):
+        db.session.add(StudyPlan(student_id=current_user.id, skill_name=skill, day_number=day.day_number,
+                                 topic=day.topic, description=day.description, resource_link=day.resource_hint,
+                                 resource_type='suggested', duration_hours=day.duration_hours, is_completed=False))
+    db.session.commit()
+    group = next((g for g in _ordered_roadmap(current_user.id) if _skill_key(g['skill']) == key), None)
+    return jsonify({'added': True, 'skill_name': skill, 'on_roadmap': True,
+                    'message': f'{skill} was added to your learning roadmap'
+                               + (f' ({len(group["days"])} days).' if group else '.'),
+                    'roadmap_group': group}), 201
+
+
 def _ordered_roadmap(student_id):
     """Roadmap grouped by skill, ordered required gaps first (in the career's
     priority order), then nice-to-have gaps. Each group says whether the skill
@@ -745,6 +833,7 @@ def _ordered_roadmap(student_id):
         gap_order.setdefault(key, (rank.get((g.importance or '').lower(), 3), pos, g))
 
     resume_skills = {s.skill_name.lower(): s for s in Skill.query.filter_by(student_id=student_id).all()}
+    states = skill_verification_states(student_id)
 
     grouped = {}
     for p in plan_rows:
@@ -757,10 +846,15 @@ def _ordered_roadmap(student_id):
     for skill in sorted(grouped, key=sort_key):
         g = gap_order.get((skill or '').lower(), (None, None, None))[2]
         on_resume = resume_skills.get((skill or '').lower())
+        state = states.get((skill or '').lower().strip())
         out.append({
             'skill': skill,
             'importance': g.importance if g else None,
             'category': g.category if g else None,
+            'from_job': bool(g and _is_job_gap(g)),
+            'skill_id': state['skill_id'] if state else None,
+            'skill_status': state['status'] if state else None,
+            'verified': bool(state and state['verified']),
             'already_on_resume': on_resume is not None,
             'evidence_strength': on_resume.evidence_strength if on_resume else None,
             'recommendation': (
@@ -851,8 +945,12 @@ def get_readiness_breakdown():
     db.session.commit()
     record_student_snapshot(current_user.id)
 
+    from utils.job_discovery.normalizer import infer_career_category
+    job_domain = infer_career_category(career, '')
     return jsonify({
         'career': career,
+        'target_career_set': bool(current_user.target_career),
+        'job_domain': None if job_domain == 'Other' else job_domain,   # Jobs page filter for this career
         'readiness': readiness_data,
         'gap_summary': gap_data
     }), 200
@@ -986,6 +1084,12 @@ def get_career_recommendations():
     recommendations = get_all_career_recommendations(
         verified_skills, current_user.target_career
     )
+    # The Jobs page domain for each career (same classifier that categorises job
+    # listings), so a recommendation can link straight to matching openings
+    from utils.job_discovery.normalizer import infer_career_category
+    for rec in recommendations:
+        domain = infer_career_category(rec.get('career_key') or rec.get('career') or '', '')
+        rec['job_domain'] = None if domain == 'Other' else domain
     top = recommendations[0] if recommendations else None
     return jsonify({
         'recommendations': recommendations,
@@ -2013,6 +2117,7 @@ def get_job_match_breakdown(job_id):
 
     payload = {
         **evaluation,
+        'roadmap_skills': sorted(roadmap_skill_keys(current_user.id)),
         'matched_skills': matched_list,
         'matched_skills_dict': evaluation.get('matched_skills'),
         'missing_mandatory_skills': missing_mandatory,

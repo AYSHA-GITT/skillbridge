@@ -1,10 +1,46 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import AppLayout from '../components/AppLayout';
+import NextSteps from '../components/NextSteps';
 import {
   TbCloud, TbMessageCircle, TbChartBar, TbDatabase,
   TbCode, TbTable, TbTarget, TbCheck, TbBrandYoutube,
+  TbClipboardCheck, TbChartRadar, TbBriefcase, TbFileCertificate, TbRosetteDiscountCheck
 } from 'react-icons/tb';
+
+const CATEGORY_LABELS = { Required: 'Required', 'Nice to have': 'Nice to have', Core: 'Core skill' };
+export const categoryLabel = (c) => (c ? CATEGORY_LABELS[c] || c : '');
+
+/** How to turn a studied skill into a verified one, and where it is used. */
+export function SkillGroupActions({ group }) {
+  const allDone = group.days.length > 0 && group.days.every((d) => d.is_completed);
+  return (
+    <div className={`rounded-xl px-3 py-2.5 mb-4 text-xs flex flex-wrap items-center gap-x-4 gap-y-1.5 border ${
+      allDone && !group.verified ? 'border-accent-400/40 bg-accent-500/10' : 'border-white/10 bg-white/5'}`}>
+      {group.verified ? (
+        <span className="text-emerald-300 flex items-center gap-1"><TbRosetteDiscountCheck size={14} /> Verified - well done</span>
+      ) : group.skill_id ? (
+        <>
+          {allDone && <span className="text-accent-200 font-semibold">All days done - verify it now:</span>}
+          <Link to={`/verify-skill/${group.skill_id}`} className="text-accent-300 hover:text-accent-200 flex items-center gap-1">
+            <TbClipboardCheck size={14} /> Take the verification quiz
+          </Link>
+          <Link to={`/skill-passport?evidence_for=${group.skill_id}`} className="text-accent-300 hover:text-accent-200 flex items-center gap-1">
+            <TbFileCertificate size={14} /> Submit project evidence
+          </Link>
+        </>
+      ) : (
+        <Link to="/skill-passport" className="text-accent-300 hover:text-accent-200 flex items-center gap-1">
+          <TbClipboardCheck size={14} /> Add {group.skill} to your Skill Passport to verify it
+        </Link>
+      )}
+      <Link to={`/jobs?skill=${encodeURIComponent(group.skill)}`} className="text-white/60 hover:text-white flex items-center gap-1 ml-auto">
+        <TbBriefcase size={14} /> Jobs that need it
+      </Link>
+    </div>
+  );
+}
 
 function iconForSkill(skillName) {
   const s = skillName.toLowerCase();
@@ -103,8 +139,9 @@ export default function Roadmap() {
   const activeGroup = roadmap.find((g) => g.skill === selectedSkill);
 
   return (
-    <div className="min-h-screen px-6 py-10 max-w-3xl mx-auto">
-      <button onClick={() => navigate('/dashboard')} className="text-white/40 hover:text-white text-sm mb-6">
+    <AppLayout>
+    <div className="max-w-3xl space-y-6">
+      <button onClick={() => navigate('/dashboard')} className="text-white/40 hover:text-white text-sm">
         ← Back to dashboard
       </button>
 
@@ -158,7 +195,7 @@ export default function Roadmap() {
                       <p className="text-sm font-medium mt-2.5 capitalize">{group.skill}</p>
                       <p className="text-xs text-white/40 mt-0.5 mb-1.5">
                         {done} of {total} days
-                        {group.category ? ` · ${group.category === 'Required' ? 'Required' : 'Nice to have'}` : ''}
+                        {group.category ? ` · ${categoryLabel(group.category)}` : ''}
                       </p>
                       <div className="h-0.5 rounded-full bg-base-700 overflow-hidden">
                         <div className="h-full bg-accent-400 rounded-full" style={{ width: `${pct}%` }} />
@@ -173,7 +210,8 @@ export default function Roadmap() {
                   <p className="text-xs font-medium text-white/40 mb-4 capitalize">
                     {activeGroup.skill} — day by day
                   </p>
-                  {activeGroup.recommendation && (
+                  <SkillGroupActions group={activeGroup} />
+                  {activeGroup.recommendation && !activeGroup.verified && (
                     <p className="text-xs text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 mb-4">
                       {activeGroup.recommendation}
                     </p>
@@ -228,6 +266,14 @@ export default function Roadmap() {
           )
         )}
       </div>
+
+      <NextSteps steps={[
+        { to: '/assessment', icon: TbClipboardCheck, label: 'Verify what you have learned', detail: 'Passing a quiz (70%+) marks a skill verified.' },
+        { to: '/readiness', icon: TbChartRadar, label: 'Check your readiness score' },
+        { to: '/jobs', icon: TbBriefcase, label: 'Find jobs and add their missing skills here', detail: 'Use "Add to roadmap" in a job’s match breakdown.' },
+        stage === 'empty' && { to: '/skill-gap', icon: TbTarget, label: 'Run a skill gap analysis first', detail: 'Your roadmap is built from it.' }
+      ]} />
     </div>
+    </AppLayout>
   );
 }

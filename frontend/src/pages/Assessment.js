@@ -1,14 +1,41 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
 import QuizModal from '../components/QuizModal';
 import AlertBanner from '../components/AlertBanner';
 import skillService from '../services/skillService';
+import NextSteps from '../components/NextSteps';
+import AddToRoadmapButton from '../components/AddToRoadmapButton';
 import {
   TbHelp,
   TbArrowRight,
   TbCheck,
-  TbAlertCircle
+  TbAlertCircle,
+  TbId,
+  TbBriefcase,
+  TbChartRadar,
+  TbRoute,
+  TbFileUpload
 } from 'react-icons/tb';
+
+/** What to do after an attempt: a pass goes to the passport and jobs, a fail to retake or study. */
+export function AttemptNextStep({ attempt, onRetake }) {
+  const name = attempt.skill_name;
+  if (attempt.passed) {
+    return (
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        <Link to="/skill-passport" className="text-accent-300 hover:text-accent-200">In your passport</Link>
+        <Link to={`/jobs?skill=${encodeURIComponent(name)}`} className="text-accent-300 hover:text-accent-200">Jobs using it</Link>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <button type="button" onClick={() => onRetake(attempt)} className="text-accent-300 hover:text-accent-200">Retake</button>
+      <AddToRoadmapButton skill={name} />
+    </div>
+  );
+}
 
 export default function Assessment() {
   const [data, setData] = useState({ available: [], completed: [] });
@@ -103,8 +130,12 @@ export default function Assessment() {
               Loading available assessments...
             </div>
           ) : data.available.length === 0 ? (
-            <div className="glass p-6 text-center rounded-xl text-white/50 text-sm">
-              All extracted skills have been verified!
+            <div className="glass p-6 text-center rounded-xl text-white/50 text-sm space-y-2">
+              <p>No skills are waiting for an assessment.</p>
+              <p className="text-xs">
+                <Link to="/upload-resume" className="text-accent-300">Upload a resume</Link> or{' '}
+                <Link to="/skill-passport" className="text-accent-300">add skills in your Skill Passport</Link> to verify more.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -154,6 +185,7 @@ export default function Assessment() {
                     <th className="py-3 px-4">Verification Score</th>
                     <th className="py-3 px-4">Status</th>
                     <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Next step</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-base-800">
@@ -182,6 +214,9 @@ export default function Assessment() {
                       <td className="py-3 px-4 text-white/40 font-mono">
                         {attempt.verified_on ? attempt.verified_on.split('T')[0] : 'N/A'}
                       </td>
+                      <td className="py-3 px-4">
+                        <AttemptNextStep attempt={attempt} onRetake={(a) => setSelectedSkill({ skill_id: a.skill_id, skill_name: a.skill_name })} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -189,6 +224,17 @@ export default function Assessment() {
             </div>
           )}
         </div>
+
+        <NextSteps steps={[
+          data.completed.some((a) => a.passed) && { to: '/skill-passport', icon: TbId, label: 'Share your verified skills',
+            detail: 'Create a share link or become visible to verified employers.' },
+          data.completed.some((a) => !a.passed) && { to: '/roadmap', icon: TbRoute, label: 'Study before retaking',
+            detail: 'Add skills you did not pass to your learning roadmap.' },
+          { to: '/readiness', icon: TbChartRadar, label: 'See your readiness score', detail: 'Assessments make up 30% of it.' },
+          { to: '/jobs', icon: TbBriefcase, label: 'Find jobs that match your verified skills' },
+          data.available.length === 0 && { to: '/upload-resume', icon: TbFileUpload, label: 'Upload a newer resume',
+            detail: 'New skills it mentions become available to verify.' }
+        ]} />
 
         {/* Modal */}
         {selectedSkill && (
