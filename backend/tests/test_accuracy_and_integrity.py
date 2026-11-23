@@ -194,6 +194,26 @@ class SalaryHonestyTests(unittest.TestCase):
         self.assertIn("Illustrative", res["disclaimer"])
         self.assertTrue(salary_predictor.predict_salary(["python"] * 1, 10)["extrapolated"])
 
+    def test_running_app_uses_the_trained_ridge_model(self):
+        # Regression: an empty ml/models/salary.pkl made the load fail silently,
+        # so the app always answered with the fallback heuristic.
+        from ml.salary_model import SalaryPredictor, MODEL_VERSION
+        p = SalaryPredictor()
+        res = p.predict_salary(["python", "sql", "flask", "docker"], 1)
+        self.assertEqual(res["method"], f"Ridge regression ({MODEL_VERSION})")
+        self.assertIsNotNone(p.model)
+        features = p._extract_features(["python", "sql", "flask", "docker"], 1)
+        expected = max(3.5, round(float(p.model.predict([features])[0]), 2))
+        self.assertEqual(res["estimated_lpa"], expected)
+
+    def test_missing_data_falls_back_to_labelled_heuristic(self):
+        from ml.salary_model import SalaryPredictor
+        p = SalaryPredictor()
+        p.data_path = os.path.join(os.path.dirname(__file__), "no_such_salary_data.csv")
+        with self.assertLogs("ml.salary_model", level="ERROR"):
+            res = p.predict_salary(["python"], 0)
+        self.assertEqual(res["method"], "Fallback heuristic (model unavailable)")
+
     def test_evaluation_compares_against_baseline(self):
         from ml.salary_model import SalaryPredictor
         ev = SalaryPredictor().evaluation(n_splits=3, n_repeats=2)

@@ -12,8 +12,8 @@ are labelled 'Advertised by employer' vs 'Estimated by provider'.
 cross-validation (MAE / RMSE / R^2) against a predict-the-mean baseline, so
 any future model change can be compared on the same footing.
 """
+import logging
 import os
-import pickle
 from typing import Any, Dict, cast
 
 import numpy as np
@@ -25,6 +25,8 @@ TARGET = 'avg_salary_lpa'
 RANDOM_STATE = 42
 MODEL_VERSION = 'ridge-v1-a1.0'
 
+logger = logging.getLogger(__name__)
+
 DATA_DISCLAIMER = ('Illustrative estimate from a small (24-row) reference table of undocumented origin. '
                    'Not a market salary and not a guarantee. Compare with salaries advertised in real job listings.')
 
@@ -32,7 +34,6 @@ DATA_DISCLAIMER = ('Illustrative estimate from a small (24-row) reference table 
 class SalaryPredictor:
     def __init__(self):
         self.model = None
-        self.model_path = os.path.join(os.path.dirname(__file__), 'models', 'salary.pkl')
         self.data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'salary_data.csv')
         self._initialized = False
         self._evaluation = None
@@ -41,25 +42,27 @@ class SalaryPredictor:
         return pd.read_csv(self.data_path)
 
     def train_or_load(self):
+        """Fit the Ridge model from the CSV once per process.
+
+        The table has 24 rows, so fitting takes milliseconds. The model is not
+        cached as a pickle: an earlier empty salary.pkl made every load fail
+        silently, so the app always used the fallback heuristic; a pickle also
+        breaks across scikit-learn versions and is lost on hosts whose disk is
+        temporary.
+        """
         if self._initialized:
             return
         self._initialized = True
-        os.makedirs(os.path.dirname(self.model_path), exist_ok=True)
         try:
-            if os.path.exists(self.model_path):
-                with open(self.model_path, 'rb') as f:
-                    self.model = pickle.load(f)
-                return
-
-            if os.path.exists(self.data_path) and os.path.getsize(self.data_path) > 0:
-                df = self._load_data()
-                X = np.asarray(df[FEATURES].values, dtype=np.float64)
-                y = np.asarray(df[TARGET].values, dtype=np.float64)
-                self.model = Ridge(alpha=1.0)
-                self.model.fit(cast(Any, X), cast(Any, y))
-                with open(self.model_path, 'wb') as f:
-                    pickle.dump(self.model, f)
+            df = self._load_data()
+            X = np.asarray(df[FEATURES].values, dtype=np.float64)
+            y = np.asarray(df[TARGET].values, dtype=np.float64)
+            model = Ridge(alpha=1.0)
+            model.fit(cast(Any, X), cast(Any, y))
+            self.model = model
         except Exception:
+            logger.exception('Salary model could not be trained from %s; using the fallback heuristic',
+                             self.data_path)
             self.model = None
 
     # ── Evaluation ──────────────────────────────────────────────────────

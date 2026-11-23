@@ -6,7 +6,7 @@
 [![Gemini](https://img.shields.io/badge/LLM-Google%20Gemini%20Flash-orange.svg?logo=google&logoColor=white)](https://ai.google.dev/)
 [![Federated Learning](https://img.shields.io/badge/Federated%20Learning-Flower%20%7C%20FedAvg%20(simulation)-green.svg)](https://flower.ai/)
 [![CI](https://github.com/AYSHA-GITT/skillbridge/actions/workflows/ci.yml/badge.svg)](https://github.com/AYSHA-GITT/skillbridge/actions/workflows/ci.yml)
-[![Backend tests](https://img.shields.io/badge/Backend%20tests-239%20passing%20(SQLite%20%2B%20PostgreSQL)-brightgreen.svg)](#9-experimental-validation--results)
+[![Backend tests](https://img.shields.io/badge/Backend%20tests-241%20passing%20(SQLite%20%2B%20PostgreSQL)-brightgreen.svg)](#9-experimental-validation--results)
 [![Frontend tests](https://img.shields.io/badge/Frontend%20tests-42%20passing-brightgreen.svg)](#9-experimental-validation--results)
 [![E2E](https://img.shields.io/badge/Live%20E2E%20checks-204%20pass%20%2F%200%20fail-brightgreen.svg)](#9-experimental-validation--results)
 
@@ -25,10 +25,10 @@ The platform also includes:
 - a **Recruiter Portal** with admin-verified organisations, consent-scoped candidate profiles, opaque candidate references, a hiring pipeline, access logs that students can see, and **skill verification requests** that the student accepts or declines;
 - **connected next steps**: every analysis page links to the action it implies (take the quiz, add evidence, add a missing skill to the roadmap, open matching jobs);
 - a **retrieval-augmented career assistant** whose retriever was chosen by measurement (MiniLM Recall@1 = 0.852 vs 0.519 for the previous hashed engine on a 27-query test set);
-- an **illustrative salary estimator** (Ridge regression, evaluated against a mean baseline; see the known issue in Section 19);
+- an **illustrative salary estimator** (Ridge regression, evaluated against a mean baseline);
 - a **federated-learning simulation** (FedAvg over four synthetic partitions with update clipping and Gaussian noise; no formal differential-privacy guarantee is claimed).
 
-The system is checked by 239 isolated backend tests (run on both SQLite and PostgreSQL 17 in GitHub Actions CI), 42 frontend tests and a 204-check live end-to-end script. Password reset uses hashed, single-use, rate-limited tokens.
+The system is checked by 241 isolated backend tests (run on both SQLite and PostgreSQL 17 in GitHub Actions CI), 42 frontend tests and a 204-check live end-to-end script. Password reset uses hashed, single-use, rate-limited tokens.
 
 > **Keywords:** Skill Verification, Skill Passport, Explainable Job Matching, Consent-Based Data Sharing, Applicant Tracking Systems, Retrieval-Augmented Generation (RAG), Adaptive Assessment, Federated Learning, Career Informatics, Responsible AI.
 
@@ -332,7 +332,7 @@ An in-memory store with **strict tenant isolation**: a private chunk is searchab
 
 ### 7.10 Salary estimate
 
-Ridge regression ($\alpha = 1$) over experience, skill count and four domain indicators, trained on `data/salary_data.csv`: **24 rows of undocumented origin that appear hand-constructed**. Outputs are labelled *illustrative estimates* (INR per year) with a disclaimer and an extrapolation flag. Salaries on job cards come from providers and are labelled *Advertised by employer* or *Estimated by provider*.
+Ridge regression ($\alpha = 1$) over experience, skill count and four domain indicators, trained on `data/salary_data.csv`: **24 rows of undocumented origin that appear hand-constructed**. The model is fitted from the CSV once per process at first use (milliseconds); it is not cached as a pickle file. Outputs are labelled *illustrative estimates* (INR per year) with a disclaimer and an extrapolation flag. Salaries on job cards come from providers and are labelled *Advertised by employer* or *Estimated by provider*.
 
 ### 7.11 Federated learning (simulation)
 
@@ -370,7 +370,7 @@ Four partitions of **synthetic** data (uniform random features, heuristic label)
 
 | Suite | Command | Scope | Result (2026-11-20) |
 |---|---|---|---|
-| Isolated backend unit/integration tests | `python -m unittest discover -s tests` | Temporary DB, fake job providers, no network: accuracy & integrity, job system, question bank, Skill Passport, Recruiter Portal, verification consistency and requests, roadmap navigation, password-reset security, SQLite locking, PostgreSQL compatibility | **239 passing on SQLite (foreign keys enforced) and on PostgreSQL 17** |
+| Isolated backend unit/integration tests | `python -m unittest discover -s tests` | Temporary DB, fake job providers, no network: accuracy & integrity, job system, question bank, Skill Passport, Recruiter Portal, verification consistency and requests, roadmap navigation, password-reset security, SQLite locking, PostgreSQL compatibility | **241 passing on SQLite (foreign keys enforced)**; the same suite runs on PostgreSQL 17 in CI (239/239 verified locally before the salary-model fix) |
 | Frontend unit tests | `npm test` | Routing and route guards, password-reset page and token handling, next steps / Add to Roadmap / verification-request UI, API error messages (5 suites) | **42 passing** |
 | Production build | `npm ci && npm run build` | Clean install from the lock file | passes |
 | Migrations | `flask db upgrade` twice on an empty PostgreSQL DB + `flask db check` | Idempotency; models match the schema | clean |
@@ -378,7 +378,7 @@ Four partitions of **synthetic** data (uniform random features, heuristic label)
 | Password-reset end-to-end | scripted, real SMTP | Request, email, verify, reset, reuse, expiry, session sign-out | 19/19 |
 | Headless-browser walkthrough | Chrome, scripted | Student and recruiter flows through the real UI, including an application, the employer preview, a verification request and Add to Roadmap | 72/75 (the 3 flags were checker artefacts) |
 
-Growth of the isolated suite across the project: 77 → 87 → 93 → 110 → 162 → 170 → 173 → 182 → 211 → 229 → 239 tests.
+Growth of the isolated suite across the project: 77 → 87 → 93 → 110 → 162 → 170 → 173 → 182 → 211 → 229 → 239 → 241 tests.
 
 **Continuous integration** (`.github/workflows/ci.yml`, on every push and pull request to `main`): the backend suite on SQLite and on a PostgreSQL 17 service container, a clean install of the pinned `requirements.txt`, migrations on an empty PostgreSQL database, and the frontend `npm ci`, tests and production build. No secrets are used and nothing is deployed; Gemini is pointed at an unreachable address so tests never call it.
 
@@ -465,6 +465,7 @@ Earlier versions of the project reported figures that the code did not support. 
 | Salary predictions shown as market figures | 24-row illustrative training table | Labelled illustrative, with a disclaimer and an extrapolation flag |
 | "Hashed 128-d embeddings" for the assistant | Measurably worse retrieval | Replaced by MiniLM after a measured comparison |
 | Password reset "worked" without email | The API returned the reset link to whoever asked | Link is only emailed to the account's address; tokens hashed and single-use |
+| Salary estimates described as "Ridge regression" | An empty `ml/models/salary.pkl` (committed with the initial project) made every model load fail silently, so the app always used a fallback heuristic | Model is trained from the CSV at start-up, no pickle; a regression test checks the app answers with Ridge (fixed 2026-11-23) |
 | "PostgreSQL supported" | Account deletion and readiness failed on PostgreSQL; tests ran only on SQLite | Fixed; the whole suite now runs on PostgreSQL in CI |
 
 ---
@@ -529,7 +530,7 @@ skillbridge/
 │   │   ├── verification_requests.py # Recruiter verification requests: rules, completion sync
 │   │   ├── password_reset.py       # Hashed single-use reset tokens, rate limits, email
 │   │   └── rate_limit.py, audit.py, job_alerts.py, badge_checker.py, progress_tracker.py
-│   └── tests/                      # Isolated suite (239 tests, temp DB or PostgreSQL, no network)
+│   └── tests/                      # Isolated suite (241 tests, temp DB or PostgreSQL, no network)
 ├── frontend/
 │   └── src/
 │       ├── pages/                  # 30 student/admin/public pages (incl. Forgot/Reset password)
@@ -577,7 +578,7 @@ npm start                                 # http://localhost:3000
 **Tests**
 ```powershell
 cd backend
-python -m unittest discover -s tests -v   # 239 isolated tests; dev data untouched
+python -m unittest discover -s tests -v   # 241 isolated tests; dev data untouched
 # same suite on PostgreSQL (database name must end in _test):
 #   SKILLBRIDGE_TEST_DATABASE_URL=postgresql://user:pass@localhost/skillbridge_test
 python e2e_check.py                       # live check; needs backend and frontend running
@@ -696,7 +697,6 @@ All endpoints use cookie sessions and are scoped to the logged-in account and ro
 
 - **Small evaluation sets:** the retrieval test set (27 queries) and the career documents were written by the authors. The results show a relative difference between methods, not production accuracy.
 - **Salary data:** 24 rows of undocumented, apparently hand-built data. Estimates are illustrative only.
-- **Known issue (salary model not loaded):** `backend/ml/models/salary.pkl` (and `readiness.pkl`, `skill_gap.pkl`) are empty 0-byte files committed with the initial project. The loader tries to unpickle the empty file, fails, and the app falls back to its heuristic estimate (labelled *Fallback heuristic*). The Ridge figures in Section 9.3 come from `SalaryPredictor().evaluation()`, not from the running app, until the empty file is removed and the model is retrained.
 - **Federated learning:** synthetic data, no privacy accountant, no real multi-institution deployment.
 - **Assessment validity:** multiple-choice quizzes measure recall and understanding, not on-the-job performance. The 70% pass mark and the readiness weights are design choices that have not been calibrated against hiring outcomes.
 - **No user study yet:** usability, student outcomes and recruiter trust have not been measured with real participants.
